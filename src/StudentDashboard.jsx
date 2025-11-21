@@ -516,6 +516,39 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
 
           {/* Course Grid */}
           <main className="courses-section">
+            {/* NPTEL-Style Introduction Section */}
+            <div className="platform-intro-section">
+              <div className="intro-header">
+                <h1 className="intro-title">Welcome to iVidhyarthi Online Courses</h1>
+                <p className="intro-subtitle">Enhance skills that meet your learning goals</p>
+                <div className="intro-divider"></div>
+              </div>
+              
+              <div className="intro-content">
+                <p className="intro-description">
+                  iVidhyarthi is a comprehensive online learning platform designed to provide quality education to anyone interested in upskilling. 
+                  Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience 
+                  with practical knowledge and real-world applications.
+                </p>
+                
+                <div className="intro-announcements">
+                  <div className="announcement-item">
+                    <span className="announcement-label">Current Session:</span>
+                    <span className="announcement-value">Jan - April 2026</span>
+                  </div>
+                  <div className="announcement-divider">|</div>
+                  <div className="announcement-item highlight">
+                    <span className="announcement-label">📢 Enrollments are Open!</span>
+                  </div>
+                  <div className="announcement-divider">|</div>
+                  <div className="announcement-item">
+                    <span className="announcement-label">New Batch:</span>
+                    <span className="announcement-value">Starting Soon</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="courses-header">
               <h2>Available Courses ({filteredAndSortedCourses.length})</h2>
             </div>

@@ -1,139 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
-import Logo from './components/Logo';
+import Logo from './Logo';
+import Chatbot from './Chatbot';
 
 const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
-  // Sample course data
-  const courses = [
-    {
-      id: 1,
-      name: "React for Beginners",
-      instructor: "Abha Ma'am",
-      price: 799,
-      rating: 4.5,
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop"
-    },
-    {
-      id: 2,
-      name: "Mastering JavaScript",
-      instructor: "Abha Ma'am",
-      price: 599,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=400&h=300&fit=crop"
-    },
-    {
-      id: 3,
-      name: "Data Structures in C++",
-      instructor: "Bhumika Ma'am",
-      price: 999,
-      rating: 4.2,
-      image: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop"
-    },
-    {
-      id: 4,
-      name: "Python Programming",
-      instructor: "Rakesh Sir",
-      price: 699,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=400&h=300&fit=crop"
-    },
-    {
-      id: 5,
-      name: "Web Development Bootcamp",
-      instructor: "Priti Ma'am",
-      price: 1299,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop"
-    },
-    {
-      id: 6,
-      name: "Machine Learning Basics",
-      instructor: "Rakesh Sir",
-      price: 899,
-      rating: 4.6,
-      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop"
-    },
-    {
-      id: 7,
-      name: "UI/UX Design Fundamentals",
-      instructor: "Rakesh Sir",
-      price: 549,
-      rating: 4.3,
-      image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop"
-    },
-    {
-      id: 8,
-      name: "Database Management",
-      instructor: "Bhavik Sir",
-      price: 749,
-      rating: 4.4,
-      image: "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&h=300&fit=crop"
-    },
-    {
-      id: 9,
-      name: "Cloud Computing with AWS",
-      instructor: "Bhumika Ma'am",
-      price: 1199,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop"
-    },
-    {
-      id: 10,
-      name: "Advanced Data Structures",
-      instructor: "Bhumika Ma'am",
-      price: 899,
-      rating: 4.6,
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop"
-    },
-    {
-      id: 11,
-      name: "Cybersecurity Fundamentals",
-      instructor: "Hardik Sir",
-      price: 1099,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop"
-    },
-    {
-      id: 12,
-      name: "DevOps & CI/CD Pipeline",
-      instructor: "Bhumika Ma'am",
-      price: 999,
-      rating: 4.5,
-      image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=400&h=300&fit=crop"
-    },
-    {
-      id: 13,
-      name: "Blockchain Development",
-      instructor: "Bhumika Ma'am",
-      price: 1399,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400&h=300&fit=crop"
-    },
-    {
-      id: 14,
-      name: "Mobile App Development",
-      instructor: "Jigna Ma'am",
-      price: 849,
-      rating: 4.4,
-      image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=300&fit=crop"
-    },
-    {
-      id: 15,
-      name: "Artificial Intelligence",
-      instructor: "Bhumika Ma'am",
-      price: 1299,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop"
-    },
-    {
-      id: 16,
-      name: "Full Stack Development",
-      instructor: "Abha Ma'am",
-      price: 1499,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop"
-    }
-  ];
+  // State for courses (raw approved list)
+  const [courses, setCourses] = useState([]);
+  // State for filtered/sorted operations (approved only)
+  const [filteredCourses, setFilteredCourses] = useState([]);
 
   // State for filters and search
   const [searchTerm, setSearchTerm] = useState('');
@@ -150,6 +24,30 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef(null);
+
+  // Fetch courses from API on mount
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/tbl-courses');
+        const result = await response.json();
+        // Extract array exactly from result.data
+        const allCourses = Array.isArray(result.data) ? result.data : [];
+        // Keep only admin approved courses
+        const approvedCourses = allCourses.filter((course) => {
+          const statusValue = course.Status || course.status;
+          return typeof statusValue === 'string' && statusValue.toLowerCase() === 'approved';
+        });
+        setCourses(approvedCourses);
+        setFilteredCourses(approvedCourses);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        setCourses([]);
+        setFilteredCourses([]);
+      }
+    };
+    fetchCourses();
+  }, []);
 
   // Voice search setup
   useEffect(() => {
@@ -198,50 +96,46 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
     console.log('Debug - Price range:', priceRange);
     console.log('Debug - Min rating:', minRating);
 
-    let filtered = courses.filter(course => {
-      const matchesSearch = course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+    let filtered = filteredCourses.filter(course => {
+      const matchesSearch = (course.Title || course.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (course.Lecturer_Id || course.instructor || '').toLowerCase().includes(searchTerm.toLowerCase());
       let matchesPrice = true;
+      const coursePrice = course.Price || course.price || 0;
       switch (priceRange) {
         case 'under500':
-          matchesPrice = course.price < 500;
+          matchesPrice = coursePrice < 500;
           break;
         case '500to1000':
-          matchesPrice = course.price >= 500 && course.price <= 1000;
+          matchesPrice = coursePrice >= 500 && coursePrice <= 1000;
           break;
         case 'over1000':
-          matchesPrice = course.price > 1000;
+          matchesPrice = coursePrice > 1000;
           break;
         default:
           matchesPrice = true;
       }
-      const matchesRating = course.rating >= minRating;
+      const courseRating = course.rating || 4.5;
+      const matchesRating = courseRating >= minRating;
       return matchesSearch && matchesPrice && matchesRating;
     });
 
     console.log('Debug - Filtered courses:', filtered.length);
 
-    // Fallback: if no courses match filters, show all courses with a warning
-    if (filtered.length === 0 && (searchTerm || priceRange !== 'all' || minRating > 0)) {
-      console.log('No courses match filters, showing all courses');
-      filtered = courses;
-    }
-
     filtered.sort((a, b) => {
       let aValue, bValue;
       switch (sortBy) {
         case 'price':
-          aValue = a.price;
-          bValue = b.price;
+          aValue = a.Price || a.price || 0;
+          bValue = b.Price || b.price || 0;
           break;
         case 'rating':
-          aValue = a.rating;
-          bValue = b.rating;
+          aValue = a.rating || 4.5;
+          bValue = b.rating || 4.5;
           break;
         case 'name':
         default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          aValue = (a.Title || a.name || '').toLowerCase();
+          bValue = (b.Title || b.name || '').toLowerCase();
           break;
       }
       if (sortOrder === 'asc') {
@@ -252,7 +146,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
     });
 
     return filtered;
-  }, [searchTerm, sortBy, sortOrder, priceRange, minRating]);
+  }, [searchTerm, sortBy, sortOrder, priceRange, minRating, filteredCourses]);
 
   // Reset all filters
   const resetFilters = () => {
@@ -325,11 +219,11 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
           <div className="header-brand">
             <Logo size="large" showText={true} onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
           </div>
-          
+
           <nav className="main-navigation">
             {/* About iVidhyarthi Dropdown */}
             <div className="nav-dropdown">
-              <button 
+              <button
                 className={`nav-dropdown-btn ${activeDropdown === 'about' ? 'active' : ''}`}
                 onClick={() => handleDropdownToggle('about')}
               >
@@ -347,7 +241,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
             {/* All Courses Dropdown */}
             <div className="nav-dropdown">
-              <button 
+              <button
                 className={`nav-dropdown-btn ${activeDropdown === 'courses' ? 'active' : ''}`}
                 onClick={() => handleDropdownToggle('courses')}
               >
@@ -365,7 +259,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
             {/* Initiatives Dropdown */}
             <div className="nav-dropdown">
-              <button 
+              <button
                 className={`nav-dropdown-btn ${activeDropdown === 'initiatives' ? 'active' : ''}`}
                 onClick={() => handleDropdownToggle('initiatives')}
               >
@@ -383,7 +277,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
             {/* FAQ Dropdown */}
             <div className="nav-dropdown">
-              <button 
+              <button
                 className={`nav-dropdown-btn ${activeDropdown === 'faq' ? 'active' : ''}`}
                 onClick={() => handleDropdownToggle('faq')}
               >
@@ -401,7 +295,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
             {/* More Dropdown */}
             <div className="nav-dropdown">
-              <button 
+              <button
                 className={`nav-dropdown-btn ${activeDropdown === 'more' ? 'active' : ''}`}
                 onClick={() => handleDropdownToggle('more')}
               >
@@ -426,7 +320,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
             </button>
           </div>
         </div>
-        
+
         <div className="header-subtitle">
           <p>Discover and enroll in amazing courses</p>
         </div>
@@ -497,7 +391,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
         {/* Overlay backdrop */}
         <div className={`filters-overlay ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(false)}></div>
-        
+
         <div className={`main-content ${showFilters ? 'filters-open' : 'no-filters'}`}>
           {/* Filters Sidebar */}
           <aside
@@ -613,23 +507,23 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
                   </div>
                 )}
                 {filteredAndSortedCourses.map(course => (
-                  <div key={course.id} className="course-card">
+                  <div key={course.Course_Id || course.id} className="course-card">
                     <div className="course-image">
-                      <img src={course.image} alt={course.name} />
+                      <img src={course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop'} alt={course.Title || course.name} />
                     </div>
                     <div className="course-content">
                       <div className="course-info-row">
-                        <h3 className="course-name">{course.name}</h3>
-                        <p className="course-instructor">by {course.instructor}</p>
+                        <h3 className="course-name">{course.Title || course.name}</h3>
+                        <p className="course-instructor">by {course.Lecturer_Id || course.instructor}</p>
                       </div>
                       <div className="price-button-row">
                         <div className="course-price">
-                          ₹{course.price}
+                          ₹{course.Price || course.price}
                         </div>
                         <button className="enroll-btn" onClick={() => handleEnroll(course)}>Enroll Now</button>
                       </div>
                       <div className="course-rating">
-                        {renderStars(course.rating)}
+                        {renderStars(course.rating || 4.5)}
                       </div>
                     </div>
                   </div>
@@ -649,6 +543,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
           </main>
         </div>
       </div>
+      <Chatbot />
     </div>
   );
 };

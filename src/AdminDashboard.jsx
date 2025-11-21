@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './AdminDashboard.css';
-import Logo from './components/Logo';
+import Logo from './Logo';
 
 const AdminDashboard = ({ onLogout }) => {
+  // State for category management
+  const [categories, setCategories] = useState([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
   const [activePanel, setActivePanel] = useState('overview');
   const [stats, setStats] = useState({
     totalUsers: 1247,
@@ -19,53 +24,195 @@ const AdminDashboard = ({ onLogout }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch students from MongoDB
-  useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:5000/api/auth/students');
-        const result = await response.json();
-        
-        console.log('Admin Dashboard - API Response:', result);
-        
-        if (result.success) {
-          // Format data for display
-          const formattedUsers = result.data.map(student => ({
-            id: student._id,
-            name: student.name,
-            email: student.email,
-            role: student.role || 'Student',
-            status: student.isActive !== false ? 'Active' : 'Inactive',
-            joinDate: new Date(student.createdAt || Date.now()).toLocaleDateString(),
-            phone: student.phone || 'N/A',
-            institution: student.education?.institution || 'N/A',
-            course: student.education?.course || 'N/A',
-            semester: student.education?.semester || 'N/A'
-          }));
-          setUsers(formattedUsers);
-          
-          // Update stats with real data
-          setStats(prev => ({
-            ...prev,
-            totalUsers: result.count
-          }));
-        } else {
-          console.error('Failed to fetch students:', result.message);
-        }
-      } catch (error) {
-        console.error('Error fetching students:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // All university requests (pending, approved, rejected)
+  const [pendingUniversities, setPendingUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(false);
 
-    fetchStudents();
-    
-    // Refresh data every 30 seconds to show new registrations
-    const interval = setInterval(fetchStudents, 30000);
+  // Fetch all universities with registrar contact from MongoDB
+  const fetchPendingUniversities = async () => {
+    try {
+      setUniversitiesLoading(true);
+      const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
+
+      // Fetch all universities
+      const universitiesResponse = await fetch('http://localhost:5000/api/admin/universities/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!universitiesResponse.ok) {
+        throw new Error('Failed to fetch universities');
+      }
+
+      const universitiesResult = await universitiesResponse.json();
+
+      if (!universitiesResult.success) {
+        throw new Error(universitiesResult.message || 'Failed to fetch universities');
+      }
+
+      // Fetch registrars to get contact numbers
+      const registrarsResponse = await fetch('http://localhost:5000/api/registrar/get-registrars', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let registrarsMap = {};
+      if (registrarsResponse.ok) {
+        const registrarsResult = await registrarsResponse.json();
+        if (registrarsResult.success && registrarsResult.data) {
+          // Create a map of University_Id to Contact_No
+          registrarsMap = registrarsResult.data.reduce((map, registrar) => {
+            if (registrar.University_Id) {
+              map[registrar.University_Id.toString()] = registrar.Contact_No;
+            }
+            return map;
+          }, {});
+        }
+      }
+
+      // Merge university data with registrar contact
+      const universitiesWithContact = universitiesResult.data.map(uni => ({
+        ...uni,
+        Contact_No: registrarsMap[uni._id?.toString()] || registrarsMap[uni.University_Id?.toString()] || '—'
+      }));
+
+      console.log('Admin Dashboard - Universities with Contact:', universitiesWithContact);
+
+      setPendingUniversities(universitiesWithContact);
+
+      // Update stats with real data
+      const pendingCount = universitiesWithContact.filter(u => u.Verification_Status === 'pending').length;
+      setStats(prev => ({
+        ...prev,
+        pendingApprovals: pendingCount
+      }));
+    } catch (error) {
+      console.error('Error fetching universities:', error);
+      // Fallback: try to fetch just universities without contact
+      try {
+        const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
+        const fallbackResponse = await fetch('http://localhost:5000/api/admin/universities/all', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (fallbackResponse.ok) {
+          const fallbackResult = await fallbackResponse.json();
+          if (fallbackResult.success) {
+            setPendingUniversities(fallbackResult.data.map(uni => ({ ...uni, Contact_No: '—' })));
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Fallback fetch also failed:', fallbackError);
+      }
+    } finally {
+      setUniversitiesLoading(false);
+    }
+  };
+
+  // Fetch categories 
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('auth_token') || '';
+      const response = await fetch('http://localhost:5000/api/course-categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const result = await response.json();
+      console.log('Categories API Response:', result);
+      if (result.success) {
+        setCategories(result.data);
+      } else {
+        console.error('Failed to fetch categories:', result.message);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+    }
+  };
+
+  // Fetch students from MongoDB
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+
+      // Check if we have a token
+      if (!token) {
+        console.error('No authentication token found');
+        alert('Please log in to access user management');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/users', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch users');
+      }
+
+      console.log('Fetched users:', result.data);
+      setUsers(Array.isArray(result.data) ? result.data : []);
+
+      console.log('Admin Dashboard - Students API Response:', result);
+
+      if (result.success) {
+        setUsers(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Only fetch users when the admin panel is active
+    if (activePanel === 'users') {
+      fetchStudents();
+    }
+    if (activePanel === 'courses') {
+      fetchCourses();
+    }
+    fetchCategories();
+    fetchPendingUniversities();
+    fetchCourseCategories();
+  }, [activePanel]);
+
+  // Refresh data every 30 seconds to show new registrations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (activePanel === 'users') {
+        fetchStudents();
+      }
+      if (activePanel === 'courses') {
+        fetchCourses();
+      }
+      fetchPendingUniversities();
+    }, 30000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [activePanel]);
+
 
   // Action handlers for User Management
   const handleEditUser = (userId) => {
@@ -77,6 +224,59 @@ const AdminDashboard = ({ onLogout }) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       setUsers(users.filter(user => user.id !== userId));
       alert('User deleted successfully!');
+    }
+  };
+
+  // Action handlers for University Approval
+  const handleApproveUniversity = async (universityId) => {
+    try {
+      // Use stored token if present else fallback to mock admin token accepted by backend
+      const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
+
+      const response = await fetch(`http://localhost:5000/api/admin/universities/${universityId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        alert('University approved successfully!');
+        fetchPendingUniversities(); // Refresh the list
+      } else {
+        alert('Failed to approve university: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error approving university:', error);
+      alert('Error approving university');
+    }
+  };
+
+  const handleRejectUniversity = async (universityId) => {
+    try {
+      // Use stored token if present else fallback to mock admin token accepted by backend
+      const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
+
+      const response = await fetch(`http://localhost:5000/api/admin/universities/${universityId}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        alert('University rejected successfully!');
+        fetchPendingUniversities(); // Refresh the list
+      } else {
+        alert('Failed to reject university: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting university:', error);
+      alert('Error rejecting university');
     }
   };
 
@@ -93,40 +293,226 @@ Join Date: ${user.joinDate}
 Institution: ${user.institution}
 Course: ${user.course}
 Semester: ${user.semester}
-    `.trim();
+`.trim();
     alert(details);
   };
 
-  const [courses, setCourses] = useState([
-    { id: 1, name: 'React for Beginners', instructor: 'Abha Ma\'am', status: 'Approved', students: 45, revenue: 35955 },
-    { id: 2, name: 'Python Programming', instructor: 'Rakesh Sir', status: 'Pending', students: 0, revenue: 0 },
-    { id: 3, name: 'Machine Learning', instructor: 'Bhumika Ma\'am', status: 'Approved', students: 32, revenue: 28768 }
-  ]);
+  // Course management state
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [viewingCourse, setViewingCourse] = useState(null);
+  const [courseCategories, setCourseCategories] = useState([]);
 
-  // Action handlers for Course Management
-  const handleApproveCourse = (courseId) => {
-    setCourses(courses.map(course =>
-      course.id === courseId ? { ...course, status: 'Approved' } : course
-    ));
-    alert('Course approved successfully!');
+  // Fetch all courses from backend
+  const fetchCourses = async () => {
+    try {
+      setCoursesLoading(true);
+      const response = await fetch('http://localhost:5000/api/tbl-courses');
+      const result = await response.json();
+
+      console.log('Courses API Response:', result);
+
+      if (result.success && result.data) {
+        setCourses(result.data);
+
+        // Update stats
+        const pendingCount = result.data.filter(c => c.status === 'pending').length;
+        const approvedCount = result.data.filter(c => c.status === 'approved').length;
+
+        setStats(prev => ({
+          ...prev,
+          activeCourses: approvedCount,
+          pendingApprovals: prev.pendingApprovals + pendingCount
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    } finally {
+      setCoursesLoading(false);
+    }
   };
 
-  const handleRejectCourse = (courseId) => {
-    setCourses(courses.map(course =>
-      course.id === courseId ? { ...course, status: 'Rejected' } : course
-    ));
-    alert('Course rejected!');
+  // Fetch course categories for mapping
+  const fetchCourseCategories = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/course-categories');
+      const result = await response.json();
+      if (result.success && result.data) {
+        setCourseCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching course categories:', error);
+    }
   };
 
-  const handleEditCourse = (courseId) => {
-    alert(`Editing course with ID: ${courseId}`);
-    // Implementation: Open course edit modal
+  // Course Management Handlers
+  const handleApproveCourse = async (courseId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/tbl-courses/${courseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'approved' })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('✓ Course approved successfully!');
+        fetchCourses(); // Refresh course list
+      } else {
+        alert('Failed to approve course: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error approving course:', error);
+      alert('Error approving course. Please try again.');
+    }
   };
 
-  const handleViewCourseDetails = (courseId) => {
-    const course = courses.find(c => c.id === courseId);
-    alert(`Course Details:\nName: ${course.name}\nInstructor: ${course.instructor}\nStatus: ${course.status}\nStudents: ${course.students}`);
+  const handleRejectCourse = async (courseId) => {
+    if (!window.confirm('Are you sure you want to reject this course?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/tbl-courses/${courseId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('✓ Course rejected!');
+        fetchCourses(); // Refresh course list
+      } else {
+        alert('Failed to reject course: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting course:', error);
+      alert('Error rejecting course. Please try again.');
+    }
   };
+
+  const handleViewCourse = (course) => {
+    setViewingCourse(course);
+  };
+
+  const closeViewCourse = () => {
+    setViewingCourse(null);
+  };
+
+  // Get category name from Category_Id
+  const getCategoryName = (categoryId) => {
+    const category = courseCategories.find(cat => cat.Category_Id === categoryId);
+    return category ? category.Category_Name : `Category ${categoryId}`;
+  };
+
+  // Get course thumbnail initials
+  const getCourseInitials = (title) => {
+    const words = title.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return title.substring(0, 2).toUpperCase();
+  };
+
+  // Category Management Handlers
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.trim()) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/course-categories', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ Category_Name: newCategory }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setCategories([...categories, result.data]);
+        setNewCategory('');
+        alert('Category added successfully!');
+      } else {
+        alert(result.message || 'Failed to add category');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+      alert('Error adding category. Please try again.');
+    }
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategory(category);
+    setEditCategoryName(category.Category_Name);
+  };
+
+  const handleUpdateCategory = async (e) => {
+    e.preventDefault();
+    if (!editCategoryName.trim()) return;
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/course-categories/${editingCategory._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ Category_Name: editCategoryName }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setCategories(categories.map(cat =>
+          cat._id === editingCategory._id
+            ? { ...cat, Category_Name: editCategoryName }
+            : cat
+        ));
+        setEditingCategory(null);
+        setEditCategoryName('');
+        alert('Category updated successfully!');
+      } else {
+        alert(result.message || 'Failed to update category');
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
+      alert('Error updating category. Please try again.');
+    }
+  };
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/course-categories/${categoryId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setCategories(categories.filter(cat => cat._id !== categoryId));
+        alert('Category deleted successfully!');
+      } else {
+        alert(result.message || 'Failed to delete category');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      alert('Error deleting category. Please try again.');
+    }
+  };
+
+  // Course management handlers removed as per requirements
 
   const [transactions, setTransactions] = useState([
     { id: 1, user: 'Om Jariwala', course: 'React for Beginners', amount: 799, status: 'Completed', date: '2024-03-15' },
@@ -251,14 +637,14 @@ Semester: ${user.semester}
   const menuItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
     { id: 'users', label: 'User Management', icon: '👥' },
-    { id: 'courses', label: 'Course & Content', icon: '📚' },
+    { id: 'courses', label: 'Course Categories', icon: '📚' },
     { id: 'payments', label: 'Payments & Transactions', icon: '💳' },
     { id: 'feedback', label: 'Feedback & Reviews', icon: '⭐' },
     { id: 'live', label: 'Live Session Monitor', icon: '🎥' },
     { id: 'chatbot', label: 'Chatbot Management', icon: '🤖' },
     { id: 'exams', label: 'Exam & Certification', icon: '🎓' },
     { id: 'analytics', label: 'Reports & Analytics', icon: '📈' },
-    { id: 'approvals', label: 'Registrar Approvals', icon: '✅' }
+    { id: 'approvals', label: 'University Approvals', icon: '✅' }
   ];
 
   const renderOverview = () => (
@@ -303,110 +689,435 @@ Semester: ${user.semester}
         <h3>Quick Actions</h3>
         <div className="action-buttons">
           <button className="action-btn" onClick={() => setActivePanel('users')}>
-            👥 Manage Users
+            <span className="action-icon">👥</span>
+            <span className="action-label">Manage Users</span>
           </button>
           <button className="action-btn" onClick={() => setActivePanel('courses')}>
-            📚 Review Courses
+            <span className="action-icon">📚</span>
+            <span className="action-label">Review Courses</span>
           </button>
           <button className="action-btn" onClick={() => setActivePanel('payments')}>
-            💳 Check Payments
+            <span className="action-icon">💳</span>
+            <span className="action-label">Check Payments</span>
           </button>
           <button className="action-btn" onClick={() => setActivePanel('feedback')}>
-            ⭐ Review Feedback
+            <span className="action-icon">⭐</span>
+            <span className="action-label">Review Feedback</span>
           </button>
         </div>
       </div>
     </div>
   );
 
-  const renderUserManagement = () => (
-    <div className="user-management-panel">
-      <h2>👥 User Management</h2>
-      <div className="panel-controls">
-        <button className="btn-primary">Add New User</button>
-        <button className="btn-secondary">Export Users</button>
-        <input type="text" placeholder="Search users..." className="search-input" />
-      </div>
-      <div className="users-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Join Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+  const renderUserManagement = () => {
+    // If we're not on the users panel, don't render anything
+    if (activePanel !== 'users') return null;
+
+    return (
+      <div className="user-management-panel">
+        <h2>👥 User Management</h2>
+        <div className="panel-controls">
+          <button className="btn-primary">Add New User</button>
+          <button className="btn-secondary">Export Users</button>
+          <input type="text" placeholder="Search users..." className="search-input" />
+        </div>
+        <div className="users-table">
+          <table>
+            <thead>
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
-                  Loading students...
-                </td>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Join Date</th>
+                <th>Actions</th>
               </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
-                  No students registered yet
-                </td>
-              </tr>
-            ) : (
-              users.map(user => (
-                <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td><span className={`role-badge ${user.role.toLowerCase()}`}>{user.role}</span></td>
-                  <td><span className={`status-badge ${user.status.toLowerCase()}`}>{user.status}</span></td>
-                  <td>{user.joinDate}</td>
-                  <td>
-                    <button className="btn-edit" onClick={() => handleEditUser(user.id)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDeleteUser(user.id)}>Delete</button>
-                    <button className="btn-view" onClick={() => handleViewUser(user.id)}>View</button>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div className="loading-spinner">Loading users...</div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                    <div className="no-users-message">
+                      <p>No users found</p>
+                      <button
+                        className="btn-primary"
+                        onClick={fetchStudents}
+                        style={{ marginTop: '10px' }}
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                users.map(user => (
+                  <tr key={user._id || user.id}>
+                    <td>{user.name || 'N/A'}</td>
+                    <td>{user.email || 'N/A'}</td>
+                    <td><span className={`role-badge ${(user.role || 'user').toLowerCase()}`}>
+                      {user.role || 'User'}
+                    </span></td>
+                    <td><span className={`status-badge ${(user.status || 'active').toLowerCase()}`}>
+                      {user.status || 'Active'}
+                    </span></td>
+                    <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                      <button
+                        className="btn-edit"
+                        onClick={() => handleEditUser(user._id || user.id)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-delete"
+                        onClick={() => handleDeleteUser(user._id || user.id)}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        className="btn-view"
+                        onClick={() => handleViewUser(user._id || user.id)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCourseManagement = () => (
     <div className="course-management-panel">
-      <h2>📚 Course & Content Management</h2>
-      <div className="panel-controls">
-        <button className="btn-primary">Add New Course</button>
-        <button className="btn-secondary">Bulk Actions</button>
-        <select className="filter-select">
-          <option>All Courses</option>
-          <option>Pending Approval</option>
-          <option>Approved</option>
-          <option>Rejected</option>
-        </select>
+      <h2>📚 Course Management</h2>
+
+      {/* Category Management Section */}
+      <div className="category-management">
+        <h3>Manage Course Categories</h3>
+        <div className="category-form">
+          {editingCategory ? (
+            <form onSubmit={handleUpdateCategory} className="edit-category-form">
+              <input
+                type="text"
+                value={editCategoryName}
+                onChange={(e) => setEditCategoryName(e.target.value)}
+                placeholder="Enter category name"
+                required
+              />
+              <button type="submit" className="btn-primary">Update Category</button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditingCategory(null);
+                  setEditCategoryName('');
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleAddCategory} className="add-category-form">
+              <input
+                type="text"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                placeholder="Enter new category name"
+                required
+              />
+              <button type="submit" className="btn-primary">Add Category</button>
+            </form>
+          )}
+        </div>
+
+        <div className="categories-list">
+          {categories.length === 0 ? (
+            <p>No categories found. Add your first category above.</p>
+          ) : (
+            <div className="categories-grid">
+              {categories.map((category) => (
+                <div key={category._id} className="category-card">
+                  <span className="category-name">{category.Category_Name}</span>
+                  <div className="category-actions">
+                    <button
+                      className="btn-edit"
+                      onClick={() => handleEditCategory(category)}
+                    >
+                      <i className="fas fa-edit"></i> Edit
+                    </button>
+                    <button
+                      className="btn-delete"
+                      onClick={() => handleDeleteCategory(category._id)}
+                    >
+                      <i className="fas fa-trash"></i> Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="courses-grid">
-        {courses.map(course => (
-          <div key={course.id} className="course-admin-card">
-            <div className="course-header">
-              <h3>{course.name}</h3>
-              <span className={`status-badge ${course.status.toLowerCase()}`}>{course.status}</span>
+
+      {/* Courses Section - Table Layout */}
+      <div className="courses-section">
+        {/* View Course Modal */}
+        {viewingCourse && (
+          <>
+            <div className="admin-modal-overlay" onClick={closeViewCourse} />
+            <div className="admin-modal admin-modal-large">
+              <div className="admin-modal-header">
+                <h3>📚 Course Details</h3>
+                <button className="btn-close" onClick={closeViewCourse}>×</button>
+              </div>
+              <div className="admin-modal-body">
+                <div className="course-detail-grid">
+                  <div className="course-detail-main">
+                    <div className="course-detail-section">
+                      <h4>Course Title</h4>
+                      <p className="detail-title">{viewingCourse.Title}</p>
+                    </div>
+
+                    <div className="course-detail-section">
+                      <h4>Full Description</h4>
+                      <p className="detail-description">{viewingCourse.Description || 'No description provided'}</p>
+                    </div>
+
+                    <div className="course-detail-row">
+                      <div className="course-detail-section">
+                        <h4>Category</h4>
+                        <p>{getCategoryName(viewingCourse.Category_Id)}</p>
+                      </div>
+                      <div className="course-detail-section">
+                        <h4>Status</h4>
+                        <span className={`status-badge status-${viewingCourse.status || 'pending'}`}>
+                          {viewingCourse.status || 'pending'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="course-detail-row">
+                      <div className="course-detail-section">
+                        <h4>Price</h4>
+                        <p className="detail-price">₹{viewingCourse.Price.toLocaleString()}</p>
+                      </div>
+                      <div className="course-detail-section">
+                        <h4>Duration</h4>
+                        <p>{viewingCourse.Duration || 'Not specified'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="course-detail-sidebar">
+                    <div className="course-detail-section">
+                      <h4>Lecturer Information</h4>
+                      <p><strong>Email:</strong> {viewingCourse.Lecturer_Id}</p>
+                    </div>
+
+                    <div className="course-detail-section">
+                      <h4>Course ID</h4>
+                      <p>{viewingCourse.Course_Id}</p>
+                    </div>
+
+                    <div className="course-detail-section">
+                      <h4>Created Date</h4>
+                      <p>{new Date(viewingCourse.Created_At).toLocaleString('en-IN', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}</p>
+                    </div>
+
+                    <div className="course-detail-section">
+                      <h4>Active Status</h4>
+                      <p>{viewingCourse.Is_Active ? '✓ Active' : '✗ Inactive'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="admin-modal-footer">
+                {viewingCourse.status !== 'approved' && (
+                  <button
+                    className="btn-modal-approve"
+                    onClick={() => {
+                      closeViewCourse();
+                      handleApproveCourse(viewingCourse.Course_Id);
+                    }}
+                  >
+                    <i className="fas fa-check"></i> Approve Course
+                  </button>
+                )}
+                {viewingCourse.status !== 'rejected' && (
+                  <button
+                    className="btn-modal-reject"
+                    onClick={() => {
+                      closeViewCourse();
+                      handleRejectCourse(viewingCourse.Course_Id);
+                    }}
+                  >
+                    <i className="fas fa-times"></i> Reject Course
+                  </button>
+                )}
+                <button className="btn-modal-close" onClick={closeViewCourse}>Close</button>
+              </div>
             </div>
-            <div className="course-details">
-              <p><strong>Instructor:</strong> {course.instructor}</p>
-              <p><strong>Students:</strong> {course.students}</p>
-              <p><strong>Revenue:</strong> ₹{course.revenue.toLocaleString()}</p>
+          </>
+        )}
+
+        {/* Pending Courses Table */}
+        <h3 className="courses-section-heading">
+          <i className="fas fa-clock"></i> Pending Courses
+        </h3>
+        <div className="courses-table-wrapper">
+          {coursesLoading ? (
+            <div className="loading-indicator">
+              <div className="spinner"></div>
+              <p>Loading courses...</p>
             </div>
-            <div className="course-actions">
-              <button className="btn-approve" onClick={() => handleApproveCourse(course.id)}>Approve</button>
-              <button className="btn-reject" onClick={() => handleRejectCourse(course.id)}>Reject</button>
-              <button className="btn-edit" onClick={() => handleEditCourse(course.id)}>Edit</button>
-              <button className="btn-view" onClick={() => handleViewCourseDetails(course.id)}>View Details</button>
+          ) : courses.filter(course => (course.status || 'pending') === 'pending').length > 0 ? (
+            <table className="courses-table">
+              <thead>
+                <tr>
+                  <th>Course Title</th>
+                  <th>Category</th>
+                  <th>Lecturer Email</th>
+                  <th>Price</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Date Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {courses
+                  .filter(course => (course.status || 'pending') === 'pending')
+                  .map((course) => (
+                    <tr key={course.Course_Id || course._id}>
+                      <td className="course-title-cell">{course.Title}</td>
+                      <td>{getCategoryName(course.Category_Id)}</td>
+                      <td>{course.Lecturer_Id}</td>
+                      <td className="price-cell">₹{course.Price.toLocaleString()}</td>
+                      <td>{course.Duration || 'N/A'}</td>
+                      <td>
+                        <span className="status-badge status-pending">
+                          {course.status || 'pending'}
+                        </span>
+                      </td>
+                      <td>{new Date(course.Created_At).toLocaleDateString('en-IN')}</td>
+                      <td className="actions-cell">
+                        <button
+                          className="btn-approve"
+                          onClick={() => handleApproveCourse(course.Course_Id)}
+                          title="Approve this course"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={() => handleRejectCourse(course.Course_Id)}
+                          title="Reject this course"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          className="btn-view"
+                          onClick={() => handleViewCourse(course)}
+                          title="View full details"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="no-courses-message">
+              <i className="fas fa-inbox"></i>
+              <p>No pending courses for approval</p>
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+
+        {/* Approved Courses Table */}
+        <h3 className="courses-section-heading" style={{ marginTop: '3rem' }}>
+          <i className="fas fa-check-circle"></i> Approved Courses
+        </h3>
+        <div className="courses-table-wrapper">
+          {coursesLoading ? (
+            <div className="loading-indicator">
+              <div className="spinner"></div>
+              <p>Loading courses...</p>
+            </div>
+          ) : courses.filter(course => course.status === 'approved').length > 0 ? (
+            <table className="courses-table">
+              <thead>
+                <tr>
+                  <th>Course Title</th>
+                  <th>Category</th>
+                  <th>Lecturer Email</th>
+                  <th>Price</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Date Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {courses
+                  .filter(course => course.status === 'approved')
+                  .map((course) => (
+                    <tr key={course.Course_Id || course._id}>
+                      <td className="course-title-cell">{course.Title}</td>
+                      <td>{getCategoryName(course.Category_Id)}</td>
+                      <td>{course.Lecturer_Id}</td>
+                      <td className="price-cell">₹{course.Price.toLocaleString()}</td>
+                      <td>{course.Duration || 'N/A'}</td>
+                      <td>
+                        <span className="status-badge status-approved">
+                          {course.status}
+                        </span>
+                      </td>
+                      <td>{new Date(course.Created_At).toLocaleDateString('en-IN')}</td>
+                      <td className="actions-cell">
+                        <button
+                          className="btn-view"
+                          onClick={() => handleViewCourse(course)}
+                          title="View full details"
+                        >
+                          View
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={() => handleRejectCourse(course.Course_Id)}
+                          title="Revoke approval"
+                        >
+                          Revoke
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="no-courses-message">
+              <i className="fas fa-check-double"></i>
+              <p>No approved courses yet</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -696,59 +1407,255 @@ Semester: ${user.semester}
     </div>
   );
 
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Requests');
+
+  // Handle sorting
+  const requestSort = (key) => {
+    let direction = 'asc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Apply sorting and filtering
+  const getSortedAndFilteredUniversities = () => {
+    let filtered = [...pendingUniversities];
+
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(uni =>
+        (uni.University_Name && uni.University_Name.toLowerCase().includes(term)) ||
+        (uni.University_Email && uni.University_Email.toLowerCase().includes(term)) ||
+        (uni.Contact_No && uni.Contact_No.includes(term))
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter !== 'All Requests') {
+      filtered = filtered.filter(uni =>
+        uni.Verification_Status && uni.Verification_Status.toLowerCase() === statusFilter.toLowerCase()
+      );
+    }
+
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aValue = a[sortConfig.key] || '';
+        let bValue = b[sortConfig.key] || '';
+
+        // Handle date comparison
+        if (sortConfig.key === 'createdAt') {
+          aValue = new Date(aValue).getTime();
+          bValue = new Date(bValue).getTime();
+        } else {
+          // Convert to string for case-insensitive comparison
+          aValue = String(aValue).toLowerCase();
+          bValue = String(bValue).toLowerCase();
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  };
+
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return '↕';
+    return sortConfig.direction === 'asc' ? '↑' : '↓';
+  };
+
   const renderApprovals = () => {
-    let profile = {};
-    try { profile = JSON.parse(localStorage.getItem('registrar_profile') || '{}'); } catch {}
-    const isRegistered = !!localStorage.getItem('registrar_user');
-    const approved = localStorage.getItem('registrar_approved') === 'true';
-
-    const approve = () => {
-      localStorage.setItem('registrar_approved', 'true');
-      alert('Registrar approved. They can now manage institutes.');
-      setStats(prev => ({ ...prev, pendingApprovals: Math.max(0, (prev.pendingApprovals || 0) - 1) }));
-    };
-
-    const reject = () => {
-      localStorage.setItem('registrar_approved', 'false');
-      alert('Registrar rejected.');
-    };
+    const sortedAndFilteredUniversities = getSortedAndFilteredUniversities();
 
     return (
-      <div className="user-management-panel">
-        <h2>✅ Registrar Approvals</h2>
-        {!isRegistered ? (
-          <div className="panel-controls">
-            <span>No registrar registration found yet.</span>
+      <div className="approvals-panel">
+        <div className="approvals-header">
+          <h2>✅ University Approvals</h2>
+          <div className="approvals-stats">
+            <span className="stat-badge">
+              <span className="stat-label">Total:</span> {pendingUniversities.length}
+            </span>
+            <span className="stat-badge">
+              <span className="stat-label">Pending:</span> {pendingUniversities.filter(u => u.Verification_Status === 'pending').length}
+            </span>
+            <span className="stat-badge">
+              <span className="stat-label">Approved:</span> {pendingUniversities.filter(u => u.Verification_Status === 'verified').length}
+            </span>
+            <span className="stat-badge">
+              <span className="stat-label">Rejected:</span> {pendingUniversities.filter(u => u.Verification_Status === 'rejected').length}
+            </span>
           </div>
-        ) : (
-          <div className="users-table">
-            <table>
-              <thead>
+        </div>
+
+        <div className="panel-controls">
+          <div className="search-wrapper">
+            <input
+              type="text"
+              placeholder="Search universities..."
+              className="search-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <span className="search-icon">🔍</span>
+          </div>
+          <select
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="All Requests">All Requests</option>
+            <option value="Pending">Pending</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+          </select>
+        </div>
+        <div className="approvals-table">
+          <table>
+            <thead>
+              <tr>
+                <th
+                  className="sortable"
+                  onClick={() => requestSort('University_Name')}
+                >
+                  <div className="sort-header">
+                    University Name
+                    <span className={`sort-indicator ${sortConfig.key === 'University_Name' ? 'active' : ''}`}>
+                      {getSortIndicator('University_Name')}
+                    </span>
+                  </div>
+                </th>
+                <th>Contact</th>
+                <th
+                  className="sortable"
+                  onClick={() => requestSort('Verification_Status')}
+                >
+                  <div className="sort-header">
+                    Status
+                    <span className={`sort-indicator ${sortConfig.key === 'Verification_Status' ? 'active' : ''}`}>
+                      {getSortIndicator('Verification_Status')}
+                    </span>
+                  </div>
+                </th>
+                <th
+                  className="sortable"
+                  onClick={() => requestSort('createdAt')}
+                >
+                  <div className="sort-header">
+                    Request Date
+                    <span className={`sort-indicator ${sortConfig.key === 'createdAt' ? 'active' : ''}`}>
+                      {getSortIndicator('createdAt')}
+                    </span>
+                  </div>
+                </th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {universitiesLoading ? (
                 <tr>
-                  <th>Name</th>
-                  <th>University</th>
-                  <th>Contact</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>{profile.name || 'Registrar'}</td>
-                  <td>{profile.university || '—'}</td>
-                  <td>{profile.contact || '—'}</td>
-                  <td>{profile.email || 'ragistrar123@gmail.com'}</td>
-                  <td><span className={`status-badge ${approved ? 'approved' : 'pending'}`}>{approved ? 'Approved' : 'Pending'}</span></td>
-                  <td>
-                    <button className="btn-approve" onClick={approve}>Approve</button>
-                    <button className="btn-reject" onClick={reject}>Reject</button>
+                  <td colSpan="5" className="loading-row">
+                    <div className="loading-spinner">
+                      <div className="spinner"></div>
+                      <span>Loading universities...</span>
+                    </div>
                   </td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+              ) : sortedAndFilteredUniversities.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="empty-state">
+                    <div className="empty-icon">📭</div>
+                    <h3>No matching universities found</h3>
+                    <p>Try adjusting your search or filter criteria</p>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => {
+                        setSearchTerm('');
+                        setStatusFilter('All Requests');
+                      }}
+                    >
+                      Clear Filters
+                    </button>
+                  </td>
+                </tr>
+              ) : (
+                sortedAndFilteredUniversities.map(university => (
+                  <tr key={university._id}>
+                    <td>
+                      <div className="university-name">
+                        {university.University_Name || '—'}
+                        {university.Verification_Status === 'pending' && (
+                          <span className="new-badge">New</span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      {university.Contact_No ? (
+                        <a href={`tel:${university.Contact_No}`} className="contact-link">
+                          {university.Contact_No}
+                        </a>
+                      ) : '—'}
+                    </td>
+                    <td>
+                      <span className={`status-badge ${university.Verification_Status ? university.Verification_Status.toLowerCase() : ''}`}>
+                        {university.Verification_Status || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="date-cell">
+                        <span className="date">
+                          {university.createdAt ? new Date(university.createdAt).toLocaleDateString() : '—'}
+                        </span>
+                        <span className="time">
+                          {university.createdAt ? new Date(university.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button
+                          className="btn-approve"
+                          onClick={() => handleApproveUniversity(university._id)}
+                          disabled={university.Verification_Status !== 'pending'}
+                          title="Approve University"
+                        >
+                          <span className="btn-icon">✓</span>
+                          <span className="btn-text">Approve</span>
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={() => handleRejectUniversity(university._id)}
+                          disabled={university.Verification_Status !== 'pending'}
+                          title="Reject University"
+                        >
+                          <span className="btn-icon">✕</span>
+                          <span className="btn-text">Reject</span>
+                        </button>
+                        <button
+                          className="btn-view"
+                          onClick={() => handleViewUser(university._id)}
+                          title="View Details"
+                        >
+                          <span className="btn-icon">👁️</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   };
@@ -774,8 +1681,8 @@ Semester: ${user.semester}
       <aside className="admin-sidebar">
         <div className="admin-header">
           <Logo size="medium" showText={true} style={{ color: 'white', marginBottom: '1rem' }} />
-          <h2>🔧 Admin Panel</h2>
-          <p>iVidhyarthi Management</p>
+          <h2>iVidhyarthi Control Center</h2>
+          <p>Admin Command Console</p>
         </div>
         <nav className="admin-nav">
           {menuItems.map(item => (

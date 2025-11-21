@@ -7,6 +7,7 @@ import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import Signup from './Signup';
 import CourseDetails from './CourseDetails';
+import EmailVerify from './EmailVerify';
 import Payment from './Payment';
 import PaymentGateway from './PaymentGateway';
 import FinalPayment from './FinalPayment';
@@ -31,6 +32,7 @@ import Books from './Books';
 import Resources from './Resources';
 import LecturerDashboard from './LecturerDashboard';
 import RegistrarDashboard from './RegistrarDashboard';
+import LecturerEligibility from './LecturerEligibility';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -39,30 +41,101 @@ function App() {
   const [route, setRoute] = useState('home'); // includes 'lecturer-dashboard'
   const [gatewayMeta, setGatewayMeta] = useState(null);
 
+  // Debug logging for route changes
   useEffect(() => {
-    const raw = localStorage.getItem('auth_user');
-    if (raw) {
-      try { 
-        const userData = JSON.parse(raw);
-        setUser(userData);
-        if (route === 'home') setRoute('dashboard');
-      } catch {}
-    }
-    
-    const adminRaw = localStorage.getItem('admin_user');
-    if (adminRaw) {
-      try { 
-        const adminData = JSON.parse(adminRaw);
-        setAdmin(adminData);
-        if (route === 'home') setRoute('admin-dashboard');
-      } catch {}
-    }
+    console.log('🚀 Current route changed to:', route);
+  }, [route]);
 
+  useEffect(() => {
+    // Determine initial route from current path
+    const path = window.location.pathname.toLowerCase();
+    if (path === '/login') {
+      setRoute('login');
+    } else if (path === '/signup') {
+      setRoute('signup');
+    } else if (path === '/lecturer-dashboard') {
+      setRoute('lecturer-dashboard');
+    } else if (path === '/registrar-dashboard') {
+      setRoute('registrar-dashboard');
+    } else if (path === '/lecturer-eligibility') {
+      setRoute('lecturer-eligibility');
+    } else if (path === '/admin-login') {
+      setRoute('admin-login');
+    } else if (path === '/admin-dashboard') {
+      setRoute('admin-dashboard');
+    } else if (path === '/dashboard') {
+      setRoute('dashboard');
+    } else if (path === '/course') {
+      setRoute('course');
+    } else if (path === '/payment') {
+      setRoute('payment');
+    } else if (path === '/gateway') {
+      setRoute('gateway');
+    } else if (path === '/final') {
+      setRoute('final');
+    } else if (path === '/learning') {
+      setRoute('learning');
+    } else if (path.startsWith('/verify-email') || path.includes('/verify/')) {
+      setRoute('verify-email');
+    } else {
+      setRoute('home');
+    }
+    // Check for lecturer user first
     const lecturerRaw = localStorage.getItem('lecturer_user');
-    if (lecturerRaw && route === 'home') setRoute('lecturer-dashboard');
-
-    const registrarRaw = localStorage.getItem('registrar_user');
-    if (registrarRaw && route === 'home') setRoute('registrar-dashboard');
+    if (lecturerRaw) {
+      try {
+        const lecturerData = JSON.parse(lecturerRaw);
+        setUser(lecturerData);
+        if (route === 'home' || route === 'dashboard') {
+          setRoute('lecturer-dashboard');
+          window.history.pushState({ route: 'lecturer-dashboard' }, '', '/lecturer-dashboard');
+        }
+      } catch (e) {
+        console.error('Error parsing lecturer data:', e);
+      }
+    }
+    // Check for registrar user
+    else if (localStorage.getItem('registrar_user')) {
+      try {
+        const registrarData = JSON.parse(localStorage.getItem('registrar_user'));
+        setUser(registrarData);
+        if (route === 'home') {
+          setRoute('registrar-dashboard');
+          window.history.pushState({ route: 'registrar-dashboard' }, '', '/registrar-dashboard');
+        }
+      } catch (e) {
+        console.error('Error parsing registrar data:', e);
+      }
+    }
+    // Check for admin user
+    else if (localStorage.getItem('admin_user')) {
+      try {
+        const adminData = JSON.parse(localStorage.getItem('admin_user'));
+        setAdmin(adminData);
+        if (route === 'home') {
+          setRoute('admin-dashboard');
+          window.history.pushState({ route: 'admin-dashboard' }, '', '/admin-dashboard');
+        }
+      } catch (e) {
+        console.error('Error parsing admin data:', e);
+      }
+    }
+    // Then check for regular user
+    else {
+      const userRaw = localStorage.getItem('auth_user');
+      if (userRaw) {
+        try {
+          const userData = JSON.parse(userRaw);
+          setUser(userData);
+          if (route === 'home') {
+            setRoute('dashboard');
+            window.history.pushState({ route: 'dashboard' }, '', '/dashboard');
+          }
+        } catch (e) {
+          console.error('Error parsing user data:', e);
+        }
+      }
+    }
 
     // Handle browser back/forward buttons
     const handlePopState = (event) => {
@@ -75,9 +148,9 @@ function App() {
 
     window.addEventListener('popstate', handlePopState);
 
-    // Set initial history state
+    // Set initial history state to reflect detected route
     if (!window.history.state) {
-      window.history.replaceState({ route: 'home' }, '', window.location.pathname);
+      window.history.replaceState({ route: path.replace('/', '') || 'home' }, '', window.location.pathname);
     }
 
     return () => {
@@ -88,23 +161,23 @@ function App() {
   const handleAuthenticated = () => {
     const raw = localStorage.getItem('auth_user');
     if (raw) {
-      try { 
-        setUser(JSON.parse(raw)); 
+      try {
+        setUser(JSON.parse(raw));
         setRoute('dashboard'); // Navigate to dashboard after login
-      } catch {}
+      } catch { }
     }
   };
 
   const handleAdminAuthenticated = () => {
     const adminRaw = localStorage.getItem('admin_user');
     if (adminRaw) {
-      try { 
-        setAdmin(JSON.parse(adminRaw)); 
+      try {
+        setAdmin(JSON.parse(adminRaw));
         setRoute('admin-dashboard'); // Navigate to admin dashboard after login
-      } catch {}
+      } catch { }
     }
   };
-  //rutik demo
+
 
   const handleLecturerAuthenticated = () => {
     const lec = localStorage.getItem('lecturer_user');
@@ -114,12 +187,26 @@ function App() {
   };
 
   const handleLecturerLogout = () => {
+    // Clear all lecturer-related data
     localStorage.removeItem('lecturer_user');
-    setRoute('home');
+    localStorage.removeItem('lecturer_profile');
+
+    // Reset user state
+    setUser(null);
+
+    // Update route and force a full page reload to ensure clean state
+    window.location.href = '/';
   };
 
   const handleRegistrarLogout = () => {
     localStorage.removeItem('registrar_user');
+    setRoute('home');
+  };
+
+  const handleStudentLogout = () => {
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem('student_profile'); // Also clear profile data
+    setUser(null);
     setRoute('home');
   };
 
@@ -142,8 +229,8 @@ function App() {
   if (route === 'admin-login') {
     return (
       <div className="App">
-        <AdminLogin 
-          onAdminAuthenticated={handleAdminAuthenticated} 
+        <AdminLogin
+          onAdminAuthenticated={handleAdminAuthenticated}
           onBackToHome={() => setRoute('home')}
         />
       </div>
@@ -157,19 +244,45 @@ function App() {
     return (
       <div className="App">
         {route === 'login' ? (
-          <Login 
-            onAuthenticated={handleAuthenticated} 
-            onSwitchToSignup={() => setRoute('signup')} 
+          <Login
+            onAuthenticated={handleAuthenticated}
+            onSwitchToSignup={() => {
+              setRoute('signup');
+              window.history.pushState({ route: 'signup' }, '', '/signup');
+            }}
             onBackToHome={() => setRoute('home')}
             onAdminLogin={handleAdminAuthenticated}
           />
         ) : (
-          <Signup 
-            onAuthenticated={handleAuthenticated} 
-            onSwitchToLogin={() => setRoute('login')} 
+          <Signup
+            onAuthenticated={handleAuthenticated}
+            onSwitchToLogin={() => {
+              setRoute('login');
+              window.history.pushState({ route: 'login' }, '', '/login');
+            }}
             onBackToHome={() => setRoute('home')}
           />
         )}
+      </div>
+    );
+  }
+
+  if (route === 'lecturer-eligibility') {
+    return (
+      <div className="App">
+        <LecturerEligibility onCancel={() => { setRoute('login'); window.history.pushState({ route: 'login' }, '', '/login'); }} />
+      </div>
+    );
+  }
+
+  // Email verification standalone page (accessible even if not logged in)
+  if (route === 'verify-email') {
+    return (
+      <div className="App">
+        <EmailVerify onGoToLogin={() => {
+          setRoute('login');
+          window.history.pushState({ route: 'login' }, '', '/login');
+        }} />
       </div>
     );
   }
@@ -191,7 +304,7 @@ function App() {
   if (!user && !admin && route === 'home') {
     return (
       <div className="App">
-        <Home 
+        <Home
           onNavigateLogin={() => {
             setRoute('login');
             window.history.pushState({ route: 'login' }, '', '/login');
@@ -210,7 +323,7 @@ function App() {
   if (route === 'LearnAboutIVidhyarthi') {
     return (
       <div className="App">
-        <LearnAboutIVidhyarthi 
+        <LearnAboutIVidhyarthi
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -221,7 +334,7 @@ function App() {
   if (route === 'OurMission') {
     return (
       <div className="App">
-        <OurMission 
+        <OurMission
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -232,7 +345,7 @@ function App() {
   if (route === 'Team') {
     return (
       <div className="App">
-        <Team 
+        <Team
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -243,7 +356,7 @@ function App() {
   if (route === 'ContactUs') {
     return (
       <div className="App">
-        <ContactUs 
+        <ContactUs
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -254,7 +367,7 @@ function App() {
   if (route === 'CourseCatalog') {
     return (
       <div className="App">
-        <CourseCatalog 
+        <CourseCatalog
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -265,7 +378,7 @@ function App() {
   if (route === 'FAQ') {
     return (
       <div className="App">
-        <FAQ 
+        <FAQ
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -276,7 +389,7 @@ function App() {
   if (route === 'LocalChapters') {
     return (
       <div className="App">
-        <LocalChapters 
+        <LocalChapters
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -287,7 +400,7 @@ function App() {
   if (route === 'Coordinators') {
     return (
       <div className="App">
-        <Coordinators 
+        <Coordinators
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -298,7 +411,7 @@ function App() {
   if (route === 'HelpVideos') {
     return (
       <div className="App">
-        <HelpVideos 
+        <HelpVideos
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -309,7 +422,7 @@ function App() {
   if (route === 'Translation') {
     return (
       <div className="App">
-        <Translation 
+        <Translation
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -320,7 +433,7 @@ function App() {
   if (route === 'FacultyInitiatives') {
     return (
       <div className="App">
-        <FacultyInitiatives 
+        <FacultyInitiatives
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -331,7 +444,7 @@ function App() {
   if (route === 'StudentPrograms') {
     return (
       <div className="App">
-        <StudentPrograms 
+        <StudentPrograms
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -342,7 +455,7 @@ function App() {
   if (route === 'Blog') {
     return (
       <div className="App">
-        <Blog 
+        <Blog
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -353,7 +466,7 @@ function App() {
   if (route === 'CertificationCourses') {
     return (
       <div className="App">
-        <CertificationCourses 
+        <CertificationCourses
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -364,7 +477,7 @@ function App() {
   if (route === 'Careers') {
     return (
       <div className="App">
-        <Careers 
+        <Careers
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -375,7 +488,7 @@ function App() {
   if (route === 'Documents') {
     return (
       <div className="App">
-        <Documents 
+        <Documents
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -386,7 +499,7 @@ function App() {
   if (route === 'Books') {
     return (
       <div className="App">
-        <Books 
+        <Books
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -397,7 +510,7 @@ function App() {
   if (route === 'Resources') {
     return (
       <div className="App">
-        <Resources 
+        <Resources
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />
@@ -407,7 +520,7 @@ function App() {
 
   return (
     <div className="App">
-      {route === 'dashboard' && <StudentDashboard onNavigateCourse={() => setRoute('course')} />}
+      {route === 'dashboard' && <StudentDashboard onNavigateCourse={() => setRoute('course')} onLogout={handleStudentLogout} />}
       {route === 'lecturer-dashboard' && localStorage.getItem('lecturer_user') && (
         <LecturerDashboard onLogout={handleLecturerLogout} />
       )}
@@ -418,14 +531,14 @@ function App() {
         <CourseDetails onBack={() => setRoute('dashboard')} onPay={() => setRoute('payment')} />
       )}
       {route === 'payment' && (
-        <Payment 
-          onCancel={() => setRoute('course')} 
-          onSuccess={() => setRoute('dashboard')} 
+        <Payment
+          onCancel={() => setRoute('course')}
+          onSuccess={() => setRoute('dashboard')}
           onGateway={(meta) => { setGatewayMeta(meta); setRoute('gateway'); }}
         />
       )}
       {route === 'gateway' && (
-        <PaymentGateway 
+        <PaymentGateway
           method={gatewayMeta?.method}
           onBack={() => setRoute('payment')}
           onComplete={(type) => {

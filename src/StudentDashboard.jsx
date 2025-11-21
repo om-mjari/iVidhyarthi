@@ -1,139 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
-import Logo from './components/Logo';
+import './MyProfilePremium.css';
+import Logo from './Logo';
+import Chatbot from './Chatbot';
 
-const StudentDashboard = ({ onNavigateCourse }) => {
-  // Sample course data
-  const courses = [
-    {
-      id: 1,
-      name: "React for Beginners",
-      instructor: "Abha Ma'am",
-      price: 799,
-      rating: 4.5,
-      image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop"
-    },
-    {
-      id: 2,
-      name: "Mastering JavaScript",
-      instructor: "Abha Ma'am",
-      price: 599,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=400&h=300&fit=crop"
-    },
-    {
-      id: 3,
-      name: "Data Structures in C++",
-      instructor: "Bhumika Ma'am",
-      price: 999,
-      rating: 4.2,
-      image: "https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop"
-    },
-    {
-      id: 4,
-      name: "Python Programming",
-      instructor: "Rakesh Sir",
-      price: 699,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1526379095098-d400fd0bf935?w=400&h=300&fit=crop"
-    },
-    {
-      id: 5,
-      name: "Web Development Bootcamp",
-      instructor: "Priti Ma'am",
-      price: 1299,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop"
-    },
-    {
-      id: 6,
-      name: "Machine Learning Basics",
-      instructor: "Rakesh Sir",
-      price: 899,
-      rating: 4.6,
-      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop"
-    },
-    {
-      id: 7,
-      name: "UI/UX Design Fundamentals",
-      instructor: "Rakesh Sir",
-      price: 549,
-      rating: 4.3,
-      image: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=300&fit=crop"
-    },
-    {
-      id: 8,
-      name: "Database Management",
-      instructor: "Bhavik Sir",
-      price: 749,
-      rating: 4.4,
-      image: "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400&h=300&fit=crop"
-    },
-    {
-      id: 9,
-      name: "Cloud Computing with AWS",
-      instructor: "Bhumika Ma'am",
-      price: 1199,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop"
-    },
-    {
-      id: 10,
-      name: "Advanced Data Structures",
-      instructor: "Bhumika Ma'am",
-      price: 899,
-      rating: 4.6,
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop"
-    },
-    {
-      id: 11,
-      name: "Cybersecurity Fundamentals",
-      instructor: "Hardik Sir",
-      price: 1099,
-      rating: 4.7,
-      image: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=400&h=300&fit=crop"
-    },
-    {
-      id: 12,
-      name: "DevOps & CI/CD Pipeline",
-      instructor: "Bhumika Ma'am",
-      price: 999,
-      rating: 4.5,
-      image: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=400&h=300&fit=crop"
-    },
-    {
-      id: 13,
-      name: "Blockchain Development",
-      instructor: "Bhumika Ma'am",
-      price: 1399,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=400&h=300&fit=crop"
-    },
-    {
-      id: 14,
-      name: "Mobile App Development",
-      instructor: "Jigna Ma'am",
-      price: 849,
-      rating: 4.4,
-      image: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=300&fit=crop"
-    },
-    {
-      id: 15,
-      name: "Artificial Intelligence",
-      instructor: "Bhumika Ma'am",
-      price: 1299,
-      rating: 4.8,
-      image: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop"
-    },
-    {
-      id: 16,
-      name: "Full Stack Development",
-      instructor: "Abha Ma'am",
-      price: 1499,
-      rating: 4.9,
-      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop"
-    }
-  ];
+const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
+  // State for courses (raw approved list)
+  const [courses, setCourses] = useState([]);
+  // State for filtered operations (approved only)
+  const [filteredCourses, setFilteredCourses] = useState([]);
 
   // State for filters and search
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,15 +41,82 @@ const StudentDashboard = ({ onNavigateCourse }) => {
   });
   const [isProfileDirty, setIsProfileDirty] = useState(false);
 
+  // Auto-populate profile with logged-in user data
   useEffect(() => {
-    const saved = localStorage.getItem('student_profile');
-    if (saved) {
+    const authUser = localStorage.getItem('auth_user');
+    const savedProfile = localStorage.getItem('student_profile');
+
+    if (authUser) {
       try {
-        const parsed = JSON.parse(saved);
+        const user = JSON.parse(authUser);
+        const defaultProfile = {
+          name: user.name || '',
+          birthdate: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+          courseDetails: 'React, JavaScript, Node.js',
+          certificateDetails: 'Coursera, Udemy',
+          gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : 'Male'
+        };
+
+        // If no saved profile exists, use the default populated data
+        if (!savedProfile) {
+          setProfile(defaultProfile);
+          setEditProfile(defaultProfile);
+          localStorage.setItem('student_profile', JSON.stringify(defaultProfile));
+        } else {
+          // Merge saved profile with user data, prioritizing saved data
+          const parsed = JSON.parse(savedProfile);
+          const mergedProfile = {
+            ...defaultProfile,
+            ...parsed,
+            // Always use the latest name from auth_user
+            name: user.name || parsed.name
+          };
+          setProfile(mergedProfile);
+          setEditProfile(mergedProfile);
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Fallback to saved profile if exists
+        if (savedProfile) {
+          try {
+            const parsed = JSON.parse(savedProfile);
+            setProfile(parsed);
+            setEditProfile(parsed);
+          } catch { }
+        }
+      }
+    } else if (savedProfile) {
+      // No auth user but saved profile exists
+      try {
+        const parsed = JSON.parse(savedProfile);
         setProfile(parsed);
         setEditProfile(parsed);
       } catch { }
     }
+  }, []);
+
+  // Fetch courses from API on mount
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/tbl-courses');
+        const result = await response.json();
+        // Extract array exactly from result.data
+        const allCourses = Array.isArray(result.data) ? result.data : [];
+        // Keep only admin approved courses
+        const approvedCourses = allCourses.filter((course) => {
+          const statusValue = course.Status || course.status;
+          return typeof statusValue === 'string' && statusValue.toLowerCase() === 'approved';
+        });
+        setCourses(approvedCourses);
+        setFilteredCourses(approvedCourses);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        setCourses([]);
+        setFilteredCourses([]);
+      }
+    };
+    fetchCourses();
   }, []);
 
   // Voice search setup
@@ -221,8 +163,14 @@ const StudentDashboard = ({ onNavigateCourse }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('auth_user');
-    window.location.reload();
+    if (onLogout) {
+      onLogout(); // This will handle navigation to home and cleanup
+    } else {
+      // Fallback if onLogout prop is not provided
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('student_profile');
+      window.location.reload();
+    }
   };
 
   const openProfile = () => {
@@ -232,7 +180,16 @@ const StudentDashboard = ({ onNavigateCourse }) => {
   };
 
   const handleEnroll = (course) => {
-    localStorage.setItem('selected_course', JSON.stringify(course));
+    // Normalize course data to ensure consistent field names throughout the flow
+    const normalizedCourse = {
+      id: course.Course_Id || course.id,
+      name: course.Title || course.name,
+      price: course.Price || course.price,
+      instructor: course.Lecturer_Id || course.instructor,
+      image: course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
+      rating: course.rating || 4.5
+    };
+    localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
     onNavigateCourse && onNavigateCourse();
   };
 
@@ -243,50 +200,46 @@ const StudentDashboard = ({ onNavigateCourse }) => {
     console.log('Debug - Price range:', priceRange);
     console.log('Debug - Min rating:', minRating);
 
-    let filtered = courses.filter(course => {
-      const matchesSearch = course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        course.instructor.toLowerCase().includes(searchTerm.toLowerCase());
+    let filtered = filteredCourses.filter(course => {
+      const matchesSearch = (course.Title || course.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (course.Lecturer_Id || course.instructor || '').toLowerCase().includes(searchTerm.toLowerCase());
       let matchesPrice = true;
+      const coursePrice = course.Price || course.price || 0;
       switch (priceRange) {
         case 'under500':
-          matchesPrice = course.price < 500;
+          matchesPrice = coursePrice < 500;
           break;
         case '500to1000':
-          matchesPrice = course.price >= 500 && course.price <= 1000;
+          matchesPrice = coursePrice >= 500 && coursePrice <= 1000;
           break;
         case 'over1000':
-          matchesPrice = course.price > 1000;
+          matchesPrice = coursePrice > 1000;
           break;
         default:
           matchesPrice = true;
       }
-      const matchesRating = course.rating >= minRating;
+      const courseRating = course.rating || 4.5;
+      const matchesRating = courseRating >= minRating;
       return matchesSearch && matchesPrice && matchesRating;
     });
 
     console.log('Debug - Filtered courses:', filtered.length);
 
-    // Fallback: if no courses match filters, show all courses with a warning
-    if (filtered.length === 0 && (searchTerm || priceRange !== 'all' || minRating > 0)) {
-      console.log('No courses match filters, showing all courses');
-      filtered = courses;
-    }
-
     filtered.sort((a, b) => {
       let aValue, bValue;
       switch (sortBy) {
         case 'price':
-          aValue = a.price;
-          bValue = b.price;
+          aValue = a.Price || a.price || 0;
+          bValue = b.Price || b.price || 0;
           break;
         case 'rating':
-          aValue = a.rating;
-          bValue = b.rating;
+          aValue = a.rating || 4.5;
+          bValue = b.rating || 4.5;
           break;
         case 'name':
         default:
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
+          aValue = (a.Title || a.name || '').toLowerCase();
+          bValue = (b.Title || b.name || '').toLowerCase();
           break;
       }
       if (sortOrder === 'asc') {
@@ -297,7 +250,7 @@ const StudentDashboard = ({ onNavigateCourse }) => {
     });
 
     return filtered;
-  }, [searchTerm, sortBy, sortOrder, priceRange, minRating]);
+  }, [searchTerm, sortBy, sortOrder, priceRange, minRating, filteredCourses]);
 
   // Reset all filters
   const resetFilters = () => {
@@ -370,18 +323,25 @@ const StudentDashboard = ({ onNavigateCourse }) => {
             <p>Discover and enroll in amazing courses</p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button className="btn-secondary" onClick={logout} title="Logout">Logout</button>
+            <button className="logout-btn-modern" onClick={logout} title="Logout">
+              <span className="logout-icon">🚪</span>
+              Logout
+            </button>
             <button
-              className="avatar-btn"
+              className="avatar-btn-modern"
               aria-label="Open profile"
               onClick={openProfile}
               title={profile.name ? profile.name : 'Profile'}
             >
-              {profile.name ? (
-                <span className="avatar-initials">{avatarInitials(profile.name)}</span>
-              ) : (
-                <span className="avatar-icon" aria-hidden>👤</span>
-              )}
+              <div className="avatar-container">
+                {profile.name ? (
+                  <span className="avatar-initials-modern">{avatarInitials(profile.name)}</span>
+                ) : (
+                  <span className="avatar-icon-modern" aria-hidden>👤</span>
+                )}
+                <div className="avatar-status-dot"></div>
+              </div>
+              <span className="avatar-name">{profile.name || 'Guest'}</span>
             </button>
           </div>
         </div>
@@ -452,7 +412,7 @@ const StudentDashboard = ({ onNavigateCourse }) => {
 
         {/* Overlay backdrop */}
         <div className={`filters-overlay ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(false)}></div>
-        
+
         <div className={`main-content ${showFilters ? 'filters-open' : 'no-filters'}`}>
           {/* Filters Sidebar */}
           <aside
@@ -568,23 +528,23 @@ const StudentDashboard = ({ onNavigateCourse }) => {
                   </div>
                 )}
                 {filteredAndSortedCourses.map(course => (
-                  <div key={course.id} className="course-card">
+                  <div key={course.Course_Id || course.id} className="course-card">
                     <div className="course-image">
-                      <img src={course.image} alt={course.name} />
+                      <img src={course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop'} alt={course.Title || course.name} />
                     </div>
                     <div className="course-content">
                       <div className="course-info-row">
-                        <h3 className="course-name">{course.name}</h3>
-                        <p className="course-instructor">by {course.instructor}</p>
+                        <h3 className="course-name">{course.Title || course.name}</h3>
+                        <p className="course-instructor">by {course.Lecturer_Id || course.instructor}</p>
                       </div>
                       <div className="price-button-row">
                         <div className="course-price">
-                          ₹{course.price}
+                          ₹{course.Price || course.price}
                         </div>
                         <button className="enroll-btn" onClick={() => handleEnroll(course)}>Enroll Now</button>
                       </div>
                       <div className="course-rating">
-                        {renderStars(course.rating)}
+                        {renderStars(course.rating || 4.5)}
                       </div>
                     </div>
                   </div>
@@ -605,44 +565,142 @@ const StudentDashboard = ({ onNavigateCourse }) => {
         </div>
       </div>
 
-      {/* Profile Slide-over */}
+      {/* Profile Slide-over - Premium Modern UI */}
       <div className={`profile-overlay ${isProfileOpen ? 'open' : ''}`} onClick={closeProfile} />
-      <aside className={`profile-panel ${isProfileOpen ? 'open' : ''}`} aria-hidden={!isProfileOpen}>
-        <div className="profile-header">
-          <h3>Profile</h3>
-          <button className="profile-close" onClick={closeProfile} aria-label="Close profile">×</button>
-        </div>
-        <form className="profile-form" onSubmit={(e) => e.preventDefault()}>
-          <label className="form-field">
-            <span>Name</span>
-            <input type="text" name="name" value={editProfile.name} onChange={handleEditProfileChange} placeholder="Your name" />
-          </label>
-          <label className="form-field">
-            <span>Birthdate</span>
-            <input type="date" name="birthdate" value={editProfile.birthdate} onChange={handleEditProfileChange} />
-          </label>
-          <label className="form-field">
-            <span>Course Details</span>
-            <textarea name="courseDetails" value={editProfile.courseDetails} onChange={handleEditProfileChange} rows="3" placeholder="e.g., React, ML, UI/UX" />
-          </label>
-          <label className="form-field">
-            <span>Certificate Details</span>
-            <textarea name="certificateDetails" value={editProfile.certificateDetails} onChange={handleEditProfileChange} rows="3" placeholder="e.g., Coursera, Udemy" />
-          </label>
-          <div className="form-field">
-            <span>Gender</span>
-            <div className="radio-group">
-              <label><input type="radio" name="gender" value="Male" checked={editProfile.gender === 'Male'} onChange={handleEditProfileChange} /> Male</label>
-              <label><input type="radio" name="gender" value="Female" checked={editProfile.gender === 'Female'} onChange={handleEditProfileChange} /> Female</label>
-              <label><input type="radio" name="gender" value="Other" checked={editProfile.gender === 'Other'} onChange={handleEditProfileChange} /> Other</label>
+      <aside className={`profile-panel-premium ${isProfileOpen ? 'open' : ''}`} aria-hidden={!isProfileOpen}>
+        
+        {/* Close Button - Floating Top Right */}
+        <button className="profile-close-premium" onClick={closeProfile} aria-label="Close profile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        {/* Profile Header with Gradient Avatar */}
+        <div className="profile-header-premium">
+          <div className="profile-avatar-premium">
+            <div className="avatar-glow"></div>
+            <div className="avatar-content">
+              {profile.name ? (
+                <span className="avatar-initials-premium">{avatarInitials(profile.name)}</span>
+              ) : (
+                <svg className="avatar-icon-premium" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              )}
             </div>
           </div>
-          <div className="profile-actions">
-            <button type="button" className="btn-secondary" onClick={closeProfile}>Close</button>
-            <button type="button" className="btn-primary" disabled={!isProfileDirty} onClick={updateProfile}>Update</button>
+          <h2 className="profile-title-premium">My Profile</h2>
+          <p className="profile-subtitle-premium">Manage your personal information</p>
+        </div>
+
+        {/* Profile Form */}
+        <form className="profile-form-premium" onSubmit={(e) => e.preventDefault()}>
+          
+          {/* Personal Information Section */}
+          <div className="glass-section">
+            <div className="section-header">
+              <h3 className="section-title-premium">Personal Information</h3>
+              <div className="section-divider"></div>
+            </div>
+            
+            <div className="form-group-premium">
+              <label className="field-label-premium">Full Name</label>
+              <input
+                type="text"
+                name="name"
+                value={editProfile.name}
+                onChange={handleEditProfileChange}
+                placeholder="Enter your full name"
+                className="input-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Date of Birth</label>
+              <input
+                type="date"
+                name="birthdate"
+                value={editProfile.birthdate}
+                onChange={handleEditProfileChange}
+                className="input-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Gender</label>
+              <div className="pill-selector">
+                <label className={`pill-option ${editProfile.gender === 'Male' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Male" checked={editProfile.gender === 'Male'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Male</span>
+                </label>
+                <label className={`pill-option ${editProfile.gender === 'Female' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Female" checked={editProfile.gender === 'Female'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Female</span>
+                </label>
+                <label className={`pill-option ${editProfile.gender === 'Other' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Other" checked={editProfile.gender === 'Other'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Other</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Information Section */}
+          <div className="glass-section">
+            <div className="section-header">
+              <h3 className="section-title-premium">Academic Information</h3>
+              <div className="section-divider"></div>
+            </div>
+            
+            <div className="form-group-premium">
+              <label className="field-label-premium">Course Interests</label>
+              <textarea
+                name="courseDetails"
+                value={editProfile.courseDetails}
+                onChange={handleEditProfileChange}
+                rows="3"
+                placeholder="e.g., React, Machine Learning, UI/UX Design"
+                className="textarea-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Certifications</label>
+              <textarea
+                name="certificateDetails"
+                value={editProfile.certificateDetails}
+                onChange={handleEditProfileChange}
+                rows="3"
+                placeholder="e.g., Coursera, Udemy, Google Certificates"
+                className="textarea-premium"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="profile-actions-premium">
+            <button type="button" className="btn-cancel-premium" onClick={closeProfile}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Cancel
+            </button>
+            <button type="button" className="btn-save-premium" disabled={!isProfileDirty} onClick={updateProfile}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Save Changes
+            </button>
           </div>
         </form>
       </aside>
+
+      {/* Chatbot Component */}
+      <Chatbot />
     </div>
   );
 };

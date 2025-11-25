@@ -22,8 +22,8 @@ import EnhancedFooter from './components/EnhancedFooter';
 **FIND THIS CODE** (around line 565-595):
 
 \`\`\`jsx
-            )}
-          </main>
+)}
+</main>
 
           {/* Minimal Premium Footer */}
           <footer className="ividhyarthi-minimal-footer">
@@ -47,7 +47,8 @@ import EnhancedFooter from './components/EnhancedFooter';
       </div>
       <Chatbot />
     </div>
-  );
+
+);
 };
 
 export default Home;
@@ -56,12 +57,12 @@ export default Home;
 **REPLACE WITH THIS:**
 
 \`\`\`jsx
-            )}
+)}
 
             {/* ========================================
                 NEW ENHANCED SECTIONS
             ======================================== */}
-            
+
             {/* Popular Categories Section */}
             <PopularCategories />
 
@@ -82,7 +83,8 @@ export default Home;
       </div>
       <Chatbot />
     </div>
-  );
+
+);
 };
 
 export default Home;
@@ -113,8 +115,8 @@ import EnhancedFooter from './components/EnhancedFooter';
 **FIND THIS CODE** (around line 593-618):
 
 \`\`\`jsx
-            )}
-          </main>
+)}
+</main>
 
           {/* Minimal Premium Footer */}
           <footer className="ividhyarthi-minimal-footer">
@@ -139,17 +141,18 @@ import EnhancedFooter from './components/EnhancedFooter';
 
       {/* Profile Slide-over - Premium Modern UI */}
       <div className={`profile-overlay ${isProfileOpen ? 'open' : ''}`} onClick={closeProfile} />
+
 \`\`\`
 
 **REPLACE WITH THIS:**
 
 \`\`\`jsx
-            )}
+)}
 
             {/* ========================================
                 STUDENT DASHBOARD ENHANCEMENT SECTIONS
             ======================================== */}
-            
+
             {/* My Enrolled Courses with Progress */}
             <EnrolledCourses />
 
@@ -174,6 +177,7 @@ import EnhancedFooter from './components/EnhancedFooter';
 
       {/* Profile Slide-over - Premium Modern UI */}
       <div className={`profile-overlay ${isProfileOpen ? 'open' : ''}`} onClick={closeProfile} />
+
 \`\`\`
 
 ---
@@ -198,6 +202,7 @@ After making these changes:
 ## 🎯 Expected Result
 
 ### **Home.jsx will now show:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Header & Navigation                 │
@@ -223,6 +228,7 @@ After making these changes:
 ```
 
 ### **StudentDashboard.jsx will now show:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Header & Profile                    │
@@ -253,17 +259,22 @@ After making these changes:
 ## 🚨 Troubleshooting
 
 ### **Error: Cannot find module './components/...'**
+
 **Fix:** Ensure the `components` folder exists at `src/components/` with all 11 files.
 
 ### **Error: Element type is invalid**
+
 **Fix:** Check that all component names are capitalized and match exactly:
+
 - `PopularCategories` (not `popularCategories`)
 - `EnhancedFooter` (not `enhancedFooter`)
 
 ### **Styling not applying**
+
 **Fix:** Verify `import './components/NewSections.css';` is at the top of both files.
 
 ### **Footer appears in wrong place**
+
 **Fix:** Ensure `</main>` closing tag is BEFORE `<EnhancedFooter />`.
 
 ---
@@ -277,17 +288,17 @@ src/
 ├── Home.jsx ✅ (Updated with new imports & sections)
 ├── StudentDashboard.jsx ✅ (Updated with new imports & sections)
 └── components/
-    ├── NewSections.css ✅
-    ├── PopularCategories.jsx ✅
-    ├── WhyChoose.jsx ✅
-    ├── Testimonials.jsx ✅
-    ├── TrustedPartners.jsx ✅
-    ├── EnhancedFooter.jsx ✅
-    ├── EnrolledCourses.jsx ✅
-    ├── LearningStats.jsx ✅
-    ├── UpcomingSessions.jsx ✅
-    ├── RecommendedCourses.jsx ✅
-    └── Announcements.jsx ✅
+├── NewSections.css ✅
+├── PopularCategories.jsx ✅
+├── WhyChoose.jsx ✅
+├── Testimonials.jsx ✅
+├── TrustedPartners.jsx ✅
+├── EnhancedFooter.jsx ✅
+├── EnrolledCourses.jsx ✅
+├── LearningStats.jsx ✅
+├── UpcomingSessions.jsx ✅
+├── RecommendedCourses.jsx ✅
+└── Announcements.jsx ✅
 \`\`\`
 
 ---
@@ -300,11 +311,11 @@ Edit `src/components/PopularCategories.jsx`:
 
 \`\`\`jsx
 {
-  id: 1,
-  name: 'Programming',
-  icon: '💻',
-  gradient: 'linear-gradient(135deg, #YOUR_COLOR1 0%, #YOUR_COLOR2 100%)',
-  courses: 45
+id: 1,
+name: 'Programming',
+icon: '💻',
+gradient: 'linear-gradient(135deg, #YOUR_COLOR1 0%, #YOUR_COLOR2 100%)',
+courses: 45
 }
 \`\`\`
 
@@ -314,15 +325,15 @@ Edit `src/components/LearningStats.jsx`:
 
 \`\`\`jsx
 const stats = [
-  // Add your new stat
-  {
-    id: 5,
-    label: 'Your Metric',
-    value: 100,
-    icon: '🎯',
-    color: '#14b8a6',
-    badge: 'New Achievement'
-  }
+// Add your new stat
+{
+id: 5,
+label: 'Your Metric',
+value: 100,
+icon: '🎯',
+color: '#14b8a6',
+badge: 'New Achievement'
+}
 ];
 \`\`\`
 
@@ -335,6 +346,7 @@ Edit `src/components/EnhancedFooter.jsx` - Change any text, links, or social med
 ## ✨ That's It!
 
 You now have:
+
 - ✅ **11 new React components**
 - ✅ **2000+ lines of professional CSS**
 - ✅ **Fully responsive design**
@@ -346,5 +358,5 @@ You now have:
 
 ---
 
-*Last Updated: December 2025*
-*Platform: iVidhyarthi Educational Platform*
+_Last Updated: December 2025_
+_Platform: iVidhyarthi Educational Platform_

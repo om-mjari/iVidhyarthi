@@ -574,6 +574,25 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
               </div>
             )}
           </main>
+
+          {/* Minimal Premium Footer */}
+          <footer className="ividhyarthi-minimal-footer">
+            <div className="footer-content-minimal">
+              <p className="footer-copyright">
+                © 2025 iVidhyarthi — Empowering Digital Learning for Everyone.
+              </p>
+              <div className="footer-links-minimal">
+                <a href="#privacy" className="footer-link">Privacy Policy</a>
+                <span className="footer-dot">•</span>
+                <a href="#terms" className="footer-link">Terms of Use</a>
+                <span className="footer-dot">•</span>
+                <a href="#contact" className="footer-link">Contact</a>
+              </div>
+              <p className="footer-tagline">
+                An initiative to make education accessible and future-ready.
+              </p>
+            </div>
+          </footer>
         </div>
       </div>
       <Chatbot />

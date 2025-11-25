@@ -1604,3 +1604,138 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: #059669;
 }
+
+/* ========================================
+   MINIMAL PREMIUM FOOTER
+======================================== */
+
+.ividhyarthi-minimal-footer {
+  width: 100%;
+  background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  padding: 2.5rem 2rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid rgba(20, 184, 166, 0.15);
+  border-radius: 20px;
+  position: relative;
+}
+
+.footer-content-minimal {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
+.footer-copyright {
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 500;
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  letter-spacing: 0.3px;
+}
+
+.footer-links-minimal {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.footer-link {
+  color: #14b8a6;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  font-family: 'Poppins', sans-serif;
+  position: relative;
+  padding-bottom: 2px;
+}
+
+.footer-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #14b8a6, #06b6d4);
+  transition: width 0.3s ease;
+}
+
+.footer-link:hover {
+  color: #0891b2;
+}
+
+.footer-link:hover::after {
+  width: 100%;
+}
+
+.footer-dot {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.footer-tagline {
+  font-size: 0.875rem;
+  color: #64748b;
+  font-style: italic;
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+}
+
+/* Responsive Footer */
+@media (max-width: 768px) {
+  .ividhyarthi-minimal-footer {
+    padding: 2rem 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .footer-content-minimal {
+    gap: 0.875rem;
+  }
+
+  .footer-copyright {
+    font-size: 0.9rem;
+  }
+
+  .footer-link {
+    font-size: 0.85rem;
+  }
+
+  .footer-tagline {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .ividhyarthi-minimal-footer {
+    padding: 1.75rem 1rem;
+  }
+
+  .footer-content-minimal {
+    gap: 0.75rem;
+  }
+
+  .footer-copyright {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .footer-links-minimal {
+    gap: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .footer-tagline {
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+}

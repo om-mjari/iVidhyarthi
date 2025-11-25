@@ -33,6 +33,8 @@ import Resources from './Resources';
 import LecturerDashboard from './LecturerDashboard';
 import RegistrarDashboard from './RegistrarDashboard';
 import LecturerEligibility from './LecturerEligibility';
+import AboutUs from './AboutUs';
+import HelpCenter from './HelpCenter';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -511,6 +513,28 @@ function App() {
     return (
       <div className="App">
         <Resources
+          onNavigateHome={handleNavigateHome}
+          onNavigateLogin={() => setRoute('login')}
+        />
+      </div>
+    );
+  }
+
+  if (route === 'AboutUs') {
+    return (
+      <div className="App">
+        <AboutUs
+          onNavigateHome={handleNavigateHome}
+          onNavigateLogin={() => setRoute('login')}
+        />
+      </div>
+    );
+  }
+
+  if (route === 'HelpCenter') {
+    return (
+      <div className="App">
+        <HelpCenter
           onNavigateHome={handleNavigateHome}
           onNavigateLogin={() => setRoute('login')}
         />

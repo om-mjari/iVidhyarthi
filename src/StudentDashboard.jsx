@@ -1,8 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
 import './MyProfilePremium.css';
+import './components/NewSections.css';
 import Logo from './Logo';
 import Chatbot from './Chatbot';
+import EnrolledCourses from './components/EnrolledCourses';
+import LearningStats from './components/LearningStats';
+import UpcomingSessions from './components/UpcomingSessions';
+import RecommendedCourses from './components/RecommendedCourses';
+import Announcements from './components/Announcements';
+import EnhancedFooter from './components/EnhancedFooter';
 
 const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
   // State for courses (raw approved list)
@@ -594,26 +601,30 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
                 </button>
               </div>
             )}
+
+            {/* ========================================
+                STUDENT DASHBOARD ENHANCEMENT SECTIONS
+            ======================================== */}
+            
+            {/* My Enrolled Courses with Progress */}
+            <EnrolledCourses />
+
+            {/* Learning Statistics & Skill Progress */}
+            <LearningStats />
+
+            {/* Upcoming Live Sessions */}
+            <UpcomingSessions />
+
+            {/* AI-Powered Recommended Courses */}
+            <RecommendedCourses />
+
+            {/* Announcements & Notifications */}
+            <Announcements />
+
           </main>
 
-          {/* Minimal Premium Footer */}
-          <footer className="ividhyarthi-minimal-footer">
-            <div className="footer-content-minimal">
-              <p className="footer-copyright">
-                © 2025 iVidhyarthi — Empowering Digital Learning for Everyone.
-              </p>
-              <div className="footer-links-minimal">
-                <a href="#privacy" className="footer-link">Privacy Policy</a>
-                <span className="footer-dot">•</span>
-                <a href="#terms" className="footer-link">Terms of Use</a>
-                <span className="footer-dot">•</span>
-                <a href="#contact" className="footer-link">Contact</a>
-              </div>
-              <p className="footer-tagline">
-                An initiative to make education accessible and future-ready.
-              </p>
-            </div>
-          </footer>
+          {/* Enhanced 3-Row Footer */}
+          <EnhancedFooter onNavigateToPage={onNavigateCourse} />
         </div>
       </div>
 

@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
+import './components/NewSections.css';
 import Logo from './Logo';
 import Chatbot from './Chatbot';
+import PopularCategories from './components/PopularCategories';
+import WhyChoose from './components/WhyChoose';
+import Testimonials from './components/Testimonials';
+import TrustedPartners from './components/TrustedPartners';
+import EnhancedFooter from './components/EnhancedFooter';
 
 const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
   // State for courses (raw approved list)
@@ -573,26 +579,27 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
                 </button>
               </div>
             )}
+
+            {/* ========================================
+                NEW ENHANCED SECTIONS
+            ======================================== */}
+            
+            {/* Popular Categories Section */}
+            <PopularCategories />
+
+            {/* Why Choose iVidhyarthi Section */}
+            <WhyChoose />
+
+            {/* Student Testimonials Carousel */}
+            <Testimonials />
+
+            {/* Trusted Partners Section */}
+            <TrustedPartners />
+
           </main>
 
-          {/* Minimal Premium Footer */}
-          <footer className="ividhyarthi-minimal-footer">
-            <div className="footer-content-minimal">
-              <p className="footer-copyright">
-                © 2025 iVidhyarthi — Empowering Digital Learning for Everyone.
-              </p>
-              <div className="footer-links-minimal">
-                <a href="#privacy" className="footer-link">Privacy Policy</a>
-                <span className="footer-dot">•</span>
-                <a href="#terms" className="footer-link">Terms of Use</a>
-                <span className="footer-dot">•</span>
-                <a href="#contact" className="footer-link">Contact</a>
-              </div>
-              <p className="footer-tagline">
-                An initiative to make education accessible and future-ready.
-              </p>
-            </div>
-          </footer>
+          {/* Enhanced 3-Row Footer */}
+          <EnhancedFooter onNavigateToPage={onNavigateToPage} />
         </div>
       </div>
       <Chatbot />

@@ -3,7 +3,7 @@ import './StudentDashboard.css';
 import './MyProfilePremium.css';
 import './components/NewSections.css';
 import Logo from './Logo';
-import Chatbot from './Chatbot';
+import ChatbotAssistant from './components/ChatbotAssistant';
 import EnrolledCourses from './components/EnrolledCourses';
 import LearningStats from './components/LearningStats';
 import UpcomingSessions from './components/UpcomingSessions';
@@ -763,7 +763,7 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
       </aside>
 
       {/* Chatbot Component */}
-      <Chatbot />
+      <ChatbotAssistant />
     </div>
   );
 };

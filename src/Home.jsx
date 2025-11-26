@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
 import './components/NewSections.css';
 import Logo from './Logo';
-import Chatbot from './Chatbot';
+import ChatbotAssistant from './components/ChatbotAssistant';
 import PopularCategories from './components/PopularCategories';
 import WhyChoose from './components/WhyChoose';
 import Testimonials from './components/Testimonials';
@@ -602,7 +602,7 @@ const Home = ({ onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
           <EnhancedFooter onNavigateToPage={onNavigateToPage} />
         </div>
       </div>
-      <Chatbot />
+      <ChatbotAssistant />
     </div>
   );
 };

@@ -31,6 +31,7 @@ Check `backend/package.json` should include:
 ## Frontend
 
 No additional packages needed! Razorpay checkout script loads from CDN:
+
 ```javascript
 https://checkout.razorpay.com/v1/checkout.js
 ```

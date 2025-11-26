@@ -22,7 +22,9 @@ if (!process.env.MONGODB_URI) {
   process.exit(1);
 }
 if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-  console.warn("⚠️ EMAIL_USER or EMAIL_APP_PASSWORD not set — email features may fail.");
+  console.warn(
+    "⚠️ EMAIL_USER or EMAIL_APP_PASSWORD not set — email features may fail."
+  );
 }
 
 /* ============================
@@ -57,8 +59,11 @@ mongoose.connection.once("open", () => {
 /* ============================
    Multer (file upload) setup
    ============================ */
-const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "", 10) || 50 * 1024 * 1024;
-const ALLOWED_FILE_TYPES = (process.env.ALLOWED_FILE_TYPES || "image/png,image/jpeg,image/jpg,video/mp4").split(",");
+const MAX_FILE_SIZE =
+  parseInt(process.env.MAX_FILE_SIZE || "", 10) || 50 * 1024 * 1024;
+const ALLOWED_FILE_TYPES = (
+  process.env.ALLOWED_FILE_TYPES || "image/png,image/jpeg,image/jpg,video/mp4"
+).split(",");
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -66,7 +71,12 @@ const upload = multer({
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
     if (!ALLOWED_FILE_TYPES.includes(file.mimetype)) {
-      return cb(new Error("Invalid file type. Allowed types: " + ALLOWED_FILE_TYPES.join(", ")), false);
+      return cb(
+        new Error(
+          "Invalid file type. Allowed types: " + ALLOWED_FILE_TYPES.join(", ")
+        ),
+        false
+      );
     }
     cb(null, true);
   },
@@ -139,8 +149,14 @@ app.get("/api/health", (req, res) => {
 /** Upload file */
 app.post("/api/upload", upload.single("file"), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
-    if (!gridfsBucket) return res.status(500).json({ success: false, message: "GridFS not initialized" });
+    if (!req.file)
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded" });
+    if (!gridfsBucket)
+      return res
+        .status(500)
+        .json({ success: false, message: "GridFS not initialized" });
 
     const uploadStream = gridfsBucket.openUploadStream(req.file.originalname, {
       metadata: {
@@ -173,7 +189,10 @@ app.post("/api/upload", upload.single("file"), async (req, res, next) => {
 /** Get file metadata list */
 app.get("/api/files", async (req, res, next) => {
   try {
-    if (!gridfsBucket) return res.status(500).json({ success: false, message: "GridFS not initialized" });
+    if (!gridfsBucket)
+      return res
+        .status(500)
+        .json({ success: false, message: "GridFS not initialized" });
     const files = await gridfsBucket.find().toArray();
     res.json({ success: true, data: files });
   } catch (err) {
@@ -184,13 +203,22 @@ app.get("/api/files", async (req, res, next) => {
 /** Download file by ID */
 app.get("/api/files/:id", async (req, res, next) => {
   try {
-    if (!gridfsBucket) return res.status(500).json({ success: false, message: "GridFS not initialized" });
+    if (!gridfsBucket)
+      return res
+        .status(500)
+        .json({ success: false, message: "GridFS not initialized" });
     const fileId = new mongoose.Types.ObjectId(req.params.id);
     const files = await gridfsBucket.find({ _id: fileId }).toArray();
-    if (!files || files.length === 0) return res.status(404).json({ success: false, message: "File not found" });
+    if (!files || files.length === 0)
+      return res
+        .status(404)
+        .json({ success: false, message: "File not found" });
 
     const file = files[0];
-    res.setHeader("Content-Type", file.metadata?.mimetype || "application/octet-stream");
+    res.setHeader(
+      "Content-Type",
+      file.metadata?.mimetype || "application/octet-stream"
+    );
     res.setHeader("Content-Disposition", `inline; filename="${file.filename}"`);
 
     const downloadStream = gridfsBucket.openDownloadStream(fileId);
@@ -204,7 +232,10 @@ app.get("/api/files/:id", async (req, res, next) => {
 /** Delete file by ID */
 app.delete("/api/files/:id", async (req, res, next) => {
   try {
-    if (!gridfsBucket) return res.status(500).json({ success: false, message: "GridFS not initialized" });
+    if (!gridfsBucket)
+      return res
+        .status(500)
+        .json({ success: false, message: "GridFS not initialized" });
     const fileId = new mongoose.Types.ObjectId(req.params.id);
     await gridfsBucket.delete(fileId);
     res.json({ success: true, message: "File deleted" });
@@ -222,7 +253,9 @@ app.post("/send-otp", async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
-      return res.status(400).json({ success: false, message: "Valid email required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid email required" });
 
     // Cleanup expired OTPs (simple sweep)
     const now = Date.now();
@@ -243,7 +276,9 @@ app.post("/send-otp", async (req, res, next) => {
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
         console.error("Error sending OTP mail:", err);
-        return res.status(500).json({ success: false, message: "Could not send OTP" });
+        return res
+          .status(500)
+          .json({ success: false, message: "Could not send OTP" });
       }
       return res.json({ success: true, message: "OTP sent" });
     });
@@ -255,14 +290,20 @@ app.post("/send-otp", async (req, res, next) => {
 /** Verify OTP */
 app.post("/verify-otp", (req, res) => {
   const { email, otp } = req.body;
-  if (!email || !otp) return res.status(400).json({ success: false, message: "Email and OTP required" });
+  if (!email || !otp)
+    return res
+      .status(400)
+      .json({ success: false, message: "Email and OTP required" });
 
   const record = otpStore.get(email.trim());
   if (!record || record.expiresAt < Date.now()) {
     if (record) otpStore.delete(email.trim());
-    return res.status(400).json({ success: false, message: "OTP expired or not requested" });
+    return res
+      .status(400)
+      .json({ success: false, message: "OTP expired or not requested" });
   }
-  if (record.otp !== String(otp).trim()) return res.status(400).json({ success: false, message: "Invalid OTP" });
+  if (record.otp !== String(otp).trim())
+    return res.status(400).json({ success: false, message: "Invalid OTP" });
 
   otpStore.delete(email.trim());
   res.json({ success: true, message: "OTP verified" });
@@ -274,7 +315,9 @@ app.post("/verify-otp", (req, res) => {
 app.get("/test-email", async (req, res, next) => {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
-      return res.status(400).json({ success: false, message: "Email not configured" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email not configured" });
     }
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
@@ -294,9 +337,14 @@ app.get("/test-email", async (req, res, next) => {
 app.use((err, req, res, next) => {
   console.error("❗ Server error:", err.message);
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-    return res.status(400).json({ success: false, message: "File too large. Max: " + MAX_FILE_SIZE });
+    return res.status(400).json({
+      success: false,
+      message: "File too large. Max: " + MAX_FILE_SIZE,
+    });
   }
-  return res.status(500).json({ success: false, message: err.message || "Internal server error" });
+  return res
+    .status(500)
+    .json({ success: false, message: err.message || "Internal server error" });
 });
 
 /* ============================

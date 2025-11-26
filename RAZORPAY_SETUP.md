@@ -50,17 +50,19 @@ You should see: ✅ **Razorpay configured with real credentials**
 
 ### Test Card Details (Razorpay Sandbox)
 
-| Card Number | Expiry | CVV | Result |
-|-------------|--------|-----|--------|
+| Card Number         | Expiry          | CVV          | Result     |
+| ------------------- | --------------- | ------------ | ---------- |
 | 4111 1111 1111 1111 | Any future date | Any 3 digits | ✅ Success |
 | 4012 8888 8888 1881 | Any future date | Any 3 digits | ✅ Success |
 | 5555 5555 5555 4444 | Any future date | Any 3 digits | ✅ Success |
 
 ### Test UPI ID
+
 - success@razorpay
 - failure@razorpay (for testing failures)
 
 ### Test NetBanking
+
 - Select any bank
 - Use any credentials
 - Click "Success" or "Failure" button
@@ -85,12 +87,14 @@ You should see: ✅ **Razorpay configured with real credentials**
 ## For Your Presentation Tomorrow
 
 **Option 1: Use Demo Mode**
+
 - Show the complete UI flow
 - Mention "This is running in TEST mode"
 - Payment completes in 2 seconds automatically
 - Receipt is generated and saved
 
 **Option 2: Setup Real Razorpay (Recommended)**
+
 - Takes only 5 minutes
 - Shows actual Razorpay checkout
 - More impressive and professional
@@ -99,17 +103,20 @@ You should see: ✅ **Razorpay configured with real credentials**
 ## Need Help?
 
 **Error: "Payment failed: Failed to create order"**
+
 - This means you need to either:
   1. Keep demo mode (current setup) ✅
   2. Add real Razorpay keys (5 min setup) 🔑
 
 **Server shows: "⚠️ Razorpay not configured - DEMO MODE ENABLED"**
+
 - This is normal! Your app works in demo mode
 - To enable real payments, follow steps above
 
 ## Production Deployment
 
 Before going live with real money:
+
 1. Complete Razorpay KYC verification
 2. Switch to LIVE API keys (not test)
 3. Update .env with live keys

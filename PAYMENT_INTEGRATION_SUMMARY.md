@@ -5,27 +5,32 @@
 ### 📁 Backend Files (Node.js + Express + MongoDB)
 
 1. **`backend/models/Payment.js`**
+
    - Mongoose schema for `Tbl_Payment` collection
    - Fields: studentId, courseId, amount, type, receiptNo, orderId, paymentId, status, paymentDate
    - Indexes for efficient queries
 
 2. **`backend/controllers/paymentController.js`**
+
    - `createOrder()` - Creates Razorpay order and saves to MongoDB as PENDING
    - `verifyPayment()` - Verifies signature and updates status to SUCCESS
    - `getPayment()` - Fetch payment by receipt number
    - `getStudentPayments()` - Get all successful payments for a student
 
 3. **`backend/routes/paymentRoutes.js`**
+
    - POST `/api/payments/create-order`
    - POST `/api/payments/verify`
    - GET `/api/payments/:receiptNo`
    - GET `/api/payments/student/:studentId`
 
 4. **`backend/config/razorpay.js`**
+
    - Razorpay instance initialization
    - Uses TEST credentials from environment
 
 5. **`backend/server.js`** (Updated)
+
    - Added payment routes import
    - Mounted `/api/payments` endpoint
 
@@ -38,6 +43,7 @@
 ### 🎨 Frontend Files (React + Vite)
 
 1. **`src/PaymentGateway.jsx`** (Updated)
+
    - Payment method selection (Card/UPI/NetBanking/Wallet)
    - Razorpay checkout integration
    - Loads Razorpay script dynamically
@@ -48,6 +54,7 @@
    - Redirects to success page
 
 2. **`src/FinalPayment.jsx`** (Updated)
+
    - Displays payment success details
    - Shows: Payment ID, Order ID, Receipt No, Amount, Date, Course, Student info
    - Continue to Dashboard button
@@ -67,6 +74,7 @@
 ### 📚 Documentation Files
 
 1. **`RAZORPAY_INTEGRATION_GUIDE.md`**
+
    - Complete step-by-step integration guide
    - Setup instructions
    - API documentation
@@ -76,6 +84,7 @@
    - Production deployment checklist
 
 2. **`QUICK_REFERENCE.md`**
+
    - Payment flow diagram
    - Test card details
    - MongoDB structure
@@ -83,6 +92,7 @@
    - Common errors
 
 3. **`INSTALL_DEPENDENCIES.md`**
+
    - NPM package installation guide
 
 4. **`test-payment-api.js`**
@@ -143,6 +153,7 @@
 **Collection Name:** `Tbl_Payment`
 
 **Sample Document:**
+
 ```json
 {
   "_id": "6563f7a8b2c3d4e5f6789012",
@@ -174,6 +185,7 @@
 ## 🔑 Environment Setup
 
 **Create `backend/.env`:**
+
 ```env
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ividhyarthi
 PORT=5000
@@ -188,17 +200,20 @@ EMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
 ## 🧪 Testing
 
 ### Test Card (Razorpay TEST Mode)
+
 - **Card:** 4111 1111 1111 1111
 - **Expiry:** 12/25
 - **CVV:** 123
 - **Name:** Test User
 
 ### Run Test Script
+
 ```bash
 node test-payment-api.js
 ```
 
 ### Manual Test
+
 1. `cd backend && npm start`
 2. `npm run dev` (in root)
 3. Navigate to payment page
@@ -211,6 +226,7 @@ node test-payment-api.js
 ## 📊 API Endpoints
 
 ### 1. Create Order
+
 ```http
 POST http://localhost:5000/api/payments/create-order
 Content-Type: application/json
@@ -227,6 +243,7 @@ Content-Type: application/json
 ```
 
 ### 2. Verify Payment
+
 ```http
 POST http://localhost:5000/api/payments/verify
 Content-Type: application/json
@@ -240,11 +257,13 @@ Content-Type: application/json
 ```
 
 ### 3. Get Payment
+
 ```http
 GET http://localhost:5000/api/payments/IVY-1732630400123-456
 ```
 
 ### 4. Get Student Payments
+
 ```http
 GET http://localhost:5000/api/payments/student/1
 ```
@@ -275,7 +294,7 @@ GET http://localhost:5000/api/payments/student/1
 ✅ **Input Validation** - All inputs validated before processing  
 ✅ **Unique Receipt Numbers** - Prevents duplicate entries  
 ✅ **Status Tracking** - PENDING → SUCCESS workflow  
-✅ **Error Handling** - Comprehensive try-catch blocks  
+✅ **Error Handling** - Comprehensive try-catch blocks
 
 ---
 
@@ -313,7 +332,7 @@ GET http://localhost:5000/api/payments/student/1
 ✅ Error handling and validation  
 ✅ API endpoints for payment management  
 ✅ Comprehensive documentation  
-✅ Test scripts for API verification  
+✅ Test scripts for API verification
 
 ---
 

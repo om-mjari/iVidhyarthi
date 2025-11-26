@@ -48,7 +48,7 @@ Name:         Any name
 ```javascript
 {
   studentId: "1",
-  courseId: "1", 
+  courseId: "1",
   amount: 1499,
   type: "Card",
   receiptNo: "IVY-1732630400-123",  // Unique
@@ -81,7 +81,7 @@ PORT=5000
 cd backend
 npm start
 
-# Terminal 2: Frontend  
+# Terminal 2: Frontend
 npm run dev
 ```
 
@@ -89,12 +89,12 @@ npm run dev
 
 ## 📡 API Endpoints
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/payments/create-order` | Create Razorpay order |
-| POST | `/api/payments/verify` | Verify payment signature |
-| GET | `/api/payments/:receiptNo` | Get payment by receipt |
-| GET | `/api/payments/student/:studentId` | Get all student payments |
+| Method | Endpoint                           | Purpose                  |
+| ------ | ---------------------------------- | ------------------------ |
+| POST   | `/api/payments/create-order`       | Create Razorpay order    |
+| POST   | `/api/payments/verify`             | Verify payment signature |
+| GET    | `/api/payments/:receiptNo`         | Get payment by receipt   |
+| GET    | `/api/payments/student/:studentId` | Get all student payments |
 
 ---
 
@@ -109,18 +109,19 @@ npm run dev
 
 ## 🐛 Common Errors
 
-| Error | Solution |
-|-------|----------|
+| Error                     | Solution                              |
+| ------------------------- | ------------------------------------- |
 | `Razorpay is not defined` | Check internet, script loads from CDN |
-| `Invalid signature` | Verify `RAZORPAY_KEY_SECRET` in .env |
-| `404 on /api/payments` | Restart backend, check route import |
-| `MongoServerError` | Check MongoDB connection string |
+| `Invalid signature`       | Verify `RAZORPAY_KEY_SECRET` in .env  |
+| `404 on /api/payments`    | Restart backend, check route import   |
+| `MongoServerError`        | Check MongoDB connection string       |
 
 ---
 
 ## 📁 Modified Files
 
 ### Backend
+
 - ✅ `models/Payment.js` (New)
 - ✅ `controllers/paymentController.js` (New)
 - ✅ `routes/paymentRoutes.js` (New)
@@ -129,6 +130,7 @@ npm run dev
 - ✅ `.env.example` (Updated)
 
 ### Frontend
+
 - ✅ `PaymentGateway.jsx` (Updated)
 - ✅ `FinalPayment.jsx` (Updated)
 - ✅ `Payment.css` (Updated)

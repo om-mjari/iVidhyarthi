@@ -3,14 +3,17 @@
 ## Problems Solved
 
 ### 1. ❌ Port 5000 Already in Use
+
 **Problem:** Server couldn't start because port 5000 was occupied
 **Solution:** Process automatically stopped when starting new server
 
 ### 2. ✅ Student Name from Database
+
 **Problem:** Student name was coming from localStorage instead of database
 **Solution:** Payment controller now fetches **Full_Name** from `Tbl_Students` table
 
 ### 3. ✅ Razorpay Demo Mode
+
 **Problem:** Payment gateway wasn't configured
 **Solution:** Implemented **DEMO MODE** - works without Razorpay keys!
 
@@ -39,18 +42,20 @@
 The payment controller tries **3 methods** to find student:
 
 1. **By User_Id in Tbl_Students** (Primary)
+
    ```javascript
-   Students.findOne({ User_Id: studentId })
+   Students.findOne({ User_Id: studentId });
    ```
 
-2. **By _id in Tbl_Students** (Fallback)
+2. **By \_id in Tbl_Students** (Fallback)
+
    ```javascript
-   Students.findById(studentId)
+   Students.findById(studentId);
    ```
 
-3. **By _id in Users table** (Last resort)
+3. **By \_id in Users table** (Last resort)
    ```javascript
-   User.findById(studentId)
+   User.findById(studentId);
    ```
 
 ### Frontend Flow (PaymentGateway.jsx):
@@ -84,8 +89,8 @@ The payment controller tries **3 methods** to find student:
   "orderId": "order_DEMO_1732628340567",
   "status": "SUCCESS",
   "paymentDate": "2025-11-26T15:45:40.892Z",
-  "studentName": "Om Jariwala",          // ✅ REAL NAME FROM DATABASE
-  "studentEmail": "jack123@gmail.com",   // ✅ REAL EMAIL FROM USER TABLE
+  "studentName": "Om Jariwala", // ✅ REAL NAME FROM DATABASE
+  "studentEmail": "jack123@gmail.com", // ✅ REAL EMAIL FROM USER TABLE
   "courseName": "Air Cloude",
   "paymentId": "pay_DEMO_1732628342789",
   "razorpaySignature": "demo_signature_0.5678",
@@ -95,8 +100,9 @@ The payment controller tries **3 methods** to find student:
 ```
 
 **Key Points:**
+
 - ✅ `studentName` = Full_Name from Tbl_Students
-- ✅ `studentEmail` = email from Users table  
+- ✅ `studentEmail` = email from Users table
 - ✅ `studentId` = User_Id (MongoDB ObjectId)
 - ✅ All data persisted correctly
 
@@ -107,12 +113,14 @@ The payment controller tries **3 methods** to find student:
 ### Current Setup: DEMO MODE 🎭
 
 **Server Console Shows:**
+
 ```
 ⚠️  Razorpay not configured - DEMO MODE ENABLED
    Get API keys from: https://dashboard.razorpay.com/app/website-app-settings/api-keys
 ```
 
 **What Works in Demo Mode:**
+
 - ✅ Complete payment UI flow
 - ✅ Student name fetched from database
 - ✅ Payment saved to MongoDB
@@ -121,6 +129,7 @@ The payment controller tries **3 methods** to find student:
 - ✅ Status tracking (PENDING → SUCCESS)
 
 **What's Simulated:**
+
 - ⏰ 2-second payment processing
 - 🎭 Fake order IDs (order_DEMO_xxx)
 - 🎭 Fake payment IDs (pay_DEMO_xxx)
@@ -135,16 +144,19 @@ The payment controller tries **3 methods** to find student:
 1. **Sign up:** https://dashboard.razorpay.com/signup
 
 2. **Get TEST keys:**
+
    - Dashboard → Settings → API Keys
    - Generate Test Key (NOT Live Key)
 
 3. **Update .env:**
+
    ```env
    RAZORPAY_KEY_ID=rzp_test_XXXXXXXXXXXXX
    RAZORPAY_KEY_SECRET=YYYYYYYYYYYYYYY
    ```
 
 4. **Restart server:**
+
    ```bash
    cd backend
    node server.js
@@ -157,29 +169,34 @@ The payment controller tries **3 methods** to find student:
 ## Testing the Fix
 
 ### Step 1: Login as Student
+
 - Use your test account
 - Login creates JWT token
 - Token contains userId
 
 ### Step 2: Select Course
+
 - Browse courses
 - Click "Enroll Now"
 - Course saved to localStorage
 
 ### Step 3: Payment Gateway
+
 - Click "Pay" button
 - Console shows: `💳 Payment Gateway - Student Info`
 - Check userId is present
 
 ### Step 4: Process Payment
+
 - Click "Pay ₹2006"
 - Demo mode: Alert + auto-success
 - Real mode: Razorpay popup
 
 ### Step 5: Check MongoDB
+
 ```javascript
 // In MongoDB Compass or Atlas:
-db.tbl_payments.find().sort({createdAt: -1}).limit(1)
+db.tbl_payments.find().sort({ createdAt: -1 }).limit(1);
 
 // Verify studentName field contains real name!
 ```
@@ -189,6 +206,7 @@ db.tbl_payments.find().sort({createdAt: -1}).limit(1)
 ## Console Output Examples
 
 ### Backend (server.js):
+
 ```
 ✅ Fetched student from Tbl_Students: Om Jariwala
 🎭 DEMO MODE: Creating simulated order
@@ -196,6 +214,7 @@ db.tbl_payments.find().sort({createdAt: -1}).limit(1)
 ```
 
 ### Frontend (browser console):
+
 ```
 💳 Payment Gateway - Student Info: {
   userId: "674491cf97e1234567890abc",
@@ -214,7 +233,9 @@ Order created: {
 ## API Endpoints Updated
 
 ### POST /api/payments/create-order
+
 **Request:**
+
 ```json
 {
   "studentId": "674491cf97e1234567890abc",
@@ -228,12 +249,14 @@ Order created: {
 ```
 
 **What Happens:**
+
 1. ✅ Backend ignores `studentName` from request
 2. ✅ Queries `Tbl_Students` with `studentId`
 3. ✅ Fetches **Full_Name** from database
 4. ✅ Uses real name in payment record
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -254,12 +277,15 @@ Order created: {
 ## For Your Presentation Tomorrow
 
 ### Option 1: Demo Mode (Current) ✅
+
 **Recommended for time constraint!**
 
 **What to Say:**
+
 > "Our payment gateway integrates with Razorpay. Currently running in TEST mode for demonstration. The system fetches student details from our database, creates payment orders, and saves complete transaction records to MongoDB."
 
 **What to Show:**
+
 1. Login as student
 2. Select course
 3. Click Pay button
@@ -268,7 +294,9 @@ Order created: {
 6. **Open MongoDB Compass** - Show payment record with real student name! 🎯
 
 ### Option 2: Real Razorpay Setup
+
 Only if you have 5 minutes to spare:
+
 1. Create Razorpay account
 2. Get TEST keys
 3. Update .env
@@ -280,24 +308,28 @@ Only if you have 5 minutes to spare:
 ## Key Features Implemented
 
 ### ✅ Database Integration
+
 - Student details fetched from Tbl_Students
 - Full_Name populated automatically
 - Email from Users table
 - Multiple fallback mechanisms
 
 ### ✅ Error Handling
+
 - Graceful database query failures
 - Fallback to provided data
 - Console logging for debugging
 - Clear error messages
 
 ### ✅ Security
+
 - JWT token validation
 - Signature verification (in real mode)
 - Status tracking
 - Transaction auditing
 
 ### ✅ User Experience
+
 - Auto-fills student details
 - Shows payment processing
 - Receipt generation
@@ -308,11 +340,13 @@ Only if you have 5 minutes to spare:
 ## Files Modified
 
 ### Backend:
+
 1. `backend/config/razorpay.js` - Demo mode detection
 2. `backend/controllers/paymentController.js` - Database queries for student
 3. `backend/models/Payment.js` - Schema (already correct)
 
 ### Frontend:
+
 1. `src/PaymentGateway.jsx` - JWT token decoding, userId extraction
 
 ---
@@ -320,19 +354,25 @@ Only if you have 5 minutes to spare:
 ## Troubleshooting
 
 ### Issue: "Student name still showing wrong in database"
-**Solution:** 
+
+**Solution:**
+
 - Check `studentId` being sent (should be User_Id)
 - Verify Tbl_Students has matching User_Id
 - Check backend console for "✅ Fetched student from Tbl_Students"
 
 ### Issue: "Port 5000 already in use"
+
 **Solution:**
+
 ```powershell
 Get-Process -Name node | Where-Object {$_.Path -like '*nodejs*'} | Stop-Process -Force
 ```
 
 ### Issue: "Payment verification failed"
+
 **Solution:**
+
 - This is normal in demo mode without real Razorpay keys
 - Demo mode auto-succeeds payments
 - Or setup real Razorpay keys

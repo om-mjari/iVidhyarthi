@@ -1,6 +1,7 @@
 # 🚀 Razorpay Payment Gateway Integration - Complete Guide
 
 ## 📋 Overview
+
 This document explains how to integrate Razorpay TEST payment gateway with iVidhyarthi platform.
 
 ---
@@ -16,12 +17,14 @@ This document explains how to integrate Razorpay TEST payment gateway with iVidh
 ## 🔧 Step 1: Install Dependencies
 
 ### Backend
+
 ```bash
 cd backend
 npm install razorpay crypto
 ```
 
-### Frontend  
+### Frontend
+
 ```bash
 cd ../
 npm install
@@ -43,12 +46,14 @@ npm install
 ## ⚙️ Step 3: Configure Environment
 
 1. Copy `.env.example` to `.env`:
+
 ```bash
 cd backend
 copy .env.example .env
 ```
 
 2. Edit `.env` and add your Razorpay keys:
+
 ```env
 RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxx
 RAZORPAY_KEY_SECRET=your_secret_here
@@ -83,6 +88,7 @@ iVidhyarthi/
 The `Tbl_Payment` collection will be created automatically when first payment is made.
 
 **Schema:**
+
 - `studentId` - Student identifier
 - `courseId` - Course identifier
 - `amount` - Payment amount
@@ -98,11 +104,14 @@ The `Tbl_Payment` collection will be created automatically when first payment is
 ## 🚀 Step 6: Start the Application
 
 ### Terminal 1: Backend
+
 ```bash
 cd backend
 npm start
 ```
+
 **Expected output:**
+
 ```
 ✅ MongoDB connected
 ✅ Routes registered:
@@ -111,10 +120,13 @@ Server running on port 5000
 ```
 
 ### Terminal 2: Frontend
+
 ```bash
 npm run dev
 ```
+
 **Expected output:**
+
 ```
   VITE v5.0.0  ready in 500 ms
 
@@ -126,18 +138,22 @@ npm run dev
 ## 🧪 Step 7: Test Payment Flow
 
 ### A) Navigate to Payment
+
 1. Open `http://localhost:5173`
 2. Login to Student Dashboard
 3. Click **Enroll Now** on any course
 4. Go through checkout → Click **Pay Now**
 
 ### B) Payment Gateway Opens
+
 1. Select payment method (Card/UPI/NetBanking)
 2. Click **Pay ₹XXXX**
 3. Razorpay TEST popup appears
 
 ### C) Test Payment (TEST MODE)
+
 Use these TEST card details:
+
 - **Card Number:** `4111 1111 1111 1111`
 - **Expiry:** Any future date (e.g., `12/25`)
 - **CVV:** Any 3 digits (e.g., `123`)
@@ -146,6 +162,7 @@ Use these TEST card details:
 Click **Pay** in Razorpay popup
 
 ### D) Verify Success
+
 1. You'll be redirected to **Payment Successful** page
 2. Check details:
    - ✅ Payment ID
@@ -159,9 +176,11 @@ Click **Pay** in Razorpay popup
 ## 🔍 Step 8: Verify Database Entry
 
 ### Option 1: MongoDB Compass
+
 1. Connect to your MongoDB
 2. Navigate to database → `Tbl_Payment` collection
 3. Check the new document:
+
 ```json
 {
   "_id": "...",
@@ -179,11 +198,13 @@ Click **Pay** in Razorpay popup
 ```
 
 ### Option 2: MongoDB Atlas
+
 1. Login to [MongoDB Atlas](https://cloud.mongodb.com)
 2. **Clusters** → **Browse Collections**
 3. Find `Tbl_Payment` → View document
 
 ### Option 3: API Call
+
 ```bash
 # Get payment by receipt number
 curl http://localhost:5000/api/payments/IVY-1732630400-123
@@ -194,9 +215,11 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ## 📊 API Endpoints
 
 ### 1. Create Order
+
 **POST** `/api/payments/create-order`
 
 **Request:**
+
 ```json
 {
   "studentId": "1",
@@ -210,6 +233,7 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -223,9 +247,11 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ```
 
 ### 2. Verify Payment
+
 **POST** `/api/payments/verify`
 
 **Request:**
+
 ```json
 {
   "razorpay_order_id": "order_xxx",
@@ -236,6 +262,7 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -251,9 +278,11 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ```
 
 ### 3. Get Payment
+
 **GET** `/api/payments/:receiptNo`
 
 ### 4. Get Student Payments
+
 **GET** `/api/payments/student/:studentId`
 
 ---
@@ -276,20 +305,27 @@ curl http://localhost:5000/api/payments/IVY-1732630400-123
 ## 🐛 Troubleshooting
 
 ### Issue: Razorpay script not loading
+
 **Solution:** Check internet connection. Script loads from CDN.
 
 ### Issue: Payment verification failed
-**Solution:** 
+
+**Solution:**
+
 1. Check `RAZORPAY_KEY_SECRET` in `.env`
 2. Verify signature generation logic
 
 ### Issue: MongoDB entry not created
+
 **Solution:**
+
 1. Check MongoDB connection in `.env`
 2. Verify model import in `server.js`
 
 ### Issue: 404 on /api/payments
+
 **Solution:**
+
 1. Check `paymentRoutes` import in `server.js`
 2. Restart backend server
 

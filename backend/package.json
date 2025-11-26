@@ -28,6 +28,7 @@
     "multer": "^1.4.4",
     "nodemailer": "^7.0.6",
     "openai": "^6.9.0",
+    "razorpay": "^2.9.6",
     "ws": "^8.18.3"
   },
   "devDependencies": {

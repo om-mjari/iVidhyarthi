@@ -96,6 +96,7 @@ const registrarRoutes = require("./routes/registrar");
 const adminRoutes = require("./routes/admin");
 const courseCategoriesRoutes = require("./routes/courseCategories");
 const tblCoursesRoutes = require("./routes/tblCourses");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -105,6 +106,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/registrar", registrarRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/tbl-courses", tblCoursesRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // IMPORTANT: Course categories mounted explicitly — this must match your route filename
 app.use("/api/course-categories", courseCategoriesRoutes);
@@ -115,6 +117,7 @@ console.log("   - /api/admin");
 console.log("   - /api/registrar");
 console.log("   - /api/courses");
 console.log("   - /api/tbl-courses");
+console.log("   - /api/payments");
 console.log("   - /api/course-categories");
 
 /* ============================

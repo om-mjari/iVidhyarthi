@@ -929,6 +929,111 @@
   transform: translateY(-4px) scale(1.02) !important;
 }
 
+/* Payment Methods */
+.payment-methods {
+  margin: 2rem 0;
+  width: 100%;
+}
+
+.payment-methods h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+}
+
+.payment-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.payment-type-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+  font-weight: 500;
+  color: #374151;
+}
+
+.payment-type-options label:hover {
+  border-color: #2E8BFF;
+  background: #eff6ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(46, 139, 255, 0.15);
+}
+
+.payment-type-options label.active {
+  border-color: #2E8BFF;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: 0 4px 12px rgba(46, 139, 255, 0.2);
+}
+
+.payment-type-options input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2E8BFF;
+  cursor: pointer;
+}
+
+.razorpay-badge {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding: 0.75rem;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
+}
+
+.razorpay-badge p {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #166534;
+}
+
+/* Payment Success Enhancements */
+.status-success {
+  color: #10b981 !important;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.student-info {
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.student-info p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.receipt-note {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fffbeb;
+  border-radius: 6px;
+  border: 1px solid #fef3c7;
+  text-align: center;
+}
+
+.receipt-note small {
+  color: #92400e;
+  font-weight: 600;
+}
+
 /* Responsive adjustments for gateway */
 @media (max-width: 768px) {
   .gateway-content h2 {

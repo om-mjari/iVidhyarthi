@@ -132,6 +132,38 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
       </div>
     );
   }
+          <div className="header-content">
+            <button className="back-btn-modern" onClick={onBackToDashboard}>
+              <span className="back-icon">←</span>
+              Back to Dashboard
+            </button>
+            <div className="course-info">
+              <h1>Loading Course...</h1>
+              <p>Please wait while we load the course content</p>
+            </div>
+          </div>
+        </div>
+        <div className="course-content">
+          <div className="loading" style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '400px',
+            fontSize: '1.5rem',
+            color: '#6b7280',
+            background: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '24px',
+            margin: '2rem',
+            backdropFilter: 'blur(10px)'
+          }}>
+            🔄 Loading course content...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
 
   return (
     <div className="nptel-course-page">
@@ -279,6 +311,155 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CourseLearningPage;
+            <div className="video-player">
+              {courseContent.videos && courseContent.videos[currentVideo] ? (
+                <iframe
+                  src={courseContent.videos[currentVideo].url}
+                  title={courseContent.videos[currentVideo].title}
+                  frameBorder="0"
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  height: '100%',
+                  background: '#000',
+                  color: '#fff',
+                  fontSize: '1.2rem'
+                }}>
+                  📹 Video not available
+                </div>
+              )}
+            </div>
+            <div className="video-info">
+              <h3>{courseContent.videos && courseContent.videos[currentVideo] ? courseContent.videos[currentVideo].title : 'Video Title'}</h3>
+              <p>Duration: {courseContent.videos && courseContent.videos[currentVideo] ? courseContent.videos[currentVideo].duration : 'N/A'}</p>
+            </div>
+          </div>
+
+          {/* Course Videos Playlist - SECOND */}
+          <div className="video-playlist" style={{ border: '3px solid blue' }}>
+            <h3>🎬 Course Videos</h3>
+            <div className="playlist">
+              {courseContent.videos && courseContent.videos.length > 0 ? (
+                courseContent.videos.map((video, index) => (
+                  <div
+                    key={video.id}
+                    className={`playlist-item ${index === currentVideo ? 'active' : ''}`}
+                    onClick={() => setCurrentVideo(index)}
+                  >
+                    <img src={video.thumbnail} alt={video.title} />
+                    <div className="video-details">
+                      <h4>{video.title}</h4>
+                      <p>{video.duration}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                  📚 No videos available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Assignments Section - THIRD */}
+          <div className="assignments-section" style={{ border: '3px solid green' }}>
+            <h3>📝 Assignments</h3>
+            <div className="assignments-list">
+              {courseContent.assignments && courseContent.assignments.length > 0 ? (
+                courseContent.assignments.map(assignment => (
+                  <div key={assignment.id} className="assignment-item interactive-element">
+                    <div className="assignment-header">
+                      <label className="assignment-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={completedAssignments.includes(assignment.id)}
+                          onChange={() => handleAssignmentToggle(assignment.id)}
+                        />
+                        <span className="checkmark"></span>
+                      </label>
+                      <div className="assignment-info">
+                        <h4>{assignment.title}</h4>
+                        <p>{assignment.description}</p>
+                        <div className="assignment-meta">
+                          <span className="due-date">Due: {assignment.dueDate}</span>
+                          <span className="points">{assignment.points} points</span>
+                        </div>
+                        <span className={`assignment-status ${completedAssignments.includes(assignment.id) ? 'completed' : 'pending'}`}>
+                          {completedAssignments.includes(assignment.id) ? 'Completed' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+                  📝 No assignments available
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback Section - FOURTH */}
+          <div className="feedback-section">
+            <h3>⭐ Course Feedback</h3>
+            <form className="feedback-form">
+              <div className="form-group">
+                <label>Overall Rating</label>
+                <div className="rating-stars">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span
+                      key={star}
+                      className={`star ${star <= feedback.rating ? 'filled' : ''}`}
+                      onClick={() => handleFeedbackChange('rating', star)}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Comments</label>
+                <textarea
+                  className="feedback-textarea"
+                  value={feedback.comments}
+                  onChange={(e) => handleFeedbackChange('comments', e.target.value)}
+                  placeholder="Share your thoughts about this course..."
+                  rows="4"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="topic-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={feedback.recommend}
+                    onChange={(e) => handleFeedbackChange('recommend', e.target.checked)}
+                  />
+                  <span className="checkmark"></span>
+                  I would recommend this course to others
+                </label>
+              </div>
+
+              <button type="button" className="submit-feedback-btn" onClick={handleFeedbackSubmit}>
+                Submit Feedback
+              </button>
+            </form>
+          </div>
+
+          {/* Brand badge at bottom-right after feedback */}
+          <div className="brand-badge">iVidharthi</div>
         </div>
       </div>
     </div>

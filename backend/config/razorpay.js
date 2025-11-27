@@ -31,8 +31,7 @@ const isRazorpayConfigured = () => {
 
   // Check if credentials are demo placeholders
   const isDemoKey = DEMO_INDICATORS.some(
-    (indicator) =>
-      keyId.includes(indicator) || keySecret.includes(indicator)
+    (indicator) => keyId.includes(indicator) || keySecret.includes(indicator)
   );
 
   return !isDemoKey && keyId.startsWith("rzp_test_");
@@ -50,7 +49,9 @@ if (configured) {
     });
     console.log("\n" + "=".repeat(60));
     console.log("✅ RAZORPAY CONFIGURED - LIVE TEST MODE");
-    console.log("   Key ID: " + process.env.RAZORPAY_KEY_ID.substring(0, 15) + "...");
+    console.log(
+      "   Key ID: " + process.env.RAZORPAY_KEY_ID.substring(0, 15) + "..."
+    );
     console.log("   Payments will be processed through Razorpay");
     console.log("=".repeat(60) + "\n");
   } catch (error) {

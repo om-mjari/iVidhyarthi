@@ -93,9 +93,11 @@ exports.createOrder = async (req, res) => {
       console.log("   Course: " + (courseName || "N/A"));
       console.log("   Amount: ₹" + amount);
       console.log("   Receipt: " + receiptNo + "\n");
-      
+
       razorpayOrder = {
-        id: `order_DEMO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `order_DEMO_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`,
         amount: Math.round(amount * 100),
         currency: "INR",
         receipt: receiptNo,

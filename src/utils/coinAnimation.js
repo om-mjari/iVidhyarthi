@@ -11,10 +11,10 @@ let animationInterval = null;
  * Create and inject coin animation styles
  */
 const injectStyles = () => {
-  if (document.getElementById('coin-animation-styles')) return;
+  if (document.getElementById("coin-animation-styles")) return;
 
-  const style = document.createElement('style');
-  style.id = 'coin-animation-styles';
+  const style = document.createElement("style");
+  style.id = "coin-animation-styles";
   style.textContent = `
     .coin-animation-overlay {
       position: fixed;
@@ -191,18 +191,18 @@ const injectStyles = () => {
  */
 const createParticles = (container, count = 12) => {
   for (let i = 0; i < count; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'particle';
-    
+    const particle = document.createElement("div");
+    particle.className = "particle";
+
     const angle = (360 / count) * i;
     const radius = 100;
-    const tx = Math.cos(angle * Math.PI / 180) * radius;
-    const ty = Math.sin(angle * Math.PI / 180) * radius;
-    
-    particle.style.setProperty('--tx', `${tx}px`);
-    particle.style.setProperty('--ty', `${ty}px`);
+    const tx = Math.cos((angle * Math.PI) / 180) * radius;
+    const ty = Math.sin((angle * Math.PI) / 180) * radius;
+
+    particle.style.setProperty("--tx", `${tx}px`);
+    particle.style.setProperty("--ty", `${ty}px`);
     particle.style.animationDelay = `${i * 0.1}s`;
-    
+
     container.appendChild(particle);
   }
 };
@@ -211,7 +211,7 @@ const createParticles = (container, count = 12) => {
  * Show coin spinning animation
  * @param {string} message - Optional custom message
  */
-export const showCoinAnimation = (message = 'Processing Payment') => {
+export const showCoinAnimation = (message = "Processing Payment") => {
   // Prevent multiple instances
   if (animationContainer) {
     hideCoinAnimation();
@@ -220,38 +220,38 @@ export const showCoinAnimation = (message = 'Processing Payment') => {
   injectStyles();
 
   // Create overlay
-  animationContainer = document.createElement('div');
-  animationContainer.className = 'coin-animation-overlay';
+  animationContainer = document.createElement("div");
+  animationContainer.className = "coin-animation-overlay";
 
   // Create coin container
-  const coinContainer = document.createElement('div');
-  coinContainer.className = 'coin-container';
+  const coinContainer = document.createElement("div");
+  coinContainer.className = "coin-container";
 
   // Create coin
-  const coin = document.createElement('div');
-  coin.className = 'coin';
+  const coin = document.createElement("div");
+  coin.className = "coin";
 
   // Front face
-  const frontFace = document.createElement('div');
-  frontFace.className = 'coin-face front';
-  frontFace.innerHTML = '₹';
+  const frontFace = document.createElement("div");
+  frontFace.className = "coin-face front";
+  frontFace.innerHTML = "₹";
 
   // Back face
-  const backFace = document.createElement('div');
-  backFace.className = 'coin-face back';
-  backFace.innerHTML = '💳';
+  const backFace = document.createElement("div");
+  backFace.className = "coin-face back";
+  backFace.innerHTML = "💳";
 
   // Edge
-  const edge = document.createElement('div');
-  edge.className = 'coin-edge';
+  const edge = document.createElement("div");
+  edge.className = "coin-edge";
 
   // Shimmer effect
-  const shimmer = document.createElement('div');
-  shimmer.className = 'shimmer';
+  const shimmer = document.createElement("div");
+  shimmer.className = "shimmer";
   frontFace.appendChild(shimmer);
 
-  const shimmer2 = document.createElement('div');
-  shimmer2.className = 'shimmer';
+  const shimmer2 = document.createElement("div");
+  shimmer2.className = "shimmer";
   backFace.appendChild(shimmer2);
 
   // Assemble coin
@@ -261,19 +261,19 @@ export const showCoinAnimation = (message = 'Processing Payment') => {
   coinContainer.appendChild(coin);
 
   // Create particles
-  const particlesContainer = document.createElement('div');
-  particlesContainer.className = 'particles-container';
+  const particlesContainer = document.createElement("div");
+  particlesContainer.className = "particles-container";
   createParticles(particlesContainer);
   coinContainer.appendChild(particlesContainer);
 
   // Create text
-  const text = document.createElement('div');
-  text.className = 'payment-text';
+  const text = document.createElement("div");
+  text.className = "payment-text";
   text.innerHTML = message + '<span class="loading-dots">...</span>';
 
-  const subtext = document.createElement('div');
-  subtext.className = 'payment-subtext';
-  subtext.textContent = 'Please wait';
+  const subtext = document.createElement("div");
+  subtext.className = "payment-subtext";
+  subtext.textContent = "Please wait";
 
   // Assemble everything
   animationContainer.appendChild(coinContainer);
@@ -287,11 +287,11 @@ export const showCoinAnimation = (message = 'Processing Payment') => {
   let dotCount = 0;
   animationInterval = setInterval(() => {
     dotCount = (dotCount + 1) % 4;
-    const dots = '.'.repeat(dotCount);
+    const dots = ".".repeat(dotCount);
     text.innerHTML = message + `<span class="loading-dots">${dots}</span>`;
   }, 500);
 
-  console.log('🪙 Coin animation displayed');
+  console.log("🪙 Coin animation displayed");
 };
 
 /**
@@ -305,8 +305,8 @@ export const hideCoinAnimation = () => {
 
   if (animationContainer) {
     // Fade out animation
-    animationContainer.style.animation = 'fadeOut 0.3s ease-out';
-    
+    animationContainer.style.animation = "fadeOut 0.3s ease-out";
+
     setTimeout(() => {
       if (animationContainer && animationContainer.parentNode) {
         animationContainer.parentNode.removeChild(animationContainer);
@@ -314,14 +314,14 @@ export const hideCoinAnimation = () => {
       animationContainer = null;
     }, 300);
 
-    console.log('🪙 Coin animation hidden');
+    console.log("🪙 Coin animation hidden");
   }
 };
 
 // Add fadeOut animation
-if (!document.getElementById('coin-animation-fadeout')) {
-  const style = document.createElement('style');
-  style.id = 'coin-animation-fadeout';
+if (!document.getElementById("coin-animation-fadeout")) {
+  const style = document.createElement("style");
+  style.id = "coin-animation-fadeout";
   style.textContent = `
     @keyframes fadeOut {
       from { opacity: 1; }

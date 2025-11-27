@@ -11,17 +11,20 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ### 📁 New Files Created:
 
 1. **`src/components/RazorpayFlow.jsx`** ⭐ MAIN COMPONENT
+
    - Complete animated payment flow
    - State machine: idle → confirm → loading → razorpay → processing → success/failure
    - 5 beautiful screens with smooth transitions
 
 2. **`src/components/RazorpayFlow.css`** 🎨 ANIMATIONS
+
    - All animations and styles
    - 3D coin animation
    - Particle effects
    - Responsive design
 
 3. **`src/examples/RazorpayFlowUsage.jsx`** 📚 EXAMPLES
+
    - 3 different usage patterns
    - Complete integration guide
    - Props reference
@@ -36,7 +39,9 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ## 🎬 Payment Flow (Exact Sequence)
 
 ### STEP 1: Confirm Payment Screen
+
 **What User Sees:**
+
 - Full-screen white card overlay
 - 💳 Icon (animated bounce)
 - Text: "Confirm Payment"
@@ -46,6 +51,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 - Grey "Cancel" button
 
 **Code:**
+
 ```jsx
 <RazorpayFlow
   amount={826}
@@ -58,7 +64,9 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ---
 
 ### STEP 2: Loading Razorpay Screen
+
 **What User Sees:**
+
 - **Grey background** (like YouTube video)
 - Circular loading spinner (spinning)
 - Text: "Loading Razorpay..."
@@ -66,6 +74,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 - Duration: 1-2 seconds
 
 **What Happens:**
+
 - Loads Razorpay script dynamically
 - Creates order on backend
 - Prepares checkout
@@ -73,7 +82,9 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ---
 
 ### STEP 3: Razorpay Popup Opens
+
 **What User Sees:**
+
 - Official Razorpay checkout popup
 - Payment options:
   - 💳 Card (Debit/Credit)
@@ -84,13 +95,16 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 - Amount: ₹826
 
 **Demo Mode:**
+
 - If no real keys, skips popup
 - Shows processing screen directly
 
 ---
 
 ### STEP 4: Processing Payment Screen
+
 **What User Sees:**
+
 - Black overlay
 - Blue spinning loader
 - Text: "Processing your payment..."
@@ -98,6 +112,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 - Duration: 1-2 seconds
 
 **What Happens:**
+
 - Verifies payment signature on backend
 - Checks payment status
 - Prepares success data
@@ -105,7 +120,9 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ---
 
 ### STEP 5A: Success Screen 🎉
+
 **What User Sees:**
+
 - **Purple gradient background** (beautiful!)
 - **3D spinning gold coin** (₹ symbol)
   - Flips continuously
@@ -122,7 +139,9 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ---
 
 ### STEP 5B: Failure Screen ❌
+
 **What User Sees:**
+
 - Black overlay
 - ❌ Icon (shake animation)
 - Text: "Payment Failed"
@@ -130,6 +149,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 - Red "Try Again" button
 
 **When Shown:**
+
 - Razorpay script fails to load
 - User cancels payment
 - Payment verification fails
@@ -140,6 +160,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ## 🚀 How It Works with Your Existing Code
 
 ### Your Current Button (UNCHANGED):
+
 ```jsx
 <button className="btn-primary" onClick={handlePay}>
   PAY ₹826
@@ -147,6 +168,7 @@ I've created a **complete step-by-step animated Razorpay payment flow** exactly 
 ```
 
 ### What I Added:
+
 ```jsx
 const [showPaymentFlow, setShowPaymentFlow] = useState(false);
 
@@ -158,7 +180,7 @@ return (
   <>
     {/* Your existing UI - NO CHANGES */}
     <YourExistingPaymentCard />
-    
+
     {/* NEW: Flow overlay (appears on top) */}
     {showPaymentFlow && (
       <RazorpayFlow
@@ -172,7 +194,8 @@ return (
 );
 ```
 
-**Result:** 
+**Result:**
+
 - Your UI stays exactly the same ✅
 - Flow appears as overlay when button clicked ✅
 - Professional animations ✅
@@ -183,30 +206,32 @@ return (
 ## 💻 Usage Examples
 
 ### Example 1: Simplest Usage
+
 ```jsx
-import RazorpayFlow from './components/RazorpayFlow';
+import RazorpayFlow from "./components/RazorpayFlow";
 
 const [show, setShow] = useState(false);
 
-<button onClick={() => setShow(true)}>
-  PAY ₹826
-</button>
+<button onClick={() => setShow(true)}>PAY ₹826</button>;
 
-{show && (
-  <RazorpayFlow
-    amount={826}
-    courseName="Basic Python Programming"
-    onSuccess={(data) => {
-      console.log(data); // {payment_id, order_id, amount, date}
-      alert('Success!');
-      setShow(false);
-    }}
-    onCancel={() => setShow(false)}
-  />
-)}
+{
+  show && (
+    <RazorpayFlow
+      amount={826}
+      courseName="Basic Python Programming"
+      onSuccess={(data) => {
+        console.log(data); // {payment_id, order_id, amount, date}
+        alert("Success!");
+        setShow(false);
+      }}
+      onCancel={() => setShow(false)}
+    />
+  );
+}
 ```
 
 ### Example 2: With Student Data
+
 ```jsx
 <RazorpayFlow
   amount={826}
@@ -216,13 +241,13 @@ const [show, setShow] = useState(false);
   customerContact="9876543210"
   onSuccess={(paymentData) => {
     // Store data
-    localStorage.setItem('payment', JSON.stringify(paymentData));
-    
+    localStorage.setItem("payment", JSON.stringify(paymentData));
+
     // Navigate to dashboard
-    window.location.href = '/dashboard';
+    window.location.href = "/dashboard";
   }}
   onCancel={() => {
-    alert('Payment cancelled');
+    alert("Payment cancelled");
   }}
 />
 ```
@@ -232,6 +257,7 @@ const [show, setShow] = useState(false);
 ## 🎨 Animations Included
 
 ### 1. Coin Animation (Success Screen)
+
 - **3D spinning gold coin**
 - Flips on Y-axis
 - Front face: ₹ symbol
@@ -241,6 +267,7 @@ const [show, setShow] = useState(false);
 - Shadow and glow
 
 ### 2. Particle Effects
+
 - 12 gold particles
 - Radial explosion pattern
 - Fade out animation
@@ -248,17 +275,20 @@ const [show, setShow] = useState(false);
 - Glowing effect
 
 ### 3. Screen Transitions
+
 - Fade in/out
 - Slide up
 - Scale in (bounce effect)
 - Smooth 0.3s transitions
 
 ### 4. Loading Animations
+
 - Spinning circle
 - Pulsing text
 - Smooth rotation
 
 ### 5. Button Animations
+
 - Hover lift effect
 - Active press
 - Shadow changes
@@ -309,10 +339,11 @@ When payment succeeds, `onSuccess` receives:
 ```
 
 **Store it like this:**
+
 ```javascript
 onSuccess={(data) => {
   localStorage.setItem('payment_success', JSON.stringify(data));
-  
+
   // Or send to your backend
   fetch('/api/save-payment', {
     method: 'POST',
@@ -326,6 +357,7 @@ onSuccess={(data) => {
 ## 🧪 Testing
 
 ### Current Setup (Demo Mode):
+
 1. Click your PAY ₹826 button
 2. ✅ See "Confirm Payment" screen
 3. Click "Proceed to Pay"
@@ -337,6 +369,7 @@ onSuccess={(data) => {
 **Total time:** ~5 seconds from click to success
 
 ### With Real Razorpay:
+
 1. Add keys to `backend/.env`
 2. Restart backend
 3. Click PAY button
@@ -354,6 +387,7 @@ onSuccess={(data) => {
 ## 🎨 Customization
 
 ### Change Colors:
+
 Edit `src/components/RazorpayFlow.css`:
 
 ```css
@@ -365,18 +399,19 @@ Edit `src/components/RazorpayFlow.css`:
 
 /* Confirm button */
 .btn-proceed {
-  background: linear-gradient(135deg, #2E8BFF 0%, #1a5fb4 100%);
+  background: linear-gradient(135deg, #2e8bff 0%, #1a5fb4 100%);
   /* Your brand color */
 }
 
 /* Coin color */
 .coin-face {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 50%, #ffd700 100%);
   /* Change coin color */
 }
 ```
 
 ### Change Timing:
+
 Edit `src/components/RazorpayFlow.jsx`:
 
 ```javascript
@@ -392,7 +427,9 @@ setTimeout(async () => {
 ```
 
 ### Change Text:
+
 All text is in the JSX - just search and replace:
+
 - "Confirm Payment" → "Review Order"
 - "Loading Razorpay..." → "Preparing checkout..."
 - "Payment Successful!" → "Thank you!"
@@ -402,11 +439,13 @@ All text is in the JSX - just search and replace:
 ## 📱 Responsive Design
 
 Works perfectly on:
+
 - ✅ Desktop (full animations)
 - ✅ Tablet (optimized sizing)
 - ✅ Mobile (touch-friendly, smaller coin)
 
 Breakpoint: 768px
+
 - Reduces coin size
 - Adjusts font sizes
 - Maintains all animations
@@ -415,15 +454,15 @@ Breakpoint: 768px
 
 ## 🔧 Props Reference
 
-| Prop | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `amount` | number | ✅ Yes | - | Amount in rupees (e.g., 826) |
-| `courseName` | string | No | 'Course' | Shown in UI |
-| `customerName` | string | No | 'Student' | Prefilled in Razorpay |
-| `customerEmail` | string | No | 'student@...' | Prefilled in Razorpay |
-| `customerContact` | string | No | '9999999999' | Prefilled in Razorpay |
-| `onSuccess` | function | ✅ Yes | - | Called with payment data |
-| `onCancel` | function | ✅ Yes | - | Called on cancel/failure |
+| Prop              | Type     | Required | Default       | Description                  |
+| ----------------- | -------- | -------- | ------------- | ---------------------------- |
+| `amount`          | number   | ✅ Yes   | -             | Amount in rupees (e.g., 826) |
+| `courseName`      | string   | No       | 'Course'      | Shown in UI                  |
+| `customerName`    | string   | No       | 'Student'     | Prefilled in Razorpay        |
+| `customerEmail`   | string   | No       | 'student@...' | Prefilled in Razorpay        |
+| `customerContact` | string   | No       | '9999999999'  | Prefilled in Razorpay        |
+| `onSuccess`       | function | ✅ Yes   | -             | Called with payment data     |
+| `onCancel`        | function | ✅ Yes   | -             | Called on cancel/failure     |
 
 ---
 
@@ -462,11 +501,13 @@ Documentation:
 ## 🚀 Next Steps
 
 1. ✅ **Test it now:**
+
    - Click your existing PAY button
    - Watch the beautiful animated flow!
    - See the coin animation success screen
 
 2. ⏳ **Optional - Enable live Razorpay:**
+
    - Add real test keys to `backend/.env`
    - Restart backend
    - Test with real Razorpay popup
@@ -480,18 +521,18 @@ Documentation:
 
 ## 💡 How It's Different from Previous Implementation
 
-| Feature | Previous | New Animated Flow |
-|---------|----------|-------------------|
-| Screens | 1 (popup) | 5 (animated sequence) |
-| Animations | Basic | Professional 3D |
-| Coin effect | ❌ | ✅ 3D spinning |
-| Particles | ❌ | ✅ 12 particles |
-| Confirm step | ❌ | ✅ Beautiful card |
-| Loading screen | ❌ | ✅ Grey screen |
-| Processing | ❌ | ✅ Separate screen |
-| Success screen | Simple | ✅ Animated coin |
-| Failure screen | Alert | ✅ Professional UI |
-| State machine | Basic | ✅ 6 states |
+| Feature        | Previous  | New Animated Flow     |
+| -------------- | --------- | --------------------- |
+| Screens        | 1 (popup) | 5 (animated sequence) |
+| Animations     | Basic     | Professional 3D       |
+| Coin effect    | ❌        | ✅ 3D spinning        |
+| Particles      | ❌        | ✅ 12 particles       |
+| Confirm step   | ❌        | ✅ Beautiful card     |
+| Loading screen | ❌        | ✅ Grey screen        |
+| Processing     | ❌        | ✅ Separate screen    |
+| Success screen | Simple    | ✅ Animated coin      |
+| Failure screen | Alert     | ✅ Professional UI    |
+| State machine  | Basic     | ✅ 6 states           |
 
 ---
 

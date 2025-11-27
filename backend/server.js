@@ -107,6 +107,11 @@ const adminRoutes = require("./routes/admin");
 const courseCategoriesRoutes = require("./routes/courseCategories");
 const tblCoursesRoutes = require("./routes/tblCourses");
 const paymentRoutes = require("./routes/paymentRoutes");
+const enrollmentRoutes = require("./routes/enrollmentRoutes");
+const assignmentRoutes = require("./routes/assignmentRoutes");
+const progressRoutes = require("./routes/progressRoutes");
+const feedbackRoutes = require("./routes/feedbackRoutes");
+const earningsRoutes = require("./routes/earningsRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -117,9 +122,12 @@ app.use("/api/registrar", registrarRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/tbl-courses", tblCoursesRoutes);
 app.use("/api/payments", paymentRoutes);
-
-// IMPORTANT: Course categories mounted explicitly — this must match your route filename
 app.use("/api/course-categories", courseCategoriesRoutes);
+app.use("/api/enrollments", enrollmentRoutes);
+app.use("/api/assignments", assignmentRoutes);
+app.use("/api/progress", progressRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/earnings", earningsRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -129,6 +137,11 @@ console.log("   - /api/courses");
 console.log("   - /api/tbl-courses");
 console.log("   - /api/payments");
 console.log("   - /api/course-categories");
+console.log("   - /api/enrollments");
+console.log("   - /api/assignments");
+console.log("   - /api/progress");
+console.log("   - /api/feedback");
+console.log("   - /api/earnings");
 
 /* ============================
    Health & readiness endpoints

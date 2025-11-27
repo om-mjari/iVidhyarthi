@@ -7,13 +7,44 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
   const [completedVideos, setCompletedVideos] = useState([0]);
   const [completedAssignments, setCompletedAssignments] = useState([]);
   const [completedQuizzes, setCompletedQuizzes] = useState([]);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [courseInfo, setCourseInfo] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [progress, setProgress] = useState(0);
+  const [enrollmentId, setEnrollmentId] = useState(null);
+  const [studentId, setStudentId] = useState(null);
+  const [feedbackData, setFeedbackData] = useState({
+    rating: 5,
+    comment: ''
+  });
 
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
+    const paymentSuccess = localStorage.getItem('payment_success');
+    const authToken = localStorage.getItem('auth_token');
+    
+    // Get student ID from token
+    let userId = '';
+    if (authToken) {
+      try {
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          userId = payload.userId || '';
+          setStudentId(userId);
+        }
+      } catch (e) {
+        console.error('Error decoding token:', e);
+      }
+    }
+
     if (savedCourse) {
       try {
         const parsedCourse = JSON.parse(savedCourse);
         setSelectedCourse(parsedCourse);
+        
+        // Fetch course details and create enrollment
+        initializeCourseData(parsedCourse, userId, paymentSuccess);
       } catch (error) {
         console.error('Error parsing saved course:', error);
         const defaultCourse = {
@@ -33,55 +64,229 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
     }
   }, []);
 
-  // Course content data - NPTEL style
+  // Initialize course data with enrollment and earnings
+  const initializeCourseData = async (course, userId, paymentData) => {
+    try {
+      const paymentInfo = paymentData ? JSON.parse(paymentData) : null;
+      
+      // Create enrollment record
+      if (paymentInfo && userId) {
+        const enrollmentResponse = await fetch('http://localhost:5000/api/enrollments/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            Course_Id: course.id || course.Course_Id || 'COURSE_001',
+            Student_Id: userId,
+            Payment_Status: 'Paid'
+          })
+        });
+
+        const enrollmentResult = await enrollmentResponse.json();
+        if (enrollmentResult.success) {
+          setEnrollmentId(enrollmentResult.data.Enrollment_Id);
+          
+          // Create earnings record for lecturer
+          if (course.Lecturer_Id && paymentInfo.amount) {
+            await fetch('http://localhost:5000/api/earnings/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                Lecturer_Id: course.Lecturer_Id || 'LECT_001',
+                Amount: paymentInfo.amount * 0.7, // 70% to lecturer
+                Course_Id: course.id || course.Course_Id,
+                Transaction_Type: 'Course Sale',
+                Status: 'Processed'
+              })
+            });
+          }
+        }
+      }
+
+      // Fetch assignments for this course
+      fetchAssignments(course.id || course.Course_Id || 'COURSE_001');
+      
+      // Fetch progress
+      fetchProgress(course.id || course.Course_Id || 'COURSE_001', userId);
+      
+    } catch (error) {
+      console.error('Error initializing course data:', error);
+    }
+  };
+
+  // Fetch assignments from backend
+  const fetchAssignments = async (courseId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
+      const result = await response.json();
+      if (result.success) {
+        setAssignments(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+    }
+  };
+
+  // Fetch progress from backend
+  const fetchProgress = async (courseId, userId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/progress/${courseId}/${userId}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setProgress(result.data.Progress_Percent);
+        setCompletedVideos(result.data.Completed_Topics || [0]);
+      }
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+    }
+  };
+
+  // Update progress in backend
+  const updateProgress = async () => {
+    if (!selectedCourse || !studentId) return;
+
+    const totalVideos = courseContent.videos.length;
+    const newProgress = Math.round((completedVideos.length / totalVideos) * 100);
+
+    try {
+      await fetch('http://localhost:5000/api/progress/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Course_Id: selectedCourse.id || selectedCourse.Course_Id || 'COURSE_001',
+          Student_Id: studentId,
+          Progress_Percent: newProgress,
+          Completed_Topics: completedVideos
+        })
+      });
+      setProgress(newProgress);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+    }
+  };
+
+  // Submit feedback
+  const submitFeedback = async () => {
+    if (!selectedCourse || !studentId || !feedbackData.comment.trim()) {
+      alert('Please provide feedback comment');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/feedback/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Course_Id: selectedCourse.id || selectedCourse.Course_Id || 'COURSE_001',
+          Student_Id: studentId,
+          Rating: feedbackData.rating,
+          Comment: feedbackData.comment,
+          Status: 'Pending'
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert('Thank you for your feedback!');
+        setFeedbackData({ rating: 5, comment: '' });
+      } else {
+        alert('Failed to submit feedback');
+      }
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      alert('Error submitting feedback');
+    }
+  };
+
+  // Course content data - NPTEL style with multi-language support
   const courseContent = {
+    info: {
+      title: selectedCourse?.name || "Introduction to Internet of Things",
+      description: "This course covers the fundamentals of IoT, including sensors, actuators, networking protocols, and real-world applications. Learn how to build smart connected devices and understand the IoT ecosystem.",
+      objectives: [
+        "Understand the basic architecture and components of IoT systems",
+        "Learn about various sensors, actuators, and communication protocols",
+        "Develop skills to design and implement IoT applications",
+        "Explore real-world IoT use cases and industry applications"
+      ],
+      instructor: selectedCourse?.instructor || "Prof. Sudip Misra",
+      institution: "IIT Kharagpur",
+      duration: "12 Weeks",
+      level: "Beginner to Intermediate"
+    },
     videos: [
       {
         id: 1,
-        title: "Introduction to AI in Mathematics",
+        title: "Introduction to IoT - Part I",
         duration: "15:30",
-        url: "https://www.youtube.com/embed/airAruvnKBE"
+        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
+        description: "Overview of Internet of Things and its applications",
+        transcripts: {
+          English: "Welcome to Introduction to Internet of Things...",
+          Hindi: "इंटरनेट ऑफ थिंग्स में आपका स्वागत है...",
+          Gujarati: "ઇન્ટરનેટ ઓફ થિંગ્સમાં આપનું સ્વાગત છે..."
+        }
       },
       {
         id: 2,
-        title: "Linear Algebra Fundamentals",
+        title: "Introduction to IoT - Part II",
         duration: "22:45",
-        url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
+        description: "Deep dive into IoT architecture and components",
+        transcripts: {
+          English: "Let's explore IoT architecture...",
+          Hindi: "आइए IoT आर्किटेक्चर का अन्वेषण करें...",
+          Gujarati: "ચાલો IoT આર્કિટેક્ચર શોધીએ..."
+        }
       },
       {
         id: 3,
-        title: "Calculus for Machine Learning",
+        title: "Sensing and Actuation",
         duration: "18:20",
-        url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
+        description: "Understanding sensors and actuators in IoT",
+        transcripts: {
+          English: "Sensors are the eyes and ears of IoT...",
+          Hindi: "सेंसर IoT की आँखें और कान हैं...",
+          Gujarati: "સેન્સર IoT ની આંખો અને કાન છે..."
+        }
       },
       {
         id: 4,
-        title: "Probability & Statistics",
+        title: "Basics of IoT Networking - Part I",
         duration: "25:10",
-        url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
+        description: "IoT communication protocols and networking",
+        transcripts: {
+          English: "IoT devices communicate using various protocols...",
+          Hindi: "IoT उपकरण विभिन्न प्रोटोकॉल का उपयोग करके संवाद करते हैं...",
+          Gujarati: "IoT ઉપકરણો વિવિધ પ્રોટોકોલનો ઉપયોગ કરીને વાતચીત કરે છે..."
+        }
       }
     ],
-    assignments: [
+    assignments: assignments.length > 0 ? assignments : [
       {
         id: 1,
-        title: "Assignment 1",
-        description: "Linear Algebra Problems",
-        deadline: "Dec 10, 2025",
-        marks: 100
+        title: "Week 01: Assignment",
+        description: "IoT Architecture and Components - Multiple Choice Questions",
+        deadline: "2025-08-06",
+        marks: 100,
+        Assignment_Type: "Quiz"
       },
       {
         id: 2,
-        title: "Assignment 2",
-        description: "Calculus Applications",
-        deadline: "Dec 20, 2025",
-        marks: 100
+        title: "Week 02: Assignment",
+        description: "Sensor Networks and Communication Protocols",
+        deadline: "2025-08-13",
+        marks: 100,
+        Assignment_Type: "Quiz"
       },
       {
         id: 3,
-        title: "Assignment 3",
-        description: "Probability Distributions",
-        deadline: "Jan 5, 2026",
-        marks: 100
+        title: "Week 03: Assignment",
+        description: "IoT Application Development Project",
+        deadline: "2025-08-20",
+        marks: 100,
+        Assignment_Type: "Project"
       }
     ],
     quizzes: [
@@ -89,30 +294,36 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
         id: 1,
         title: "Week 1 Quiz",
         timeLimit: "30 minutes",
-        marks: 50
+        marks: 50,
+        questions: 10
       },
       {
         id: 2,
         title: "Week 2 Quiz",
         timeLimit: "30 minutes",
-        marks: 50
+        marks: 50,
+        questions: 10
       },
       {
         id: 3,
         title: "Week 3 Quiz",
         timeLimit: "30 minutes",
-        marks: 50
+        marks: 50,
+        questions: 10
       }
     ]
   };
 
   const totalVideos = courseContent.videos.length;
   const totalAssignments = courseContent.assignments.length;
-  const completionPercentage = Math.round((completedVideos.length / totalVideos) * 100);
+  const completionPercentage = progress || Math.round((completedVideos.length / totalVideos) * 100);
 
   const handleVideoComplete = (videoId) => {
     if (!completedVideos.includes(videoId)) {
-      setCompletedVideos([...completedVideos, videoId]);
+      const newCompleted = [...completedVideos, videoId];
+      setCompletedVideos(newCompleted);
+      // Update progress after state update
+      setTimeout(updateProgress, 100);
     }
   };
 
@@ -152,6 +363,44 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
 
       {/* Main Content */}
       <div className="nptel-content-wrapper">
+        {/* Course Information Section */}
+        <div className="nptel-section course-info-section">
+          <h2 className="nptel-section-title">📚 Course Information</h2>
+          <div className="course-info-card">
+            <div className="course-info-header">
+              <img 
+                src={selectedCourse.image} 
+                alt={courseContent.info.title}
+                className="course-info-image"
+              />
+              <div className="course-info-details">
+                <h3 className="course-info-title">{courseContent.info.title}</h3>
+                <p className="course-info-instructor">
+                  <strong>Instructor:</strong> {courseContent.info.instructor}
+                </p>
+                <p className="course-info-institution">
+                  <strong>Institution:</strong> {courseContent.info.institution}
+                </p>
+                <div className="course-info-meta">
+                  <span className="meta-badge">📅 {courseContent.info.duration}</span>
+                  <span className="meta-badge">📊 {courseContent.info.level}</span>
+                </div>
+              </div>
+            </div>
+            <div className="course-info-body">
+              <h4>Course Description</h4>
+              <p>{courseContent.info.description}</p>
+              
+              <h4>Learning Objectives</h4>
+              <ul className="objectives-list">
+                {courseContent.info.objectives.map((obj, idx) => (
+                  <li key={idx}>{obj}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
         {/* Course Progress Card */}
         <div className="nptel-progress-card">
           <div className="progress-card-header">
@@ -188,7 +437,21 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
 
         {/* Video Lectures Section */}
         <div className="nptel-section">
-          <h2 className="nptel-section-title">📹 Video Lectures</h2>
+          <div className="section-header-with-language">
+            <h2 className="nptel-section-title">📹 Video Lectures</h2>
+            <div className="language-selector">
+              <label>Language: </label>
+              <select 
+                value={selectedLanguage} 
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className="language-dropdown"
+              >
+                <option value="English">English</option>
+                <option value="Hindi">हिन्दी (Hindi)</option>
+                <option value="Gujarati">ગુજરાતી (Gujarati)</option>
+              </select>
+            </div>
+          </div>
           <div className="nptel-videos-grid">
             {courseContent.videos.map((video, index) => (
               <div key={video.id} className="nptel-video-card">
@@ -208,6 +471,16 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
                 </div>
                 <div className="video-card-footer">
                   <h4 className="video-title">{video.title}</h4>
+                  <p className="video-description">{video.description}</p>
+                  
+                  {/* Video Content/Transcript */}
+                  <div className="video-content-section">
+                    <h5>Video Content ({selectedLanguage})</h5>
+                    <p className="video-transcript">
+                      {video.transcripts[selectedLanguage]}
+                    </p>
+                  </div>
+                  
                   <button 
                     className={`mark-complete-btn ${completedVideos.includes(video.id) ? 'completed' : ''}`}
                     onClick={() => handleVideoComplete(video.id)}
@@ -227,13 +500,16 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
             {courseContent.assignments.map((assignment) => (
               <div key={assignment.id} className="nptel-assignment-card">
                 <div className="assignment-card-header">
-                  <h3 className="assignment-title">{assignment.title}</h3>
-                  <span className="assignment-marks">{assignment.marks} Marks</span>
+                  <h3 className="assignment-title">{assignment.title || assignment.Title}</h3>
+                  <span className="assignment-marks">{assignment.marks || assignment.Marks} Marks</span>
                 </div>
-                <p className="assignment-description">{assignment.description}</p>
+                <p className="assignment-description">{assignment.description || assignment.Description}</p>
                 <div className="assignment-meta">
+                  <span className="assignment-type">
+                    📋 Type: {assignment.Assignment_Type || 'Assignment'}
+                  </span>
                   <span className="assignment-deadline">
-                    📅 Deadline: {assignment.deadline}
+                    📅 Due: {assignment.deadline || assignment.Due_Date?.split('T')[0]}
                   </span>
                 </div>
                 <div className="assignment-actions">
@@ -263,7 +539,8 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
                   <span className="quiz-marks">{quiz.marks} Marks</span>
                 </div>
                 <div className="quiz-meta">
-                  <span className="quiz-time">⏱️ Time Limit: {quiz.timeLimit}</span>
+                  <span className="quiz-time">⏱️ Time: {quiz.timeLimit}</span>
+                  <span className="quiz-questions">❓ Questions: {quiz.questions}</span>
                 </div>
                 <div className="quiz-actions">
                   <button 
@@ -278,6 +555,61 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Feedback Section */}
+        <div className="nptel-section feedback-section">
+          <h2 className="nptel-section-title">💬 Course Feedback</h2>
+          <div className="feedback-card">
+            <p className="feedback-intro">
+              Help us improve! Share your experience with this course.
+            </p>
+            
+            <div className="feedback-form">
+              <div className="form-group">
+                <label className="form-label">
+                  <strong>Rating:</strong>
+                </label>
+                <div className="rating-stars">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`star ${feedbackData.rating >= star ? 'filled' : ''}`}
+                      onClick={() => setFeedbackData({ ...feedbackData, rating: star })}
+                    >
+                      ★
+                    </span>
+                  ))}
+                  <span className="rating-text">({feedbackData.rating} / 5)</span>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <strong>Your Feedback:</strong>
+                </label>
+                <textarea
+                  className="feedback-textarea"
+                  rows="6"
+                  placeholder="Share your thoughts about the course, instructor, content quality, assignments, etc..."
+                  value={feedbackData.comment}
+                  onChange={(e) => setFeedbackData({ ...feedbackData, comment: e.target.value })}
+                  maxLength={1000}
+                ></textarea>
+                <span className="char-count">
+                  {feedbackData.comment.length} / 1000 characters
+                </span>
+              </div>
+
+              <button 
+                className="nptel-btn nptel-btn-primary submit-feedback-btn"
+                onClick={submitFeedback}
+                disabled={!feedbackData.comment.trim()}
+              >
+                Submit Feedback
+              </button>
+            </div>
           </div>
         </div>
       </div>

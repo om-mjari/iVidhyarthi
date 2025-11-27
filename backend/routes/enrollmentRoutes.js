@@ -1,66 +1,71 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Enrollment = require('../models/Tbl_Enrollments');
+const Enrollment = require("../models/Tbl_Enrollments");
 
 // Create new enrollment
-router.post('/create', async (req, res) => {
+router.post("/create", async (req, res) => {
   try {
     const { Course_Id, Student_Id, Payment_Status } = req.body;
 
     // Check if enrollment already exists
-    const existingEnrollment = await Enrollment.findOne({ Course_Id, Student_Id });
-    
+    const existingEnrollment = await Enrollment.findOne({
+      Course_Id,
+      Student_Id,
+    });
+
     if (existingEnrollment) {
       return res.json({
         success: true,
-        message: 'Already enrolled',
-        data: existingEnrollment
+        message: "Already enrolled",
+        data: existingEnrollment,
       });
     }
 
     const enrollment = new Enrollment({
       Course_Id,
       Student_Id,
-      Payment_Status: Payment_Status || 'Paid',
-      Status: 'Active'
+      Payment_Status: Payment_Status || "Paid",
+      Status: "Active",
     });
 
     await enrollment.save();
 
     res.json({
       success: true,
-      message: 'Enrollment created successfully',
-      data: enrollment
+      message: "Enrollment created successfully",
+      data: enrollment,
     });
   } catch (error) {
-    console.error('Error creating enrollment:', error);
+    console.error("Error creating enrollment:", error);
     res.status(500).json({
       success: false,
-      message: 'Error creating enrollment',
-      error: error.message
+      message: "Error creating enrollment",
+      error: error.message,
     });
   }
 });
 
 // Get enrollment by student
-router.get('/student/:studentId', async (req, res) => {
+router.get("/student/:studentId", async (req, res) => {
   try {
-    const enrollments = await Enrollment.find({ Student_Id: req.params.studentId });
+    const enrollments = await Enrollment.find({
+      Student_Id: req.params.studentId,
+    });
     res.json({
       success: true,
-      data: enrollments
+      data: enrollments,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching enrollments',
-      error: error.message
+      message: "Error fetching enrollments",
+      error: error.message,
     });
   }
 });
 
 // Update enrollment status
-router.put('/update/:enrollmentId', async (req, res) => {
+router.put("/update/:enrollmentId", async (req, res) => {
   try {
     const enrollment = await Enrollment.findOneAndUpdate(
       { Enrollment_Id: req.params.enrollmentId },
@@ -69,13 +74,13 @@ router.put('/update/:enrollmentId', async (req, res) => {
     );
     res.json({
       success: true,
-      data: enrollment
+      data: enrollment,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error updating enrollment',
-      error: error.message
+      message: "Error updating enrollment",
+      error: error.message,
     });
   }
 });

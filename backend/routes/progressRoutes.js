@@ -1,33 +1,34 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const Progress = require('../models/Tbl_ProgressTracking');
+const Progress = require("../models/Tbl_ProgressTracking");
 
 // Get progress for a student in a course
-router.get('/:courseId/:studentId', async (req, res) => {
+router.get("/:courseId/:studentId", async (req, res) => {
   try {
     const progress = await Progress.findOne({
       Course_Id: req.params.courseId,
-      Student_Id: req.params.studentId
+      Student_Id: req.params.studentId,
     });
-    
+
     res.json({
       success: true,
-      data: progress
+      data: progress,
     });
   } catch (error) {
-    console.error('Error fetching progress:', error);
+    console.error("Error fetching progress:", error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching progress',
-      error: error.message
+      message: "Error fetching progress",
+      error: error.message,
     });
   }
 });
 
 // Update or create progress
-router.post('/update', async (req, res) => {
+router.post("/update", async (req, res) => {
   try {
-    const { Course_Id, Student_Id, Progress_Percent, Completed_Topics } = req.body;
+    const { Course_Id, Student_Id, Progress_Percent, Completed_Topics } =
+      req.body;
 
     let progress = await Progress.findOne({ Course_Id, Student_Id });
 
@@ -36,16 +37,16 @@ router.post('/update', async (req, res) => {
       progress.Progress_Percent = Progress_Percent;
       progress.Completed_Topics = Completed_Topics;
       progress.Last_Accessed = new Date();
-      
+
       // Update status based on progress
       if (Progress_Percent === 0) {
-        progress.Status = 'Not Started';
+        progress.Status = "Not Started";
       } else if (Progress_Percent === 100) {
-        progress.Status = 'Completed';
+        progress.Status = "Completed";
       } else {
-        progress.Status = 'In Progress';
+        progress.Status = "In Progress";
       }
-      
+
       await progress.save();
     } else {
       // Create new progress record
@@ -54,40 +55,42 @@ router.post('/update', async (req, res) => {
         Student_Id,
         Progress_Percent,
         Completed_Topics,
-        Status: Progress_Percent === 0 ? 'Not Started' : 'In Progress'
+        Status: Progress_Percent === 0 ? "Not Started" : "In Progress",
       });
       await progress.save();
     }
 
     res.json({
       success: true,
-      message: 'Progress updated successfully',
-      data: progress
+      message: "Progress updated successfully",
+      data: progress,
     });
   } catch (error) {
-    console.error('Error updating progress:', error);
+    console.error("Error updating progress:", error);
     res.status(500).json({
       success: false,
-      message: 'Error updating progress',
-      error: error.message
+      message: "Error updating progress",
+      error: error.message,
     });
   }
 });
 
 // Get all progress for a student
-router.get('/student/:studentId', async (req, res) => {
+router.get("/student/:studentId", async (req, res) => {
   try {
-    const progressList = await Progress.find({ Student_Id: req.params.studentId });
-    
+    const progressList = await Progress.find({
+      Student_Id: req.params.studentId,
+    });
+
     res.json({
       success: true,
-      data: progressList
+      data: progressList,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error fetching progress',
-      error: error.message
+      message: "Error fetching progress",
+      error: error.message,
     });
   }
 });

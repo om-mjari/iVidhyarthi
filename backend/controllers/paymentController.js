@@ -87,14 +87,20 @@ exports.createOrder = async (req, res) => {
 
     // Check if Razorpay is configured
     if (!isRazorpayConfigured) {
-      // DEMO MODE - Create fake order for testing
-      console.log("🎭 DEMO MODE: Creating simulated order");
+      // DEMO MODE - Create simulated order for testing
+      console.log("\n🎭 DEMO MODE: Creating simulated payment order");
+      console.log("   Student: " + realStudentName);
+      console.log("   Course: " + (courseName || "N/A"));
+      console.log("   Amount: ₹" + amount);
+      console.log("   Receipt: " + receiptNo + "\n");
+      
       razorpayOrder = {
-        id: `order_DEMO_${Date.now()}`,
+        id: `order_DEMO_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         amount: Math.round(amount * 100),
         currency: "INR",
         receipt: receiptNo,
         status: "created",
+        created_at: Math.floor(Date.now() / 1000),
       };
     } else {
       // Create real Razorpay order
@@ -195,8 +201,11 @@ exports.verifyPayment = async (req, res) => {
     let signatureValid = false;
 
     if (isDemoPayment) {
-      // In demo mode, accept any signature
-      console.log("🎭 DEMO MODE: Skipping signature verification");
+      // In demo mode, accept any signature for testing
+      console.log("\n🎭 DEMO MODE: Verifying simulated payment");
+      console.log("   Order ID: " + razorpay_order_id);
+      console.log("   Payment ID: " + razorpay_payment_id);
+      console.log("   Status: Simulated Success ✅\n");
       signatureValid = true;
     } else {
       // Verify real signature

@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import './Payment.css';
+import { handlePayment } from './utils/razorpayHandler';
+import RazorpayFlow from './components/RazorpayFlow';
 
 export default function PaymentGateway({ method = 'card', onBack, onComplete }) {
   const [processing, setProcessing] = useState(false);
   const [course, setCourse] = useState(null);
   const [paymentType, setPaymentType] = useState('Card');
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false);
   const [studentInfo, setStudentInfo] = useState({
     id: '',
     name: '',
@@ -65,174 +69,83 @@ export default function PaymentGateway({ method = 'card', onBack, onComplete }) 
   };
 
   const handlePay = async () => {
+    console.log('💰 PAY button clicked!');
     if (!course) {
       alert('Course details not found!');
       return;
     }
 
-    setProcessing(true);
+    // Show the animated payment flow
+    console.log('🚀 Opening payment flow...');
+    setShowPaymentFlow(true);
+  };
 
-    try {
-      // Load Razorpay script
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        alert('Razorpay SDK failed to load. Please check your internet connection.');
-        setProcessing(false);
-        return;
-      }
+  // Handle payment success from RazorpayFlow
+  const handlePaymentSuccess = (paymentData) => {
+    console.log('✅ Payment completed:', paymentData);
+    
+    // Store payment details for success page
+    localStorage.setItem('payment_success', JSON.stringify({
+      ...paymentData,
+      courseName: course.name,
+      studentName: studentInfo.name,
+      studentEmail: studentInfo.email,
+    }));
 
-      // Step 1: Create order in backend
-      const orderResponse = await fetch('http://localhost:5000/api/payments/create-order', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          studentId: studentInfo.id,
-          courseId: course.id || course._id || '1',
-          amount: total,
-          type: paymentType,
-          studentName: studentInfo.name,
-          studentEmail: studentInfo.email,
-          courseName: course.name
-        })
-      });
+    // Close flow and navigate
+    setShowPaymentFlow(false);
+    setProcessing(false);
+    onComplete?.('final');
+  };
 
-      const orderData = await orderResponse.json();
-
-      if (!orderData.success) {
-        throw new Error(orderData.message || 'Failed to create order');
-      }
-
-      console.log('Order created:', orderData);
-
-      // Check if demo mode
-      if (orderData.demoMode) {
-        alert('⚠️ DEMO MODE: Razorpay is not configured!\n\n' +
-              'To enable real payments:\n' +
-              '1. Sign up at razorpay.com\n' +
-              '2. Get TEST API keys from Dashboard\n' +
-              '3. Add keys to backend/.env file\n' +
-              '4. Restart the backend server\n\n' +
-              'For now, simulating successful payment...');
-        
-        // Simulate payment success in demo mode
-        setTimeout(async () => {
-          const demoPayment = {
-            razorpay_order_id: orderData.data.orderId,
-            razorpay_payment_id: `pay_DEMO_${Date.now()}`,
-            razorpay_signature: 'demo_signature_' + Math.random()
-          };
-          
-          try {
-            const verifyResponse = await fetch('http://localhost:5000/api/payments/verify', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                ...demoPayment,
-                receiptNo: orderData.data.receiptNo
-              })
-            });
-
-            const verifyData = await verifyResponse.json();
-
-            if (verifyData.success) {
-              localStorage.setItem('payment_success', JSON.stringify(verifyData.data));
-              setProcessing(false);
-              onComplete?.('final');
-            } else {
-              throw new Error(verifyData.message || 'Demo payment verification failed');
-            }
-          } catch (error) {
-            console.error('Demo verification error:', error);
-            alert('Demo payment failed: ' + error.message);
-            setProcessing(false);
-          }
-        }, 2000);
-        return;
-      }
-
-      // Step 2: Open Razorpay checkout (Real mode)
-      const options = {
-        key: orderData.data.razorpayKey,
-        amount: orderData.data.amount * 100, // Convert to paise
-        currency: orderData.data.currency,
-        name: 'iVidhyarthi',
-        description: course.name,
-        order_id: orderData.data.orderId,
-        handler: async function (response) {
-          console.log('Payment successful:', response);
-          
-          // Step 3: Verify payment in backend
-          try {
-            const verifyResponse = await fetch('http://localhost:5000/api/payments/verify', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                receiptNo: orderData.data.receiptNo
-              })
-            });
-
-            const verifyData = await verifyResponse.json();
-
-            if (verifyData.success) {
-              // Store payment details for success page
-              localStorage.setItem('payment_success', JSON.stringify(verifyData.data));
-              
-              // Navigate to success page
-              setProcessing(false);
-              onComplete?.('final');
-            } else {
-              throw new Error(verifyData.message || 'Payment verification failed');
-            }
-          } catch (error) {
-            console.error('Verification error:', error);
-            alert('Payment verification failed: ' + error.message);
-            setProcessing(false);
-          }
-        },
-        prefill: {
-          name: studentInfo.name,
-          email: studentInfo.email,
-        },
-        notes: {
-          courseId: course.id || course._id,
-          courseName: course.name
-        },
-        theme: {
-          color: '#2E8BFF'
-        },
-        modal: {
-          ondismiss: function() {
-            setProcessing(false);
-            console.log('Payment cancelled by user');
-          }
-        }
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-
-    } catch (error) {
-      console.error('Payment error:', error);
-      alert('Payment failed: ' + error.message);
-      setProcessing(false);
-    }
+  // Handle payment cancellation
+  const handlePaymentCancel = () => {
+    console.log('❌ Payment cancelled');
+    setShowPaymentFlow(false);
+    setProcessing(false);
   };
 
   return (
     <div className="pay-wrap">
+      {/* Animated Payment Flow Overlay */}
+      {showPaymentFlow && (
+        <RazorpayFlow
+          amount={total}
+          courseName={course?.name || 'Course'}
+          customerName={studentInfo.name}
+          customerEmail={studentInfo.email}
+          customerContact="9999999999"
+          onSuccess={handlePaymentSuccess}
+          onCancel={handlePaymentCancel}
+        />
+      )}
+
       <div className="pay-container">
         <div className="pay-left">
           <div className="gateway-content">
             <h2>💳 Payment Gateway</h2>
+            
+            {/* Demo Mode Banner */}
+            {isDemoMode && (
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                padding: '15px 20px',
+                borderRadius: '10px',
+                marginBottom: '20px',
+                border: '2px solid #5a67d8',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '24px' }}>🎭</span>
+                  <strong style={{ fontSize: '16px' }}>DEMO MODE - Testing Environment</strong>
+                </div>
+                <p style={{ margin: '5px 0', fontSize: '13px', opacity: '0.95' }}>
+                  ✓ Simulated payment • No real charges • Safe for testing
+                </p>
+              </div>
+            )}
+            
             <p className="gateway-message">Choose payment method and click Pay Now</p>
             
             {/* Payment Method Selection */}
@@ -301,7 +214,23 @@ export default function PaymentGateway({ method = 'card', onBack, onComplete }) 
             </div>
             
             <div className="razorpay-badge">
-              <p>🔒 Secured by Razorpay (TEST MODE)</p>
+              <p style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                justifyContent: 'center'
+              }}>
+                <span>🔒</span>
+                <span>Secured by Razorpay</span>
+                {isDemoMode && <span style={{
+                  background: '#667eea',
+                  color: 'white',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 'bold'
+                }}>TEST MODE</span>}
+              </p>
             </div>
           </div>
         </div>

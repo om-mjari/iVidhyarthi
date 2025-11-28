@@ -1,18 +1,20 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './StudentDashboard.css';
+import './MyProfilePremium.css';
 import './components/NewSections.css';
 import Logo from './Logo';
 import ChatbotAssistant from './components/ChatbotAssistant';
-import PopularCategories from './components/PopularCategories';
-import WhyChoose from './components/WhyChoose';
-import Testimonials from './components/Testimonials';
-import TrustedPartners from './components/TrustedPartners';
+import EnrolledCourses from './components/EnrolledCourses';
+import LearningStats from './components/LearningStats';
+import UpcomingSessions from './components/UpcomingSessions';
+import RecommendedCourses from './components/RecommendedCourses';
+import Announcements from './components/Announcements';
 import EnhancedFooter from './components/EnhancedFooter';
 
-const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
+const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
   // State for courses (raw approved list)
   const [courses, setCourses] = useState([]);
-  // State for filtered/sorted operations (approved only)
+  // State for filtered operations (approved only)
   const [filteredCourses, setFilteredCourses] = useState([]);
 
   // State for filters and search
@@ -23,13 +25,82 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
   const [minRating, setMinRating] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
 
-  // State for dropdown menus
-  const [activeDropdown, setActiveDropdown] = useState(null);
-
   // Voice search state
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef(null);
+
+  // Profile state
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profile, setProfile] = useState({
+    name: '',
+    birthdate: '',
+    courseDetails: '',
+    certificateDetails: '',
+    gender: ''
+  });
+  const [editProfile, setEditProfile] = useState({
+    name: '',
+    birthdate: '',
+    courseDetails: '',
+    certificateDetails: '',
+    gender: ''
+  });
+  const [isProfileDirty, setIsProfileDirty] = useState(false);
+
+  // Auto-populate profile with logged-in user data
+  useEffect(() => {
+    const authUser = localStorage.getItem('auth_user');
+    const savedProfile = localStorage.getItem('student_profile');
+
+    if (authUser) {
+      try {
+        const user = JSON.parse(authUser);
+        const defaultProfile = {
+          name: user.name || '',
+          birthdate: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+          courseDetails: 'React, JavaScript, Node.js',
+          certificateDetails: 'Coursera, Udemy',
+          gender: user.gender ? user.gender.charAt(0).toUpperCase() + user.gender.slice(1) : 'Male'
+        };
+
+        // If no saved profile exists, use the default populated data
+        if (!savedProfile) {
+          setProfile(defaultProfile);
+          setEditProfile(defaultProfile);
+          localStorage.setItem('student_profile', JSON.stringify(defaultProfile));
+        } else {
+          // Merge saved profile with user data, prioritizing saved data
+          const parsed = JSON.parse(savedProfile);
+          const mergedProfile = {
+            ...defaultProfile,
+            ...parsed,
+            // Always use the latest name from auth_user
+            name: user.name || parsed.name
+          };
+          setProfile(mergedProfile);
+          setEditProfile(mergedProfile);
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        // Fallback to saved profile if exists
+        if (savedProfile) {
+          try {
+            const parsed = JSON.parse(savedProfile);
+            setProfile(parsed);
+            setEditProfile(parsed);
+          } catch { }
+        }
+      }
+    } else if (savedProfile) {
+      // No auth user but saved profile exists
+      try {
+        const parsed = JSON.parse(savedProfile);
+        setProfile(parsed);
+        setEditProfile(parsed);
+      } catch { }
+    }
+  }, []);
 
   // Fetch courses from API on mount
   useEffect(() => {
@@ -90,9 +161,43 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
     }
   }, []);
 
+  const avatarInitials = (name) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] || '';
+    const second = parts[1]?.[0] || '';
+    return (first + second).toUpperCase();
+  };
+
+  const logout = () => {
+    if (onLogout) {
+      onLogout(); // This will handle navigation to home and cleanup
+    } else {
+      // Fallback if onLogout prop is not provided
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('student_profile');
+      window.location.reload();
+    }
+  };
+
+  const openProfile = () => {
+    setEditProfile(profile);
+    setIsProfileDirty(false);
+    setIsProfileOpen(true);
+  };
+
   const handleEnroll = (course) => {
-    // Navigate to Login page when Enroll button is clicked
-    onNavigateLogin && onNavigateLogin();
+    // Normalize course data to ensure consistent field names throughout the flow
+    const normalizedCourse = {
+      id: course.Course_Id || course.id,
+      name: course.Title || course.name,
+      price: course.Price || course.price,
+      instructor: course.Lecturer_Id || course.instructor,
+      image: course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
+      rating: course.rating || 4.5
+    };
+    localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
+    onNavigateCourse && onNavigateCourse();
   };
 
   // Filter and sort courses
@@ -164,6 +269,24 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
     setShowFilters(false);
   };
 
+  const handleEditProfileChange = (e) => {
+    const { name, value } = e.target;
+    setEditProfile(prev => {
+      const next = { ...prev, [name]: value };
+      setIsProfileDirty(JSON.stringify(next) !== JSON.stringify(profile));
+      return next;
+    });
+  };
+
+  const updateProfile = () => {
+    setProfile(editProfile);
+    localStorage.setItem('student_profile', JSON.stringify(editProfile));
+    setIsProfileDirty(false);
+    setIsProfileOpen(false);
+  };
+
+  const closeProfile = () => setIsProfileOpen(false);
+
   // Voice search functions
   const startVoiceSearch = () => {
     if (recognitionRef.current && !isListening) {
@@ -197,138 +320,37 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
   // Apply filters handler for mobile (just closes panel since filters auto-apply)
   const applyFiltersAndClose = () => setShowFilters(false);
 
-  // Dropdown menu handlers
-  const handleDropdownToggle = (dropdownName) => {
-    setActiveDropdown(activeDropdown === dropdownName ? null : dropdownName);
-  };
-
-  const handleDropdownClose = () => {
-    setActiveDropdown(null);
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.nav-dropdown')) {
-        setActiveDropdown(null);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-inner">
-          <div className="header-brand">
-            <Logo size="large" showText={true} onClick={() => window.location.reload()} style={{ cursor: 'pointer' }} />
+          <div className="header-titles">
+            <Logo size="large" showText={true} style={{ marginBottom: '0.5rem' }} />
+            <h1>Student Dashboard</h1>
+            <p>Discover and enroll in amazing courses</p>
           </div>
-
-          <nav className="main-navigation">
-            {/* About iVidhyarthi Dropdown */}
-            <div className="nav-dropdown">
-              <button
-                className={`nav-dropdown-btn ${activeDropdown === 'about' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('about')}
-              >
-                About iVidhyarthi <span className="dropdown-arrow">▼</span>
-              </button>
-              {activeDropdown === 'about' && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('LearnAboutIVidhyarthi')}>Learn about iVidhyarthi</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('OurMission')}>Our Mission</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Team')}>Team</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('ContactUs')}>Contact Us</button>
-                </div>
-              )}
-            </div>
-
-            {/* All Courses Dropdown */}
-            <div className="nav-dropdown">
-              <button
-                className={`nav-dropdown-btn ${activeDropdown === 'courses' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('courses')}
-              >
-                All Courses <span className="dropdown-arrow">▼</span>
-              </button>
-              {activeDropdown === 'courses' && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('CourseCatalog')}>iVidhyarthi Courses</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('CourseCatalog')}>Course Catalog</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Coordinators')}>Coordinators</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('HelpVideos')}>Help Videos</button>
-                </div>
-              )}
-            </div>
-
-            {/* Initiatives Dropdown */}
-            <div className="nav-dropdown">
-              <button
-                className={`nav-dropdown-btn ${activeDropdown === 'initiatives' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('initiatives')}
-              >
-                Initiatives <span className="dropdown-arrow">▼</span>
-              </button>
-              {activeDropdown === 'initiatives' && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('LocalChapters')}>Local Chapters</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Translation')}>Translation</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('FacultyInitiatives')}>Faculty Initiatives</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('StudentPrograms')}>Student Programs</button>
-                </div>
-              )}
-            </div>
-
-            {/* FAQ Dropdown */}
-            <div className="nav-dropdown">
-              <button
-                className={`nav-dropdown-btn ${activeDropdown === 'faq' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('faq')}
-              >
-                FAQ <span className="dropdown-arrow">▼</span>
-              </button>
-              {activeDropdown === 'faq' && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('FAQ')}>General FAQ</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('FAQ')}>Course FAQ</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('FAQ')}>Technical Support</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('FAQ')}>Enrollment FAQ</button>
-                </div>
-              )}
-            </div>
-
-            {/* More Dropdown */}
-            <div className="nav-dropdown">
-              <button
-                className={`nav-dropdown-btn ${activeDropdown === 'more' ? 'active' : ''}`}
-                onClick={() => handleDropdownToggle('more')}
-              >
-                More <span className="dropdown-arrow">▼</span>
-              </button>
-              {activeDropdown === 'more' && (
-                <div className="dropdown-menu">
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Blog')}>iVidhyarthi Blog</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Certification')}>Certification Courses</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Careers')}>Careers</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Documents')}>Documents</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Books')}>Books</button>
-                  <button className="dropdown-item" onClick={() => onNavigateToPage && onNavigateToPage('Resources')}>Resources</button>
-                </div>
-              )}
-            </div>
-          </nav>
-
-          <div className="header-actions">
-            <button className="login-signup-btn" onClick={onNavigateLogin}>
-              {user ? 'Go to Dashboard' : 'Login/Signup'}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button className="logout-btn-modern" onClick={logout} title="Logout">
+              <span className="logout-icon">🚪</span>
+              Logout
+            </button>
+            <button
+              className="avatar-btn-modern"
+              aria-label="Open profile"
+              onClick={openProfile}
+              title={profile.name ? profile.name : 'Profile'}
+            >
+              <div className="avatar-container">
+                {profile.name ? (
+                  <span className="avatar-initials-modern">{avatarInitials(profile.name)}</span>
+                ) : (
+                  <span className="avatar-icon-modern" aria-hidden>👤</span>
+                )}
+                <div className="avatar-status-dot"></div>
+              </div>
+              <span className="avatar-name">{profile.name || 'Guest'}</span>
             </button>
           </div>
-        </div>
-
-        <div className="header-subtitle">
-          <p>Discover and enroll in amazing courses</p>
         </div>
       </header>
 
@@ -581,30 +603,169 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
             )}
 
             {/* ========================================
-                NEW ENHANCED SECTIONS
+                STUDENT DASHBOARD ENHANCEMENT SECTIONS
             ======================================== */}
             
-            {/* Popular Categories Section */}
-            <PopularCategories />
+            {/* My Enrolled Courses with Progress */}
+            <EnrolledCourses />
 
-            {/* Why Choose iVidhyarthi Section */}
-            <WhyChoose />
+            {/* Learning Statistics & Skill Progress */}
+            <LearningStats />
 
-            {/* Student Testimonials Carousel */}
-            <Testimonials />
+            {/* Upcoming Live Sessions */}
+            <UpcomingSessions />
 
-            {/* Trusted Partners Section */}
-            <TrustedPartners />
+            {/* AI-Powered Recommended Courses */}
+            <RecommendedCourses />
+
+            {/* Announcements & Notifications */}
+            <Announcements />
 
           </main>
 
           {/* Enhanced 3-Row Footer */}
-          <EnhancedFooter onNavigateToPage={onNavigateToPage} />
+          <EnhancedFooter onNavigateToPage={onNavigateCourse} />
         </div>
       </div>
+
+      {/* Profile Slide-over - Premium Modern UI */}
+      <div className={`profile-overlay ${isProfileOpen ? 'open' : ''}`} onClick={closeProfile} />
+      <aside className={`profile-panel-premium ${isProfileOpen ? 'open' : ''}`} aria-hidden={!isProfileOpen}>
+        
+        {/* Close Button - Floating Top Right */}
+        <button className="profile-close-premium" onClick={closeProfile} aria-label="Close profile">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        {/* Profile Header with Gradient Avatar */}
+        <div className="profile-header-premium">
+          <div className="profile-avatar-premium">
+            <div className="avatar-glow"></div>
+            <div className="avatar-content">
+              {profile.name ? (
+                <span className="avatar-initials-premium">{avatarInitials(profile.name)}</span>
+              ) : (
+                <svg className="avatar-icon-premium" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              )}
+            </div>
+          </div>
+          <h2 className="profile-title-premium">My Profile</h2>
+          <p className="profile-subtitle-premium">Manage your personal information</p>
+        </div>
+
+        {/* Profile Form */}
+        <form className="profile-form-premium" onSubmit={(e) => e.preventDefault()}>
+          
+          {/* Personal Information Section */}
+          <div className="glass-section">
+            <div className="section-header">
+              <h3 className="section-title-premium">Personal Information</h3>
+              <div className="section-divider"></div>
+            </div>
+            
+            <div className="form-group-premium">
+              <label className="field-label-premium">Full Name</label>
+              <input
+                type="text"
+                name="name"
+                value={editProfile.name}
+                onChange={handleEditProfileChange}
+                placeholder="Enter your full name"
+                className="input-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Date of Birth</label>
+              <input
+                type="date"
+                name="birthdate"
+                value={editProfile.birthdate}
+                onChange={handleEditProfileChange}
+                className="input-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Gender</label>
+              <div className="pill-selector">
+                <label className={`pill-option ${editProfile.gender === 'Male' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Male" checked={editProfile.gender === 'Male'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Male</span>
+                </label>
+                <label className={`pill-option ${editProfile.gender === 'Female' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Female" checked={editProfile.gender === 'Female'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Female</span>
+                </label>
+                <label className={`pill-option ${editProfile.gender === 'Other' ? 'active' : ''}`}>
+                  <input type="radio" name="gender" value="Other" checked={editProfile.gender === 'Other'} onChange={handleEditProfileChange} />
+                  <span className="pill-text">Other</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Academic Information Section */}
+          <div className="glass-section">
+            <div className="section-header">
+              <h3 className="section-title-premium">Academic Information</h3>
+              <div className="section-divider"></div>
+            </div>
+            
+            <div className="form-group-premium">
+              <label className="field-label-premium">Course Interests</label>
+              <textarea
+                name="courseDetails"
+                value={editProfile.courseDetails}
+                onChange={handleEditProfileChange}
+                rows="3"
+                placeholder="e.g., React, Machine Learning, UI/UX Design"
+                className="textarea-premium"
+              />
+            </div>
+
+            <div className="form-group-premium">
+              <label className="field-label-premium">Certifications</label>
+              <textarea
+                name="certificateDetails"
+                value={editProfile.certificateDetails}
+                onChange={handleEditProfileChange}
+                rows="3"
+                placeholder="e.g., Coursera, Udemy, Google Certificates"
+                className="textarea-premium"
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="profile-actions-premium">
+            <button type="button" className="btn-cancel-premium" onClick={closeProfile}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Cancel
+            </button>
+            <button type="button" className="btn-save-premium" disabled={!isProfileDirty} onClick={updateProfile}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </aside>
+
+      {/* Chatbot Component */}
       <ChatbotAssistant />
     </div>
   );
 };
 
-export default Home;
+export default StudentDashboard;

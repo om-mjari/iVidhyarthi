@@ -68,9 +68,12 @@ router.post("/register", async (req, res) => {
     }
 
     // Determine role
-    const incomingType = (req.body.userType || req.body.role || "").toString().toLowerCase();
+    const incomingType = (req.body.userType || req.body.role || "")
+      .toString()
+      .toLowerCase();
     let role = "student";
-    if (incomingType === "lecturer" || incomingType === "instructor") role = "instructor";
+    if (incomingType === "lecturer" || incomingType === "instructor")
+      role = "instructor";
     else if (incomingType === "registrar") role = "registrar";
     else if (incomingType === "admin") role = "admin";
 
@@ -81,30 +84,60 @@ router.post("/register", async (req, res) => {
 
     // Link data to normalized tables
     const commonPhone = (
-      req.body.phone || req.body.contactNumber || req.body.mobileNo || req.body.contactNo || ""
+      req.body.phone ||
+      req.body.contactNumber ||
+      req.body.mobileNo ||
+      req.body.contactNo ||
+      ""
     ).toString();
-    const gender = req.body.gender ? String(req.body.gender).toLowerCase() : undefined;
+    const gender = req.body.gender
+      ? String(req.body.gender).toLowerCase()
+      : undefined;
     const dob = req.body.dob || req.body.dateOfBirth || undefined;
 
-    const universityName = req.body.university || (req.body.education && req.body.education.university) || undefined;
-    const instituteName = req.body.institute || (req.body.education && req.body.education.institution) || undefined;
+    const universityName =
+      req.body.university ||
+      (req.body.education && req.body.education.university) ||
+      undefined;
+    const instituteName =
+      req.body.institute ||
+      (req.body.education && req.body.education.institution) ||
+      undefined;
 
-    const highestQualification = req.body.highestQualification || (req.body.education && req.body.education.highestQualification) || undefined;
+    const highestQualification =
+      req.body.highestQualification ||
+      (req.body.education && req.body.education.highestQualification) ||
+      undefined;
     const specialization = req.body.specialization || undefined;
     const designation = req.body.designation || undefined;
     const experienceYears = req.body.experienceYears || undefined;
-    const enrollmentYear = req.body.enrollmentYear ? Number(req.body.enrollmentYear) : undefined;
+    const enrollmentYear = req.body.enrollmentYear
+      ? Number(req.body.enrollmentYear)
+      : undefined;
 
     const findOrCreateUniversity = async (name) => {
       if (!name) return null;
       let u = await University.findOne({ University_Name: name.trim() });
-      if (!u) { u = await University.create({ University_Name: name.trim(), Verification_Status: "pending" }); }
+      if (!u) {
+        u = await University.create({
+          University_Name: name.trim(),
+          Verification_Status: "pending",
+        });
+      }
       return u;
     };
     const findOrCreateInstitute = async (name, uni) => {
       if (!name) return null;
-      let i = await Institutes.findOne({ Institute_Name: name.trim(), ...(uni ? { University_Id: uni._id } : {}) });
-      if (!i) { i = await Institutes.create({ Institute_Name: name.trim(), University_Id: uni ? uni._id : undefined }); }
+      let i = await Institutes.findOne({
+        Institute_Name: name.trim(),
+        ...(uni ? { University_Id: uni._id } : {}),
+      });
+      if (!i) {
+        i = await Institutes.create({
+          Institute_Name: name.trim(),
+          University_Id: uni ? uni._id : undefined,
+        });
+      }
       return i;
     };
 
@@ -119,23 +152,39 @@ router.post("/register", async (req, res) => {
           Mobile_No: commonPhone || undefined,
           Institution_Id: instDoc ? instDoc._id : undefined,
           Enrollment_Year: enrollmentYear,
-          Branch: req.body.branch || (req.body.education && req.body.education.branch) || undefined,
-          Course: req.body.course || (req.body.education && req.body.education.course) || undefined,
-          Semester: req.body.semester || (req.body.education && req.body.education.semester) || undefined,
+          Branch:
+            req.body.branch ||
+            (req.body.education && req.body.education.branch) ||
+            undefined,
+          Course:
+            req.body.course ||
+            (req.body.education && req.body.education.course) ||
+            undefined,
+          Semester:
+            req.body.semester ||
+            (req.body.education && req.body.education.semester) ||
+            undefined,
           Highest_Qualification: highestQualification,
           DOB: dob,
           Gender: gender,
         });
       } else if (role === "registrar") {
-        const usedUni = uniDoc || (await findOrCreateUniversity(universityName || "Unknown University"));
+        const usedUni =
+          uniDoc ||
+          (await findOrCreateUniversity(
+            universityName || "Unknown University"
+          ));
         await Registrars.create({
           User_Id: user._id,
           Contact_No: commonPhone || undefined,
           University_Id: usedUni._id,
         });
       } else if (role === "instructor") {
-        const usedUni = uniDoc || (await findOrCreateUniversity(universityName || ""));
-        const usedInst = instDoc || (await findOrCreateInstitute(instituteName || "", usedUni));
+        const usedUni =
+          uniDoc || (await findOrCreateUniversity(universityName || ""));
+        const usedInst =
+          instDoc ||
+          (await findOrCreateInstitute(instituteName || "", usedUni));
         await Lecturers.create({
           User_Id: user._id,
           Full_Name: mappedName,
@@ -285,7 +334,10 @@ router.post("/login", async (req, res) => {
     console.log("✅ User found in database:", user.email);
     try {
       const ph = user.passwordHash || "";
-      console.log("🔐 Stored password hash starts with:", String(ph).substring(0, 20));
+      console.log(
+        "🔐 Stored password hash starts with:",
+        String(ph).substring(0, 20)
+      );
     } catch (_) {}
 
     // Allow login even if email is not verified (relaxed for current requirement)
@@ -295,7 +347,9 @@ router.post("/login", async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     console.log("🔐 Password comparison result:", isPasswordValid);
     if (!isPasswordValid) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
     }
     console.log("✅ Login successful for:", user.email);
 
@@ -333,9 +387,9 @@ router.post("/login", async (req, res) => {
     res.json({
       success: true,
       message: "Login successful",
-      data: { 
+      data: {
         user: profile,
-        token: jwtToken
+        token: jwtToken,
       },
     });
   } catch (error) {
@@ -1046,3 +1100,21 @@ router.post("/lecturer/quiz/submit", async (req, res) => {
     });
   }
 });
+
+// Get user details by ID
+router.get("/user/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    res.json({ success: true, data: user });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+module.exports = router;

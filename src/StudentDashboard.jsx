@@ -10,8 +10,9 @@ import UpcomingSessions from './components/UpcomingSessions';
 import RecommendedCourses from './components/RecommendedCourses';
 import Announcements from './components/Announcements';
 import EnhancedFooter from './components/EnhancedFooter';
+import DashboardHeader from './components/DashboardHeader';
 
-const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
+const StudentDashboard = ({ onNavigate, onLogout }) => {
   // State for courses (raw approved list)
   const [courses, setCourses] = useState([]);
   // State for filtered operations (approved only)
@@ -197,7 +198,7 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
       rating: course.rating || 4.5
     };
     localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
-    onNavigateCourse && onNavigateCourse();
+    onNavigate && onNavigate('course');
   };
 
   // Filter and sort courses
@@ -320,39 +321,12 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
   // Apply filters handler for mobile (just closes panel since filters auto-apply)
   const applyFiltersAndClose = () => setShowFilters(false);
 
+  // Get user from local storage for header
+  const user = JSON.parse(localStorage.getItem('auth_user') || '{}');
+
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="header-inner">
-          <div className="header-titles">
-            <Logo size="large" showText={true} style={{ marginBottom: '0.5rem' }} />
-            <h1>Student Dashboard</h1>
-            <p>Discover and enroll in amazing courses</p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button className="logout-btn-modern" onClick={logout} title="Logout">
-              <span className="logout-icon">🚪</span>
-              Logout
-            </button>
-            <button
-              className="avatar-btn-modern"
-              aria-label="Open profile"
-              onClick={openProfile}
-              title={profile.name ? profile.name : 'Profile'}
-            >
-              <div className="avatar-container">
-                {profile.name ? (
-                  <span className="avatar-initials-modern">{avatarInitials(profile.name)}</span>
-                ) : (
-                  <span className="avatar-icon-modern" aria-hidden>👤</span>
-                )}
-                <div className="avatar-status-dot"></div>
-              </div>
-              <span className="avatar-name">{profile.name || 'Guest'}</span>
-            </button>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader user={user} onNavigate={onNavigate} onLogout={onLogout} />
 
       <div className="dashboard-content">
         {/* Search and Controls */}
@@ -624,7 +598,7 @@ const StudentDashboard = ({ onNavigateCourse, onLogout }) => {
           </main>
 
           {/* Enhanced 3-Row Footer */}
-          <EnhancedFooter onNavigateToPage={onNavigateCourse} />
+          <EnhancedFooter onNavigateToPage={onNavigate} />
         </div>
       </div>
 

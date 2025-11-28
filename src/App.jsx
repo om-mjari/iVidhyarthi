@@ -35,6 +35,9 @@ import RegistrarDashboard from './RegistrarDashboard';
 import LecturerEligibility from './LecturerEligibility';
 import AboutUs from './AboutUs';
 import HelpCenter from './HelpCenter';
+import MyProfile from './MyProfile';
+import MyCourses from './MyCourses';
+import MyCertifications from './MyCertifications';
 import RazorpayPayment from './components/RazorpayPayment/RazorpayPayment';
 
 function App() {
@@ -306,13 +309,18 @@ function App() {
   };
 
   // Show Home page by default (no authentication required)
-  if (!user && !admin && route === 'home') {
+  if (!admin && route === 'home') {
     return (
       <div className="App">
         <Home
+          user={user}
           onNavigateLogin={() => {
-            setRoute('login');
-            window.history.pushState({ route: 'login' }, '', '/login');
+            if (user) {
+               setRoute('dashboard');
+            } else {
+               setRoute('login');
+               window.history.pushState({ route: 'login' }, '', '/login');
+            }
           }}
           onNavigateAdmin={() => {
             setRoute('admin-login');
@@ -547,7 +555,10 @@ function App() {
 
   return (
     <div className="App">
-      {route === 'dashboard' && <StudentDashboard onNavigateCourse={() => setRoute('course')} onLogout={handleStudentLogout} />}
+      {route === 'dashboard' && <StudentDashboard onNavigate={(page) => setRoute(page)} onLogout={handleStudentLogout} />}
+      {route === 'profile' && <MyProfile user={user} onNavigate={(page) => setRoute(page)} onLogout={handleStudentLogout} />}
+      {route === 'my-courses' && <MyCourses user={user} onNavigate={(page) => setRoute(page)} onLogout={handleStudentLogout} />}
+      {route === 'my-certifications' && <MyCertifications user={user} onNavigate={(page) => setRoute(page)} onLogout={handleStudentLogout} />}
       {route === 'lecturer-dashboard' && localStorage.getItem('lecturer_user') && (
         <LecturerDashboard onLogout={handleLecturerLogout} />
       )}

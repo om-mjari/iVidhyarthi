@@ -1,0 +1,10 @@
+.my-courses-page {
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.courses-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}

@@ -112,6 +112,7 @@ const assignmentRoutes = require("./routes/assignmentRoutes");
 const progressRoutes = require("./routes/progressRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const earningsRoutes = require("./routes/earningsRoutes");
+const certificationRoutes = require("./routes/certificationRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -128,6 +129,7 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/earnings", earningsRoutes);
+app.use("/api/certifications", certificationRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -142,6 +144,7 @@ console.log("   - /api/assignments");
 console.log("   - /api/progress");
 console.log("   - /api/feedback");
 console.log("   - /api/earnings");
+console.log("   - /api/certifications");
 
 /* ============================
    Health & readiness endpoints

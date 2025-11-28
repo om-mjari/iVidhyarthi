@@ -23,6 +23,7 @@ router.post("/create-order", paymentController.createOrder);
 
 // Verify Razorpay payment
 router.post("/verify", paymentController.verifyPayment);
+router.post("/verify-payment", paymentController.verifyPayment); // Alias for specific requirement
 
 // Get payment by receipt number
 router.get("/:receiptNo", paymentController.getPayment);

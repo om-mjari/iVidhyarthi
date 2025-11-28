@@ -1,4 +1,5 @@
 const Payment = require("../models/Payment");
+const Enrollment = require("../models/Tbl_Enrollments");
 const {
   razorpayInstance,
   isRazorpayConfigured,
@@ -37,40 +38,45 @@ exports.createOrder = async (req, res) => {
     let realStudentEmail = studentEmail || "";
 
     try {
-      // First, try to find student in Tbl_Students by User_Id (if studentId is User_Id)
-      const student = await Students.findOne({ User_Id: studentId }).populate(
-        "User_Id",
-        "email"
-      );
+      const mongoose = require('mongoose');
+      const isValidObjectId = mongoose.Types.ObjectId.isValid(studentId);
 
-      if (student) {
-        realStudentName = student.Full_Name || studentName || "Student";
-        realStudentEmail = student.User_Id?.email || studentEmail || "";
-        console.log("✅ Fetched student from Tbl_Students:", realStudentName);
-      } else {
-        // If not found, try finding by _id directly in Students table
-        const studentById = await Students.findById(studentId).populate(
+      if (isValidObjectId) {
+        // First, try to find student in Tbl_Students by User_Id (if studentId is User_Id)
+        const student = await Students.findOne({ User_Id: studentId }).populate(
           "User_Id",
           "email"
         );
 
-        if (studentById) {
-          realStudentName = studentById.Full_Name || studentName || "Student";
-          realStudentEmail = studentById.User_Id?.email || studentEmail || "";
-          console.log("✅ Fetched student by ID:", realStudentName);
+        if (student) {
+          realStudentName = student.Full_Name || studentName || "Student";
+          realStudentEmail = student.User_Id?.email || studentEmail || "";
+          console.log("✅ Fetched student from Tbl_Students:", realStudentName);
         } else {
-          // Last resort: fetch from User table
-          const user = await User.findById(studentId);
-          if (user) {
-            realStudentEmail = user.email || studentEmail || "";
-            realStudentName = user.name || studentName || "Student";
-            console.log("✅ Fetched from User table:", realStudentName);
+          // If not found, try finding by _id directly in Students table
+          const studentById = await Students.findById(studentId).populate(
+            "User_Id",
+            "email"
+          );
+
+          if (studentById) {
+            realStudentName = studentById.Full_Name || studentName || "Student";
+            realStudentEmail = studentById.User_Id?.email || studentEmail || "";
+            console.log("✅ Fetched student by ID:", realStudentName);
           } else {
-            console.log(
-              "⚠️  Student not found in database, using provided data"
-            );
+            // Last resort: fetch from User table
+            const user = await User.findById(studentId);
+            if (user) {
+              realStudentEmail = user.email || studentEmail || "";
+              realStudentName = user.name || studentName || "Student";
+              console.log("✅ Fetched from User table:", realStudentName);
+            } else {
+              console.log("⚠️  Student not found in database, using provided data");
+            }
           }
         }
+      } else {
+        console.log("ℹ️  studentId is not a valid ObjectId, skipping DB lookup (Guest/Custom ID)");
       }
     } catch (dbError) {
       console.warn(
@@ -252,6 +258,30 @@ exports.verifyPayment = async (req, res) => {
       },
       { new: true }
     );
+
+    if (payment) {
+      try {
+        // Create Enrollment Record as per requirement
+        const enrollment = new Enrollment({
+          userId: payment.studentId,
+          courseId: payment.courseId,
+          amount: payment.amount,
+          paymentId: razorpay_payment_id,
+          enrollmentDate: new Date(),
+          status: "Success",
+          // Map to existing schema fields
+          Student_Id: payment.studentId,
+          Course_Id: payment.courseId,
+          Status: "Active",
+          Payment_Status: "Paid"
+        });
+        await enrollment.save();
+        console.log("✅ Enrollment created successfully");
+      } catch (enrollError) {
+        console.error("❌ Error creating enrollment:", enrollError);
+        // We don't fail the response here as payment was successful
+      }
+    }
 
     if (!payment) {
       return res.status(404).json({

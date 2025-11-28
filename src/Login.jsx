@@ -250,6 +250,7 @@ const Login = ({ onAuthenticated, onSwitchToSignup, onAdminLogin }) => {
         } else {
           // Default to student login
           localStorage.setItem('auth_user', JSON.stringify({
+            id: userData._id || userData.id,
             name: userData.name,
             email: userData.email
           }));

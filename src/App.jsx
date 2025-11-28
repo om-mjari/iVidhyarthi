@@ -35,6 +35,7 @@ import RegistrarDashboard from './RegistrarDashboard';
 import LecturerEligibility from './LecturerEligibility';
 import AboutUs from './AboutUs';
 import HelpCenter from './HelpCenter';
+import RazorpayPayment from './components/RazorpayPayment/RazorpayPayment';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -75,6 +76,8 @@ function App() {
       setRoute('gateway');
     } else if (path === '/final') {
       setRoute('final');
+    } else if (path === '/razorpay-payment') {
+      setRoute('razorpay-payment');
     } else if (path === '/learning') {
       setRoute('learning');
     } else if (path.startsWith('/verify-email') || path.includes('/verify/')) {
@@ -552,7 +555,14 @@ function App() {
         <RegistrarDashboard onLogout={handleRegistrarLogout} />
       )}
       {route === 'course' && (
-        <CourseDetails onBack={() => setRoute('dashboard')} onPay={() => setRoute('payment')} />
+        <CourseDetails 
+          onBack={() => setRoute('dashboard')} 
+          onPay={(course) => {
+            // Save course details for payment page
+            localStorage.setItem('selected_course', JSON.stringify(course));
+            setRoute('razorpay-payment');
+          }} 
+        />
       )}
       {route === 'payment' && (
         <Payment
@@ -576,6 +586,9 @@ function App() {
       )}
       {route === 'final' && (
         <FinalPayment onComplete={() => setRoute('learning')} />
+      )}
+      {route === 'razorpay-payment' && (
+        <RazorpayPayment onPaymentSuccess={() => setRoute('learning')} />
       )}
       {route === 'learning' && (
         <CourseLearningPage onBackToDashboard={() => setRoute('dashboard')} />

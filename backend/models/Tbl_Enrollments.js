@@ -37,6 +37,13 @@ const enrollmentSchema = new mongoose.Schema(
       enum: ["Paid", "Pending", "Failed", "Refunded"],
       default: "Pending",
     },
+    // New fields for Razorpay integration
+    userId: { type: String },
+    courseId: { type: String },
+    amount: { type: Number },
+    paymentId: { type: String },
+    enrollmentDate: { type: Date },
+    status: { type: String }
   },
   {
     timestamps: true,

@@ -43,7 +43,7 @@ const enrollmentSchema = new mongoose.Schema(
     amount: { type: Number },
     paymentId: { type: String },
     enrollmentDate: { type: Date },
-    status: { type: String }
+    status: { type: String },
   },
   {
     timestamps: true,

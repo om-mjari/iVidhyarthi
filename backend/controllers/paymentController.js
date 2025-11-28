@@ -38,7 +38,7 @@ exports.createOrder = async (req, res) => {
     let realStudentEmail = studentEmail || "";
 
     try {
-      const mongoose = require('mongoose');
+      const mongoose = require("mongoose");
       const isValidObjectId = mongoose.Types.ObjectId.isValid(studentId);
 
       if (isValidObjectId) {
@@ -71,12 +71,16 @@ exports.createOrder = async (req, res) => {
               realStudentName = user.name || studentName || "Student";
               console.log("✅ Fetched from User table:", realStudentName);
             } else {
-              console.log("⚠️  Student not found in database, using provided data");
+              console.log(
+                "⚠️  Student not found in database, using provided data"
+              );
             }
           }
         }
       } else {
-        console.log("ℹ️  studentId is not a valid ObjectId, skipping DB lookup (Guest/Custom ID)");
+        console.log(
+          "ℹ️  studentId is not a valid ObjectId, skipping DB lookup (Guest/Custom ID)"
+        );
       }
     } catch (dbError) {
       console.warn(
@@ -273,7 +277,7 @@ exports.verifyPayment = async (req, res) => {
           Student_Id: payment.studentId,
           Course_Id: payment.courseId,
           Status: "Active",
-          Payment_Status: "Paid"
+          Payment_Status: "Paid",
         });
         await enrollment.save();
         console.log("✅ Enrollment created successfully");

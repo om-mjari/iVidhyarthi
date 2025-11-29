@@ -40,7 +40,7 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
           ...prev,
           name: parsedUser.name || prev.name,
           email: parsedUser.email || prev.email,
-          // Ensure we get a valid ID, fallback to random if missing to avoid "1" collision
+          // Use the user's _id or id for enrollment tracking
           userId: parsedUser.id || parsedUser._id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         }));
       } else {
@@ -55,10 +55,20 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
       const selectedCourse = localStorage.getItem('selected_course');
       if (selectedCourse) {
          const parsedCourse = JSON.parse(selectedCourse);
+         // Use Course_Id if available, otherwise fall back to _id or id
+         const courseIdentifier = parsedCourse.Course_Id || parsedCourse.id || parsedCourse._id || parsedCourse.courseId || 'unknown';
+         
          setUserDetails(prev => ({
             ...prev,
-            courseId: parsedCourse.id || parsedCourse._id || parsedCourse.courseId || prev.courseId
+            courseId: courseIdentifier.toString() // Convert to string for consistency
          }));
+         
+         console.log('📚 Selected Course:', {
+            Title: parsedCourse.Title || parsedCourse.title || parsedCourse.name,
+            Course_Id: courseIdentifier,
+            Price: parsedCourse.price
+         });
+         
          if (parsedCourse.price) {
             // Remove non-numeric characters if price is like "₹500"
             const numericPrice = parseFloat(parsedCourse.price.toString().replace(/[^0-9.]/g, ''));

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Enrollment = require("../models/Tbl_Enrollments");
+const Course = require("../models/Tbl_Courses");
 
 // Create new enrollment
 router.post("/create", async (req, res) => {
@@ -48,14 +49,45 @@ router.post("/create", async (req, res) => {
 // Get enrollment by student
 router.get("/student/:studentId", async (req, res) => {
   try {
+    console.log("📚 Fetching enrollments for student:", req.params.studentId);
+    
     const enrollments = await Enrollment.find({
       Student_Id: req.params.studentId,
-    });
+      Payment_Status: "Paid", // Only show paid enrollments
+    }).sort({ Enrolled_On: -1 }); // Most recent first
+
+    console.log(`   Found ${enrollments.length} enrollments`);
+
+    // Enrich with course details
+    const enrichedEnrollments = await Promise.all(
+      enrollments.map(async (enrollment) => {
+        // Try to find course by Course_Id (handling potential type mismatch)
+        let course = await Course.findOne({ Course_Id: enrollment.Course_Id });
+        
+        // If not found and Course_Id is numeric string, try as Number
+        if (!course && !isNaN(enrollment.Course_Id)) {
+           course = await Course.findOne({ Course_Id: Number(enrollment.Course_Id) });
+        }
+
+        if (!course) {
+          console.log(`   ⚠️  Course not found for ID: ${enrollment.Course_Id}`);
+        } else {
+          console.log(`   ✅ Found course: ${course.Title}`);
+        }
+
+        return {
+          ...enrollment.toObject(),
+          courseDetails: course ? course.toObject() : null,
+        };
+      })
+    );
+
     res.json({
       success: true,
-      data: enrollments,
+      data: enrichedEnrollments,
     });
   } catch (error) {
+    console.error("Error fetching enrollments:", error);
     res.status(500).json({
       success: false,
       message: "Error fetching enrollments",

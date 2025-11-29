@@ -8,8 +8,14 @@ const EnrolledCoursesList = ({ studentId, onNavigate }) => {
 
   useEffect(() => {
     const fetchEnrollments = async () => {
-      if (!studentId) return;
+      if (!studentId) {
+        console.log("No studentId provided to EnrolledCoursesList");
+        setLoading(false);
+        return;
+      }
+      
       try {
+        console.log("Fetching enrollments for student:", studentId);
         const response = await axios.get(`http://localhost:5000/api/enrollments/student/${studentId}`);
         if (response.data.success) {
           setCourses(response.data.data);
@@ -41,15 +47,22 @@ const EnrolledCoursesList = ({ studentId, onNavigate }) => {
       <div className="courses-grid-nptel">
         {courses.map((enrollment) => (
           <div key={enrollment._id || enrollment.Enrollment_Id} className="course-card-nptel" onClick={() => {
-             localStorage.setItem('selected_course', JSON.stringify({ id: enrollment.Course_Id }));
+             // Pass full course object if available, otherwise just ID
+             const courseData = enrollment.courseDetails || { id: enrollment.Course_Id };
+             localStorage.setItem('selected_course', JSON.stringify(courseData));
              if (onNavigate) onNavigate('learning');
           }}>
              <div className="course-card-header">
-                <div className="course-icon">📚</div>
+                {enrollment.courseDetails?.image ? (
+                  <img src={enrollment.courseDetails.image} alt="Course" className="course-thumbnail-small" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px 8px 0 0' }} />
+                ) : (
+                  <div className="course-icon">📚</div>
+                )}
                 <span className="status-badge">{enrollment.Status || 'Active'}</span>
              </div>
              <div className="course-card-body">
-                <h4>{enrollment.Course_Id}</h4>
+                <h4>{enrollment.courseDetails?.Title || enrollment.Course_Id}</h4>
+                {enrollment.courseDetails?.Lecturer_Id && <p className="instructor-name">By: {enrollment.courseDetails.Lecturer_Id}</p>}
                 <p className="enrolled-date">Enrolled on: {new Date(enrollment.Enrolled_On).toLocaleDateString()}</p>
              </div>
              <div className="course-card-footer">

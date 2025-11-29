@@ -265,24 +265,38 @@ exports.verifyPayment = async (req, res) => {
 
     if (payment) {
       try {
-        // Create Enrollment Record as per requirement
-        const enrollment = new Enrollment({
-          userId: payment.studentId,
-          courseId: payment.courseId,
-          amount: payment.amount,
-          paymentId: razorpay_payment_id,
-          enrollmentDate: new Date(),
-          status: "Success",
-          // Map to existing schema fields
+        // Check if enrollment already exists to avoid duplicates
+        const existingEnrollment = await Enrollment.findOne({
           Student_Id: payment.studentId,
           Course_Id: payment.courseId,
-          Status: "Active",
-          Payment_Status: "Paid",
         });
-        await enrollment.save();
-        console.log("✅ Enrollment created successfully");
+
+        if (!existingEnrollment) {
+          // Create Enrollment Record as per requirement
+          const enrollment = new Enrollment({
+            userId: payment.studentId,
+            courseId: payment.courseId,
+            amount: payment.amount,
+            paymentId: razorpay_payment_id,
+            enrollmentDate: new Date(),
+            status: "Success",
+            // Map to existing schema fields - use the same IDs from payment
+            Student_Id: payment.studentId,
+            Course_Id: payment.courseId.toString(), // Ensure it's a string for consistency
+            Status: "Active",
+            Payment_Status: "Paid",
+            Enrolled_On: new Date(),
+          });
+          await enrollment.save();
+          console.log("✅ Enrollment created successfully:", {
+            Student_Id: payment.studentId,
+            Course_Id: payment.courseId,
+          });
+        } else {
+          console.log("ℹ️  Enrollment already exists, skipping creation");
+        }
       } catch (enrollError) {
-        console.error("❌ Error creating enrollment:", enrollError);
+        console.error("❌ Error creating enrollment:", enrollError.message);
         // We don't fail the response here as payment was successful
       }
     }

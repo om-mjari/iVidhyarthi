@@ -252,7 +252,10 @@ const Login = ({ onAuthenticated, onSwitchToSignup, onAdminLogin }) => {
           localStorage.setItem('auth_user', JSON.stringify({
             id: userData._id || userData.id,
             name: userData.name,
-            email: userData.email
+            email: userData.email,
+            phone: userData.phone,
+            dob: userData.dateOfBirth,
+            gender: userData.gender
           }));
 
           setSuccess('Login successful! Redirecting to home...');

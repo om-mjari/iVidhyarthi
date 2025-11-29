@@ -362,12 +362,13 @@ router.post("/login", async (req, res) => {
     }
 
     // Build profile info for dashboard
-    let profile = { email: user.email, role: user.role };
+    let profile = { id: user._id, email: user.email, role: user.role };
     try {
       if (!user.role || user.role === "student") {
         const student = await Students.findOne({ User_Id: user._id });
         if (student) {
           profile.name = student.Full_Name || "";
+          profile.phone = student.Mobile_No || "";
           profile.dateOfBirth = student.DOB
             ? new Date(student.DOB).toISOString()
             : null;
@@ -1113,6 +1114,22 @@ router.get("/user/:id", async (req, res) => {
     res.json({ success: true, data: user });
   } catch (error) {
     console.error("Error fetching user:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get student profile by User ID
+router.get("/student-profile/:userId", async (req, res) => {
+  try {
+    const student = await Students.findOne({ User_Id: req.params.userId });
+    if (!student) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Student profile not found" });
+    }
+    res.json({ success: true, data: student });
+  } catch (error) {
+    console.error("Error fetching student profile:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });

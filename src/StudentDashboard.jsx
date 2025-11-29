@@ -190,13 +190,16 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
   const handleEnroll = (course) => {
     // Normalize course data to ensure consistent field names throughout the flow
     const normalizedCourse = {
+      Course_Id: course.Course_Id || course.id, // Keep Course_Id for enrollment
       id: course.Course_Id || course.id,
       name: course.Title || course.name,
+      Title: course.Title || course.name, // Keep Title for display
       price: course.Price || course.price,
       instructor: course.Lecturer_Id || course.instructor,
       image: course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
       rating: course.rating || 4.5
     };
+    console.log('💳 Enrolling in course:', normalizedCourse);
     localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
     onNavigate && onNavigate('course');
   };

@@ -7,7 +7,16 @@ const ExamAttempt = require("../models/Tbl_ExamAttempts");
 // Create submission
 router.post("/create", async (req, res) => {
   try {
-    const { Assignment_Id, Student_Id, Course_Id, Submission_Content, Score, Time_Spent, Status, Feedback } = req.body;
+    const {
+      Assignment_Id,
+      Student_Id,
+      Course_Id,
+      Submission_Content,
+      Score,
+      Time_Spent,
+      Status,
+      Feedback,
+    } = req.body;
 
     // Validate required fields
     if (!Assignment_Id || !Student_Id) {
@@ -23,7 +32,7 @@ router.post("/create", async (req, res) => {
       Course_Id,
       Score,
       Time_Spent: `${Math.floor(Time_Spent / 60)}m ${Time_Spent % 60}s`,
-      Status: Status || 'Submitted'
+      Status: Status || "Submitted",
     });
 
     // Check if submission already exists
@@ -36,9 +45,12 @@ router.post("/create", async (req, res) => {
 
     if (existingSubmission) {
       // Update existing submission
-      existingSubmission.Submission_Content = Submission_Content || existingSubmission.Submission_Content;
-      existingSubmission.Score = Score !== undefined ? Score : existingSubmission.Score;
-      existingSubmission.Time_Spent = Time_Spent || existingSubmission.Time_Spent;
+      existingSubmission.Submission_Content =
+        Submission_Content || existingSubmission.Submission_Content;
+      existingSubmission.Score =
+        Score !== undefined ? Score : existingSubmission.Score;
+      existingSubmission.Time_Spent =
+        Time_Spent || existingSubmission.Time_Spent;
       existingSubmission.Status = Status || existingSubmission.Status;
       existingSubmission.Feedback = Feedback || existingSubmission.Feedback;
       existingSubmission.Submitted_On = new Date();
@@ -46,7 +58,10 @@ router.post("/create", async (req, res) => {
       await existingSubmission.save();
       submissionData = existingSubmission;
 
-      console.log("✅ Submission updated successfully:", existingSubmission.Submission_Id);
+      console.log(
+        "✅ Submission updated successfully:",
+        existingSubmission.Submission_Id
+      );
     } else {
       // Create new submission
       const submission = new Submission({
@@ -64,14 +79,18 @@ router.post("/create", async (req, res) => {
       await submission.save();
       submissionData = submission;
 
-      console.log("✅ Submission created successfully:", submission.Submission_Id);
+      console.log(
+        "✅ Submission created successfully:",
+        submission.Submission_Id
+      );
     }
 
     // Also save to Tbl_ExamAttempts for exam tracking
     try {
       const assignment = await Assignment.findOne({ Assignment_Id });
       const totalMarks = assignment?.Marks || 100;
-      const percentage = totalMarks > 0 ? Math.round((Score / totalMarks) * 100) : 0;
+      const percentage =
+        totalMarks > 0 ? Math.round((Score / totalMarks) * 100) : 0;
       const timeTakenMinutes = Math.round(Time_Spent / 60);
 
       console.log("📊 Preparing exam attempt data:", {
@@ -79,7 +98,7 @@ router.post("/create", async (req, res) => {
         Student_Id,
         Score,
         Percentage: percentage,
-        Time_Taken: timeTakenMinutes + ' minutes'
+        Time_Taken: timeTakenMinutes + " minutes",
       });
 
       // Check if exam attempt exists
@@ -92,13 +111,18 @@ router.post("/create", async (req, res) => {
         // Update existing attempt
         existingAttempt.Score = Score || 0;
         existingAttempt.Time_Taken = timeTakenMinutes;
-        existingAttempt.Status = 'Completed';
-        existingAttempt.Answers = Submission_Content ? JSON.parse(Submission_Content) : {};
+        existingAttempt.Status = "Completed";
+        existingAttempt.Answers = Submission_Content
+          ? JSON.parse(Submission_Content)
+          : {};
         existingAttempt.Percentage = percentage;
         existingAttempt.Attempt_Date = new Date();
 
         await existingAttempt.save();
-        console.log("✅ Exam attempt UPDATED in Tbl_ExamAttempts:", existingAttempt.Attempt_Id);
+        console.log(
+          "✅ Exam attempt UPDATED in Tbl_ExamAttempts:",
+          existingAttempt.Attempt_Id
+        );
       } else {
         // Create new exam attempt
         const examAttempt = new ExamAttempt({
@@ -107,26 +131,37 @@ router.post("/create", async (req, res) => {
           Score: Score || 0,
           Attempt_Date: new Date(),
           Time_Taken: timeTakenMinutes,
-          Status: 'Completed',
+          Status: "Completed",
           Answers: Submission_Content ? JSON.parse(Submission_Content) : {},
           Percentage: percentage,
         });
 
         await examAttempt.save();
-        console.log("✅ Exam attempt CREATED in Tbl_ExamAttempts:", examAttempt.Attempt_Id);
+        console.log(
+          "✅ Exam attempt CREATED in Tbl_ExamAttempts:",
+          examAttempt.Attempt_Id
+        );
       }
     } catch (examError) {
-      console.warn("⚠️ Error saving to Tbl_ExamAttempts (non-critical):", examError.message);
+      console.warn(
+        "⚠️ Error saving to Tbl_ExamAttempts (non-critical):",
+        examError.message
+      );
       // Don't fail the submission if exam attempt fails
     }
 
     console.log("\n🎉 SUBMISSION COMPLETE - Data saved to:");
-    console.log("   ✓ Tbl_Submissions - Submission_Id:", submissionData.Submission_Id);
+    console.log(
+      "   ✓ Tbl_Submissions - Submission_Id:",
+      submissionData.Submission_Id
+    );
     console.log("   ✓ Tbl_ExamAttempts - Exam tracking\n");
 
     res.json({
       success: true,
-      message: existingSubmission ? "Submission updated successfully" : "Submission created successfully",
+      message: existingSubmission
+        ? "Submission updated successfully"
+        : "Submission created successfully",
       data: submissionData,
     });
   } catch (error) {

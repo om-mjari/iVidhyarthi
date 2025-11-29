@@ -62,11 +62,13 @@ Visit: http://localhost:5173/dashboard
 ### **2. Enable Real AI (Optional)**
 
 Create `.env` file from template:
+
 ```bash
 copy .env.example .env
 ```
 
 Edit `.env` and add your API key:
+
 ```env
 VITE_AI_API_KEY=sk-your-openai-key-here
 VITE_USE_MOCK_DATA=false
@@ -79,6 +81,7 @@ Uncomment API calls in `src/services/aiContentService.js`
 ## 📱 UI Overview
 
 ### **Main View (Collapsed)**
+
 ```
 ┌─────────────────────────────────────────────┐
 │  ← Back to Course                           │
@@ -107,6 +110,7 @@ Uncomment API calls in `src/services/aiContentService.js`
 ```
 
 ### **Expanded View (After Clicking "View Content")**
+
 ```
 ┌─────────────────────────────────────────────┐
 │ Week 1                          📝 Pending  │
@@ -136,7 +140,9 @@ Uncomment API calls in `src/services/aiContentService.js`
 ## 🎨 Customization
 
 ### **Change Week Topics:**
+
 Edit `WeeklyAssignments.jsx`:
+
 ```javascript
 const weeksStructure = [
   {
@@ -145,19 +151,23 @@ const weeksStructure = [
     topics: "Your Topics Here",
     description: "Your description...",
     // ...
-  }
+  },
 ];
 ```
 
 ### **Modify AI Content:**
+
 Edit `src/services/aiContentService.js`:
+
 - Adjust number of videos (default: 3)
 - Change question count (default: 10)
 - Customize difficulty levels
 - Add more question types
 
 ### **Update Colors:**
+
 Edit `WeeklyAssignments.css`:
+
 ```css
 /* Primary gradient */
 background: linear-gradient(135deg, #YOUR_COLOR_1, #YOUR_COLOR_2);
@@ -186,15 +196,19 @@ background: linear-gradient(135deg, #YOUR_COLOR_1, #YOUR_COLOR_2);
 ## 🐛 Known Issues & Fixes
 
 ### **Issue: Content not expanding**
+
 **Fix:** Check browser console - ensure `aiContentService.js` is imported correctly
 
 ### **Issue: Scrollbar not visible**
+
 **Fix:** Check CSS applied to `.assignments-grid-container`
 
 ### **Issue: Videos not loading**
+
 **Fix:** Currently using placeholder images - replace with actual YouTube integration
 
 ### **Issue: Questions seem generic**
+
 **Fix:** This is mock data - enable real AI API for context-specific questions
 
 ---
@@ -222,6 +236,7 @@ background: linear-gradient(135deg, #YOUR_COLOR_1, #YOUR_COLOR_2);
 ## 📞 Support
 
 Need help?
+
 1. Check `AI_ASSIGNMENTS_SETUP.md` for detailed setup
 2. Review browser console for errors
 3. Verify backend is running on port 5000
@@ -232,6 +247,7 @@ Need help?
 ## 🎉 What's Next?
 
 ### **Phase 2 Features (Coming Soon):**
+
 - Real YouTube video integration
 - Video playback inside modal
 - AI-powered hints during assignments

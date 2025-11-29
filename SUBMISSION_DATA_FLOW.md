@@ -11,6 +11,7 @@
 **Purpose:** Stores student assignment submissions
 
 **Data Saved:**
+
 ```javascript
 {
   Submission_Id: "SUB_1732876543_abc123xyz",     // Auto-generated
@@ -27,6 +28,7 @@
 ```
 
 **Console Output:**
+
 ```
 📝 Creating Submission: {
   Assignment_Id: 'ASSIGN_123',
@@ -46,6 +48,7 @@
 **Purpose:** Tracks exam/assignment attempts and performance
 
 **Data Saved:**
+
 ```javascript
 {
   Attempt_Id: "ATTEMPT_1732876543_xyz789abc",    // Auto-generated
@@ -66,6 +69,7 @@
 ```
 
 **Console Output:**
+
 ```
 📊 Preparing exam attempt data: {
   Exam_Id: 'ASSIGN_123',
@@ -105,13 +109,19 @@ Submission ID: SUB_1732876543_abc123xyz
 ## 📊 **Verify in MongoDB**
 
 ### Check Tbl_Submissions:
+
 ```javascript
-db.Tbl_Submissions.find({ Student_Id: "YOUR_STUDENT_ID" }).sort({ Submitted_On: -1 })
+db.Tbl_Submissions.find({ Student_Id: "YOUR_STUDENT_ID" }).sort({
+  Submitted_On: -1,
+});
 ```
 
 ### Check Tbl_ExamAttempts:
+
 ```javascript
-db.Tbl_ExamAttempts.find({ Student_Id: "YOUR_STUDENT_ID" }).sort({ Attempt_Date: -1 })
+db.Tbl_ExamAttempts.find({ Student_Id: "YOUR_STUDENT_ID" }).sort({
+  Attempt_Date: -1,
+});
 ```
 
 ---
@@ -151,7 +161,7 @@ When you click **"Submit Assignment"** button:
 ✅ **Step 3:** Backend saves to `Tbl_Submissions` collection  
 ✅ **Step 4:** Backend saves to `Tbl_ExamAttempts` collection  
 ✅ **Step 5:** Returns success response  
-✅ **Step 6:** Shows success alert with score  
+✅ **Step 6:** Shows success alert with score
 
 **Both collections are updated automatically!** 🎉
 

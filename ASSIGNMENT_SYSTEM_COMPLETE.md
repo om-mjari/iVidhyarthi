@@ -5,10 +5,12 @@
 ### 🔧 **Issues Resolved:**
 
 1. **✅ Duplicate `calculateScore` Declaration**
+
    - Removed duplicate function definition
    - Kept single implementation with auto-grading logic
 
 2. **✅ `videos` Not Defined Error**
+
    - Removed outdated `videos` array reference
    - Now uses `subjectConfig.videoId` directly
 
@@ -24,6 +26,7 @@
 ### **1. Subject-Specific Content (6 Subjects)**
 
 Each subject has custom:
+
 - 🎨 **Color Theme**
 - 📹 **YouTube Tutorial Video**
 - 📝 **5 Professional Questions** (MCQ + Text)
@@ -31,26 +34,22 @@ Each subject has custom:
 - 💡 **Explanations**
 
 #### Supported Subjects:
-1. **Cloud Computing** 
+
+1. **Cloud Computing**
    - Color: Blue (#4285F4)
    - Topics: IaaS/PaaS/SaaS, Deployment Models
-   
 2. **Internet of Things**
    - Color: Green (#34A853)
    - Topics: MQTT, IoT Architecture, Sensors
-   
 3. **Python Programming**
    - Color: Yellow (#FBBC04)
    - Topics: Data Types, Functions, Lists vs Tuples
-   
 4. **Data Structures**
    - Color: Red (#EA4335)
    - Topics: Stack/Queue, Linked Lists, Complexity
-   
 5. **Web Development**
    - Color: Purple (#9C27B0)
    - Topics: HTML/CSS/JS, HTTP Methods, Responsive Design
-   
 6. **Machine Learning**
    - Color: Orange (#FF6F00)
    - Topics: Supervised Learning, Overfitting, Algorithms
@@ -60,16 +59,19 @@ Each subject has custom:
 ### **2. Auto-Grading System**
 
 #### **MCQ Questions:**
+
 - Exact answer matching
 - Full marks for correct answer
 - Zero marks for incorrect
 
 #### **Text Questions:**
+
 - Keyword-based scoring
 - Partial credit awarded
 - Formula: `(matched_keywords / total_keywords) × question_marks`
 
 **Example:**
+
 ```javascript
 Question: "List three benefits of cloud computing"
 Keywords: ['cost', 'scalability', 'flexibility', 'reliability', 'security']
@@ -82,6 +84,7 @@ Result: 2/5 keywords matched = 40% of marks
 ### **3. Database Integration**
 
 #### **Tbl_Submissions Collection**
+
 ```javascript
 {
   Submission_Id: "AUTO_GENERATED",
@@ -98,6 +101,7 @@ Result: 2/5 keywords matched = 40% of marks
 ```
 
 #### **Tbl_ExamAttempts Collection** ⭐ NEW
+
 ```javascript
 {
   Attempt_Id: "AUTO_GENERATED",
@@ -117,17 +121,20 @@ Result: 2/5 keywords matched = 40% of marks
 ### **4. Professional UI/UX**
 
 #### **Header Section:**
+
 - Subject badge with icon
 - Assignment title
 - Subject description
 - Real-time metrics (Marks, Time, Progress)
 
 #### **Video Section:**
+
 - Embedded YouTube tutorial
 - Subject-specific video selection
 - "Start Assignment" button
 
 #### **Questions Section:**
+
 - Clean card-based design
 - Color-coded badges
 - MCQ options with letter labels (A, B, C, D)
@@ -135,12 +142,14 @@ Result: 2/5 keywords matched = 40% of marks
 - Real-time progress bar
 
 #### **Submission Summary:**
+
 - Questions answered count
 - Time spent tracker
 - Completion percentage
 - Styled submit button
 
 #### **Results Display:**
+
 - ✅ Correct answer feedback (green)
 - ❌ Incorrect answer feedback (red)
 - 💡 Explanation for all answers
@@ -153,16 +162,18 @@ Result: 2/5 keywords matched = 40% of marks
 ### **Backend Setup:**
 
 1. **Ensure Models are Registered:**
+
    ```javascript
    // In server.js - Already done
-   const Submission = require('./models/Tbl_Submissions');
-   const ExamAttempt = require('./models/Tbl_ExamAttempts');
+   const Submission = require("./models/Tbl_Submissions");
+   const ExamAttempt = require("./models/Tbl_ExamAttempts");
    ```
 
 2. **Routes Configured:**
+
    ```javascript
    // In server.js - Already done
-   app.use('/api/submissions', submissionRoutes);
+   app.use("/api/submissions", submissionRoutes);
    ```
 
 3. **Start Backend:**
@@ -193,6 +204,7 @@ Result: 2/5 keywords matched = 40% of marks
 **Total Marks:** 100 (5 questions × 20 marks each)
 
 **Student Answers:**
+
 1. **Q1 (MCQ):** Correct ✅ → 20 marks
 2. **Q2 (MCQ):** Incorrect ❌ → 0 marks
 3. **Q3 (MCQ):** Correct ✅ → 20 marks
@@ -206,6 +218,7 @@ Result: 2/5 keywords matched = 40% of marks
 ## 🎨 **Styling Features**
 
 ### **Dynamic Theming:**
+
 ```css
 /* Subject color automatically applied to: */
 - Progress bar fill
@@ -216,6 +229,7 @@ Result: 2/5 keywords matched = 40% of marks
 ```
 
 ### **Animations:**
+
 ```css
 - Smooth hover effects
 - Button scale transitions
@@ -224,6 +238,7 @@ Result: 2/5 keywords matched = 40% of marks
 ```
 
 ### **Responsive Design:**
+
 ```css
 - Mobile-optimized layouts
 - Scrollable sections
@@ -264,6 +279,7 @@ Result: 2/5 keywords matched = 40% of marks
 ### **POST /api/submissions/create**
 
 **Request Body:**
+
 ```json
 {
   "Assignment_Id": "ASG123",
@@ -278,6 +294,7 @@ Result: 2/5 keywords matched = 40% of marks
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -291,6 +308,7 @@ Result: 2/5 keywords matched = 40% of marks
 ```
 
 **Automatic Actions:**
+
 - ✅ Saves to `Tbl_Submissions`
 - ✅ Saves to `Tbl_ExamAttempts`
 - ✅ Calculates percentage
@@ -302,18 +320,21 @@ Result: 2/5 keywords matched = 40% of marks
 ## 🎓 **Benefits**
 
 ### **For Students:**
+
 - Clear learning path (Video → Questions)
 - Instant feedback on submissions
 - Progress tracking
 - Professional exam experience
 
 ### **For Instructors:**
+
 - Automatic grading (saves time)
 - Comprehensive data in 2 collections
 - Detailed student performance metrics
 - Easy to add new subjects
 
 ### **For System:**
+
 - Clean, maintainable code
 - No duplicate data issues
 - Proper error handling
@@ -339,12 +360,14 @@ Result: 2/5 keywords matched = 40% of marks
 ## 🔥 **What's Next?**
 
 1. **Test the System:**
+
    - Restart backend: `cd backend && npm start`
    - Restart frontend: `cd .. && npm run dev`
    - Navigate to assignment page
    - Submit a test assignment
 
 2. **Verify Database:**
+
    - Check MongoDB Compass
    - Look for entries in:
      - `Tbl_Submissions` collection

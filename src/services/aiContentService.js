@@ -4,8 +4,8 @@
  */
 
 // OpenAI/Gemini API integration (you can switch to your preferred AI provider)
-const AI_API_KEY = import.meta.env.VITE_AI_API_KEY || 'your-api-key-here';
-const AI_API_ENDPOINT = 'https://api.openai.com/v1/chat/completions'; // Change to your AI provider
+const AI_API_KEY = import.meta.env.VITE_AI_API_KEY || "your-api-key-here";
+const AI_API_ENDPOINT = "https://api.openai.com/v1/chat/completions"; // Change to your AI provider
 
 /**
  * Generate topic-related video suggestions
@@ -21,32 +21,32 @@ export const generateTopicVideos = async (topic, courseName) => {
         id: `vid-${Date.now()}-1`,
         title: `${topic} - Introduction and Overview`,
         description: `Comprehensive introduction to ${topic} covering fundamental concepts and real-world applications.`,
-        duration: '15:30',
+        duration: "15:30",
         thumbnail: `https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg`,
-        youtubeId: 'dQw4w9WgXcQ',
-        difficulty: 'Beginner',
-        tags: [topic.split(' ')[0], 'Introduction', 'Fundamentals']
+        youtubeId: "dQw4w9WgXcQ",
+        difficulty: "Beginner",
+        tags: [topic.split(" ")[0], "Introduction", "Fundamentals"],
       },
       {
         id: `vid-${Date.now()}-2`,
         title: `${topic} - Deep Dive and Advanced Concepts`,
         description: `Advanced exploration of ${topic} with detailed examples and case studies.`,
-        duration: '22:45',
+        duration: "22:45",
         thumbnail: `https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg`,
-        youtubeId: 'dQw4w9WgXcQ',
-        difficulty: 'Intermediate',
-        tags: [topic.split(' ')[0], 'Advanced', 'Theory']
+        youtubeId: "dQw4w9WgXcQ",
+        difficulty: "Intermediate",
+        tags: [topic.split(" ")[0], "Advanced", "Theory"],
       },
       {
         id: `vid-${Date.now()}-3`,
         title: `${topic} - Practical Implementation`,
         description: `Hands-on tutorial demonstrating practical applications of ${topic}.`,
-        duration: '18:20',
+        duration: "18:20",
         thumbnail: `https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg`,
-        youtubeId: 'dQw4w9WgXcQ',
-        difficulty: 'Advanced',
-        tags: [topic.split(' ')[0], 'Practical', 'Tutorial']
-      }
+        youtubeId: "dQw4w9WgXcQ",
+        difficulty: "Advanced",
+        tags: [topic.split(" ")[0], "Practical", "Tutorial"],
+      },
     ];
 
     // Uncomment below for actual AI API integration
@@ -80,7 +80,7 @@ export const generateTopicVideos = async (topic, courseName) => {
 
     return mockVideos;
   } catch (error) {
-    console.error('Error generating videos:', error);
+    console.error("Error generating videos:", error);
     return [];
   }
 };
@@ -92,26 +92,32 @@ export const generateTopicVideos = async (topic, courseName) => {
  * @param {number} count - Number of questions
  * @returns {Promise<Array>} Array of questions
  */
-export const generateAssignmentQuestions = async (topic, difficulty = 'medium', count = 10) => {
+export const generateAssignmentQuestions = async (
+  topic,
+  difficulty = "medium",
+  count = 10
+) => {
   try {
     // Mock data for demonstration - Replace with actual AI API call
-    const questionTypes = ['MCQ', 'True/False', 'Short Answer', 'Coding'];
-    
+    const questionTypes = ["MCQ", "True/False", "Short Answer", "Coding"];
+
     const mockQuestions = Array.from({ length: count }, (_, index) => ({
       id: `q-${Date.now()}-${index}`,
       type: questionTypes[Math.floor(Math.random() * questionTypes.length)],
-      question: `Question ${index + 1}: Explain the concept of ${topic} and its applications in modern technology.`,
+      question: `Question ${
+        index + 1
+      }: Explain the concept of ${topic} and its applications in modern technology.`,
       options: [
-        'Option A: Fundamental approach with basic principles',
-        'Option B: Advanced methodology with optimization',
-        'Option C: Integrated solution with multiple components',
-        'Option D: Traditional method with proven results'
+        "Option A: Fundamental approach with basic principles",
+        "Option B: Advanced methodology with optimization",
+        "Option C: Integrated solution with multiple components",
+        "Option D: Traditional method with proven results",
       ],
       correctAnswer: Math.floor(Math.random() * 4),
       explanation: `This question tests your understanding of ${topic}. The correct approach involves analyzing the core concepts and applying them to practical scenarios.`,
       marks: index < 5 ? 5 : 10,
       difficulty: difficulty,
-      tags: [topic.split(' ')[0], difficulty]
+      tags: [topic.split(" ")[0], difficulty],
     }));
 
     // Uncomment below for actual AI API integration
@@ -145,7 +151,7 @@ export const generateAssignmentQuestions = async (topic, difficulty = 'medium', 
 
     return mockQuestions;
   } catch (error) {
-    console.error('Error generating questions:', error);
+    console.error("Error generating questions:", error);
     return [];
   }
 };
@@ -157,38 +163,42 @@ export const generateAssignmentQuestions = async (topic, difficulty = 'medium', 
  * @returns {Promise<Array>} Array of YouTube videos
  */
 export const searchYouTubeVideos = async (topic, maxResults = 5) => {
-  const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY || 'your-youtube-api-key';
-  
+  const YOUTUBE_API_KEY =
+    import.meta.env.VITE_YOUTUBE_API_KEY || "your-youtube-api-key";
+
   try {
     const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(topic)}&type=video&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(
+        topic
+      )}&type=video&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
     );
-    
+
     const data = await response.json();
-    
-    const videos = data.items?.map(item => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      description: item.snippet.description,
-      thumbnail: item.snippet.thumbnails.high.url,
-      channelTitle: item.snippet.channelTitle,
-      publishedAt: item.snippet.publishedAt,
-      youtubeId: item.id.videoId
-    })) || [];
+
+    const videos =
+      data.items?.map((item) => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        description: item.snippet.description,
+        thumbnail: item.snippet.thumbnails.high.url,
+        channelTitle: item.snippet.channelTitle,
+        publishedAt: item.snippet.publishedAt,
+        youtubeId: item.id.videoId,
+      })) || [];
 
     return videos;
   } catch (error) {
-    console.error('Error searching YouTube:', error);
+    console.error("Error searching YouTube:", error);
     // Return mock data on error
     return [
       {
-        id: 'mock-1',
+        id: "mock-1",
         title: `${topic} - Educational Tutorial`,
         description: `Learn about ${topic} in this comprehensive tutorial`,
-        thumbnail: 'https://via.placeholder.com/480x360?text=Video+Tutorial',
-        channelTitle: 'Educational Channel',
-        youtubeId: 'dQw4w9WgXcQ'
-      }
+        thumbnail: "https://via.placeholder.com/480x360?text=Video+Tutorial",
+        channelTitle: "Educational Channel",
+        youtubeId: "dQw4w9WgXcQ",
+      },
     ];
   }
 };
@@ -208,29 +218,33 @@ export const generateStudyMaterials = async (topic, weekNumber) => {
         `Practical implementation strategies`,
         `Real-world applications and case studies`,
         `Best practices and common pitfalls`,
-        `Advanced techniques and optimization`
+        `Advanced techniques and optimization`,
       ],
       resources: [
-        { type: 'PDF', title: `${topic} - Comprehensive Guide`, url: '#' },
-        { type: 'Slides', title: `Week ${weekNumber} Lecture Slides`, url: '#' },
-        { type: 'Code', title: 'Sample Code Examples', url: '#' }
+        { type: "PDF", title: `${topic} - Comprehensive Guide`, url: "#" },
+        {
+          type: "Slides",
+          title: `Week ${weekNumber} Lecture Slides`,
+          url: "#",
+        },
+        { type: "Code", title: "Sample Code Examples", url: "#" },
       ],
       prerequisites: [
-        'Basic understanding of previous weeks',
-        'Familiarity with fundamental concepts',
-        'Completed Week ' + (weekNumber - 1) + ' assignment'
+        "Basic understanding of previous weeks",
+        "Familiarity with fundamental concepts",
+        "Completed Week " + (weekNumber - 1) + " assignment",
       ],
       learningObjectives: [
         `Master the fundamentals of ${topic}`,
         `Apply concepts to solve real problems`,
         `Analyze and evaluate different approaches`,
-        `Create solutions using learned techniques`
-      ]
+        `Create solutions using learned techniques`,
+      ],
     };
 
     return materials;
   } catch (error) {
-    console.error('Error generating study materials:', error);
+    console.error("Error generating study materials:", error);
     return null;
   }
 };
@@ -241,15 +255,15 @@ export const generateStudyMaterials = async (topic, weekNumber) => {
  * @param {string} context - Additional context
  * @returns {Promise<string>} Hint text
  */
-export const getAssignmentHint = async (question, context = '') => {
+export const getAssignmentHint = async (question, context = "") => {
   try {
     // Mock hint - Replace with AI API call
     const hints = [
-      'Consider breaking down the problem into smaller steps.',
-      'Think about the fundamental principles we discussed in lectures.',
-      'Review the examples from the video lectures.',
-      'Try relating this concept to real-world applications.',
-      'Check your understanding of the prerequisites.'
+      "Consider breaking down the problem into smaller steps.",
+      "Think about the fundamental principles we discussed in lectures.",
+      "Review the examples from the video lectures.",
+      "Try relating this concept to real-world applications.",
+      "Check your understanding of the prerequisites.",
     ];
 
     return hints[Math.floor(Math.random() * hints.length)];
@@ -281,8 +295,8 @@ export const getAssignmentHint = async (question, context = '') => {
     return data.choices[0].message.content;
     */
   } catch (error) {
-    console.error('Error getting hint:', error);
-    return 'Focus on the core concepts and try to apply them step by step.';
+    console.error("Error getting hint:", error);
+    return "Focus on the core concepts and try to apply them step by step.";
   }
 };
 
@@ -291,5 +305,5 @@ export default {
   generateAssignmentQuestions,
   searchYouTubeVideos,
   generateStudyMaterials,
-  getAssignmentHint
+  getAssignmentHint,
 };

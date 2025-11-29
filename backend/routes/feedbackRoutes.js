@@ -11,7 +11,8 @@ router.post("/create", async (req, res) => {
     if (!Course_Id || !Student_Id || !Rating || !Comment) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: Course_Id, Student_Id, Rating, Comment",
+        message:
+          "Missing required fields: Course_Id, Student_Id, Rating, Comment",
       });
     }
 
@@ -27,8 +28,8 @@ router.post("/create", async (req, res) => {
       Course_Id,
       Student_Id,
       Rating,
-      Comment: Comment.substring(0, 50) + '...',
-      Status: Status || 'Pending'
+      Comment: Comment.substring(0, 50) + "...",
+      Status: Status || "Pending",
     });
 
     const feedback = new Feedback({

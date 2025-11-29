@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import AssignmentPage from './AssignmentPage';
+import WeeklyAssignments from './WeeklyAssignments';
 import './CourseLearningPage.css';
 
 const CourseLearningPage = ({ onBackToDashboard }) => {
@@ -17,6 +19,9 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
     rating: 5,
     comment: ''
   });
+  const [showAssignment, setShowAssignment] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [showWeeklyAssignments, setShowWeeklyAssignments] = useState(false);
 
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
@@ -166,34 +171,72 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
 
   // Submit feedback
   const submitFeedback = async () => {
-    if (!selectedCourse || !studentId || !feedbackData.comment.trim()) {
+    // Validate inputs
+    if (!feedbackData.comment.trim()) {
       alert('Please provide feedback comment');
       return;
     }
+
+    // Get student ID from localStorage if not already set
+    let finalStudentId = studentId;
+    if (!finalStudentId) {
+      try {
+        const authUser = localStorage.getItem('auth_user');
+        if (authUser) {
+          const parsedUser = JSON.parse(authUser);
+          finalStudentId = parsedUser.id || parsedUser._id;
+          setStudentId(finalStudentId);
+        }
+      } catch (e) {
+        console.error('Error getting student ID:', e);
+      }
+    }
+
+    if (!finalStudentId) {
+      alert('Please login to submit feedback');
+      return;
+    }
+
+    if (!selectedCourse) {
+      alert('Course information not found');
+      return;
+    }
+
+    const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId || 'UNKNOWN';
+
+    console.log('📝 Submitting Feedback:', {
+      Course_Id: courseId,
+      Student_Id: finalStudentId,
+      Rating: feedbackData.rating,
+      Comment: feedbackData.comment.substring(0, 50) + '...'
+    });
 
     try {
       const response = await fetch('http://localhost:5000/api/feedback/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          Course_Id: selectedCourse.id || selectedCourse.Course_Id || 'COURSE_001',
-          Student_Id: studentId,
+          Course_Id: courseId.toString(),
+          Student_Id: finalStudentId.toString(),
           Rating: feedbackData.rating,
           Comment: feedbackData.comment,
-          Status: 'Pending'
+          Status: 'Pending',
+          Posted_On: new Date()
         })
       });
 
       const result = await response.json();
+      console.log('Feedback response:', result);
+
       if (result.success) {
-        alert('Thank you for your feedback!');
+        alert('✅ Thank you for your feedback! Your feedback has been submitted successfully.');
         setFeedbackData({ rating: 5, comment: '' });
       } else {
-        alert('Failed to submit feedback');
+        alert('Failed to submit feedback: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      alert('Error submitting feedback');
+      alert('Error submitting feedback. Please try again.');
     }
   };
 
@@ -328,7 +371,32 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
   };
 
   const handleAssignmentStart = (assignmentId) => {
-    alert(`Starting Assignment ${assignmentId}`);
+    const assignment = courseContent.assignments.find(a => a.id === assignmentId);
+    if (assignment) {
+      setSelectedAssignment(assignment);
+      setShowAssignment(true);
+    }
+  };
+
+  const handleViewAllAssignments = () => {
+    setShowWeeklyAssignments(true);
+  };
+
+  const handleWeeklyAssignmentsBack = () => {
+    setShowWeeklyAssignments(false);
+  };
+
+  const handleAssignmentComplete = (score) => {
+    if (selectedAssignment) {
+      setCompletedAssignments(prev => [...prev, selectedAssignment.id]);
+      // Update progress
+      setTimeout(updateProgress, 100);
+    }
+  };
+
+  const handleAssignmentBack = () => {
+    setShowAssignment(false);
+    setSelectedAssignment(null);
   };
 
   const handleQuizStart = (quizId) => {
@@ -341,6 +409,28 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
         <div className="loading-spinner"></div>
         <p>Loading course...</p>
       </div>
+    );
+  }
+
+  // Show Weekly Assignments Page if selected
+  if (showWeeklyAssignments) {
+    return (
+      <WeeklyAssignments
+        courseId={selectedCourse.id || selectedCourse.Course_Id}
+        courseName={selectedCourse.name || selectedCourse.Name}
+        onBack={handleWeeklyAssignmentsBack}
+      />
+    );
+  }
+
+  // Show Assignment Page if assignment is selected
+  if (showAssignment && selectedAssignment) {
+    return (
+      <AssignmentPage
+        assignment={selectedAssignment}
+        onBack={handleAssignmentBack}
+        onComplete={handleAssignmentComplete}
+      />
     );
   }
 
@@ -495,9 +585,14 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
 
         {/* Assignments Section */}
         <div className="nptel-section">
-          <h2 className="nptel-section-title">📝 Assignments</h2>
+          <div className="section-header-with-action">
+            <h2 className="nptel-section-title">📝 Assignments</h2>
+            <button className="view-all-btn" onClick={handleViewAllAssignments}>
+              📊 View All 7 Weeks
+            </button>
+          </div>
           <div className="nptel-assignments-grid">
-            {courseContent.assignments.map((assignment) => (
+            {courseContent.assignments.slice(0, 3).map((assignment) => (
               <div key={assignment.id} className="nptel-assignment-card">
                 <div className="assignment-card-header">
                   <h3 className="assignment-title">{assignment.title || assignment.Title}</h3>
@@ -525,6 +620,14 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
                 </div>
               </div>
             ))}
+          </div>
+          
+          <div className="view-all-footer">
+            <button className="view-all-assignments-btn" onClick={handleViewAllAssignments}>
+              <span className="btn-icon">📚</span>
+              View Complete 7-Week Assignment Schedule
+              <span className="btn-arrow">→</span>
+            </button>
           </div>
         </div>
 

@@ -19,6 +19,16 @@ const submissionSchema = new mongoose.Schema(
       required: true,
       ref: "Tbl_Students",
     },
+    Course_Id: {
+      type: String,
+      required: false,
+      ref: "Tbl_Courses",
+    },
+    Submission_Content: {
+      type: String,
+      required: false,
+      default: null,
+    },
     File_Url: {
       type: String,
       required: false,
@@ -27,6 +37,11 @@ const submissionSchema = new mongoose.Schema(
     Submitted_On: {
       type: Date,
       default: Date.now,
+    },
+    Score: {
+      type: Number,
+      default: null,
+      min: 0,
     },
     Grade: {
       type: Number,
@@ -41,6 +56,10 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       enum: ["Submitted", "Graded", "Late", "Resubmitted", "Pending"],
       default: "Submitted",
+    },
+    Time_Spent: {
+      type: Number,
+      default: 0,
     },
     Graded_On: {
       type: Date,

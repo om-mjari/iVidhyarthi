@@ -1,15 +1,16 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
-const Enrollment = require('./models/Tbl_Enrollments');
+const mongoose = require("mongoose");
+require("dotenv").config();
+const Enrollment = require("./models/Tbl_Enrollments");
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose
+  .connect(process.env.MONGODB_URI)
   .then(async () => {
-    console.log('Connected to MongoDB');
+    console.log("Connected to MongoDB");
     const enrollments = await Enrollment.find({});
-    console.log('Enrollments:', enrollments);
+    console.log("Enrollments:", enrollments);
     process.exit(0);
   })
-  .catch(err => {
+  .catch((err) => {
     console.error(err);
     process.exit(1);
   });

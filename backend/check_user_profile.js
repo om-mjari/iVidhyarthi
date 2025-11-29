@@ -1,24 +1,25 @@
-const mongoose = require('mongoose');
-require('dotenv').config();
-const User = require('./models/User');
-const Student = require('./models/Tbl_Students');
+const mongoose = require("mongoose");
+require("dotenv").config();
+const User = require("./models/User");
+const Student = require("./models/Tbl_Students");
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose
+  .connect(process.env.MONGODB_URI)
   .then(async () => {
-    console.log('Connected to MongoDB');
-    const email = 'omjariwala367@gmail.com';
-    
+    console.log("Connected to MongoDB");
+    const email = "omjariwala367@gmail.com";
+
     const user = await User.findOne({ email });
-    console.log('User:', user);
-    
+    console.log("User:", user);
+
     if (user) {
       const student = await Student.findOne({ User_Id: user._id });
-      console.log('Student Record:', student);
+      console.log("Student Record:", student);
     }
-    
+
     process.exit(0);
   })
-  .catch(err => {
+  .catch((err) => {
     console.error(err);
     process.exit(1);
   });

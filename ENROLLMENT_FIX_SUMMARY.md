@@ -13,24 +13,28 @@ Your "My Courses" page was not displaying enrolled courses because:
 ## ✅ Fixes Applied
 
 ### 1. **Backend - Payment Controller** (`backend/controllers/paymentController.js`)
+
 - ✅ Added duplicate check before creating enrollment
 - ✅ Ensured proper Student_Id and Course_Id mapping
 - ✅ Added better logging for debugging
 - ✅ Properly stores `Enrolled_On` date
 
 ### 2. **Backend - Enrollment Routes** (`backend/routes/enrollmentRoutes.js`)
+
 - ✅ Added logging to track enrollment fetches
 - ✅ Filter only "Paid" enrollments
 - ✅ Sort by most recent first
 - ✅ Better error handling for missing courses
 
 ### 3. **Frontend - Payment Component** (`src/components/RazorpayPayment/RazorpayPayment.jsx`)
+
 - ✅ Properly extracts `Course_Id` from selected course
 - ✅ Uses logged-in user's actual ID (from localStorage 'auth_user')
 - ✅ Sends correct course identifier to backend
 - ✅ Added console logging for debugging
 
 ### 4. **Frontend - Dashboard** (`src/StudentDashboard.jsx`)
+
 - ✅ Normalizes course data when "Enroll Now" is clicked
 - ✅ Stores both `Course_Id` and `Title` for proper tracking
 - ✅ Includes all necessary course data
@@ -67,16 +71,19 @@ Your "My Courses" page was not displaying enrolled courses because:
 ### To Test the Fix:
 
 1. **Restart Backend Server**:
+
    ```bash
    cd iVidhyarthi/backend
    npm start
    ```
 
 2. **Login to Your Account**:
+
    - Email: `omjariwala367@gmail.com`
    - This ensures you're using ID: `6929525c02d64e0017d0e3b7`
 
 3. **Enroll in a Course**:
+
    - Go to Dashboard
    - Click "Enroll Now" on any course (e.g., "Basic Python Programming")
    - Complete payment (Demo mode will auto-succeed)
@@ -88,6 +95,7 @@ Your "My Courses" page was not displaying enrolled courses because:
 ### Verify Enrollment in Database:
 
 Run this script to check:
+
 ```bash
 cd iVidhyarthi/backend
 node test_my_enrollments.js
@@ -96,10 +104,12 @@ node test_my_enrollments.js
 ## 🎯 Expected Result
 
 **Before Fix:**
+
 - "My Courses" showed "No Courses Yet"
 - No enrollments for actual user ID
 
 **After Fix:**
+
 - Payment creates enrollment with correct Student_Id
 - "My Courses" displays all enrolled courses
 - Each course card shows:
@@ -119,6 +129,7 @@ node test_my_enrollments.js
 ## 📝 Database Schema Reference
 
 ### Tbl_Enrollments:
+
 ```javascript
 {
   Enrollment_Id: "ENROLL_xxxxx",
@@ -131,6 +142,7 @@ node test_my_enrollments.js
 ```
 
 ### Tbl_Courses:
+
 ```javascript
 {
   _id: ObjectId,

@@ -702,3 +702,282 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* Word Count Display */
+.text-answer-container {
+  position: relative;
+}
+
+.word-count-info {
+  margin-top: 0.5rem;
+  text-align: right;
+}
+
+.word-count {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.4rem 1rem;
+  border-radius: 25px;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.word-count.valid {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  color: #155724;
+  border: 2px solid #28a745;
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+}
+
+.word-count.invalid {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24;
+  border: 2px solid #dc3545;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Validation Error */
+.validation-error {
+  margin-top: 0.5rem;
+  padding: 1rem 1.2rem;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #ef4444;
+  border-radius: 10px;
+  color: #991b1b;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: shakeError 0.5s ease-in-out;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.validation-error::before {
+  content: '⚠️';
+  font-size: 1.2rem;
+}
+
+/* Submitted Answer Display */
+.submitted-answer-display {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+  border-left: 4px solid #0ea5e9;
+}
+
+.your-answer-section {
+  margin-bottom: 1rem;
+}
+
+.your-answer-section strong {
+  display: block;
+  color: #0c4a6e;
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.text-answer-display,
+.mcq-answer-display {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  color: #374151;
+  line-height: 1.6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Animated Submission Overlay */
+.submission-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.submission-animation-container {
+  background: white;
+  padding: 3rem 4rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Animated Checkmark */
+.checkmark-circle {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  display: inline-block;
+  margin: 0 auto 1.5rem;
+}
+
+.checkmark-circle::before {
+  content: '';
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.checkmark-stem {
+  position: absolute;
+  width: 6px;
+  height: 40px;
+  background-color: white;
+  left: 50px;
+  top: 25px;
+  border-radius: 3px;
+  transform-origin: bottom;
+  animation: drawStem 0.6s ease-out 0.3s forwards;
+  transform: scaleY(0);
+}
+
+@keyframes drawStem {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.checkmark-kick {
+  position: absolute;
+  width: 25px;
+  height: 6px;
+  background-color: white;
+  left: 30px;
+  top: 58px;
+  border-radius: 3px;
+  transform-origin: left;
+  animation: drawKick 0.4s ease-out 0.6s forwards;
+  transform: scaleX(0);
+}
+
+@keyframes drawKick {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Submission Text */
+.submission-title {
+  font-size: 2rem;
+  color: #10b981;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  animation: slideUp 0.5s ease-out 0.8s both;
+}
+
+.submission-subtitle {
+  font-size: 1.1rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  animation: slideUp 0.5s ease-out 1s both;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Loading Dots */
+.loading-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  animation: slideUp 0.5s ease-out 1.2s both;
+}
+
+.loading-dots span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: bounce 1.4s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

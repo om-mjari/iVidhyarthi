@@ -11,6 +11,9 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
   const [submitting, setSubmitting] = useState(false);
   const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submissionAnimation, setSubmissionAnimation] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Comprehensive subject-specific configurations
   const subjectConfigurations = {
@@ -567,6 +570,14 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-submit after 5 minutes (300 seconds)
+  useEffect(() => {
+    if (assignmentStarted && !isSubmitted && timeSpent >= 300) {
+      console.log('⏰ Time limit reached - Auto-submitting assignment');
+      handleSubmit(true);
+    }
+  }, [timeSpent, assignmentStarted, isSubmitted]);
+
   useEffect(() => {
     // Calculate progress based on answered questions
     const answeredCount = Object.keys(answers).length;
@@ -585,16 +596,54 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
       ...prev,
       [questionId]: value
     }));
+    
+    // Clear validation error for this question
+    if (validationErrors[questionId]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[questionId];
+        return newErrors;
+      });
+    }
   };
 
-  const handleSubmit = async () => {
-    if (Object.keys(answers).length < questions.length) {
+  // Validate answer word count (minimum 20 words for text answers)
+  const validateAnswers = () => {
+    const errors = {};
+    questions.forEach(q => {
+      if (q.type === 'text') {
+        const answer = answers[q.id] || '';
+        const wordCount = answer.trim().split(/\s+/).filter(word => word.length > 0).length;
+        if (wordCount < 20) {
+          errors[q.id] = `Minimum 20 words required. Current: ${wordCount} words`;
+        }
+      }
+    });
+    return errors;
+  };
+
+  const handleSubmit = async (isAutoSubmit = false) => {
+    // Validate answers
+    const errors = validateAnswers();
+    if (Object.keys(errors).length > 0 && !isAutoSubmit) {
+      setValidationErrors(errors);
+      // Scroll to first error
+      const firstErrorId = Object.keys(errors)[0];
+      const errorElement = document.querySelector(`[data-question-id="${firstErrorId}"]`);
+      if (errorElement) {
+        errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    if (Object.keys(answers).length < questions.length && !isAutoSubmit) {
       if (!window.confirm('You haven\'t answered all questions. Submit anyway?')) {
         return;
       }
     }
 
     setSubmitting(true);
+    setSubmissionAnimation(true);
 
     try {
       const scoreData = calculateScore();
@@ -611,8 +660,11 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
         Submitted_On: new Date(),
         Status: 'Submitted',
         Score: scoreData.totalScore,
-        Feedback: `Auto-graded: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)`,
-        Time_Spent: timeSpent
+        Feedback: isAutoSubmit ? `Auto-submitted after 5 minutes: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)` : `Submitted: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)`,
+        Time_Spent: timeSpent,
+        Answers: answers,
+        Questions: questions,
+        IsAutoSubmit: isAutoSubmit
       };
 
       console.log('📤 Submitting Assignment Data:', {
@@ -639,25 +691,25 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
       if (result.success) {
         setShowResults(true);
         setScore(scoreData.totalScore);
+        setIsSubmitted(true);
         
-        const successMessage = `✅ Assignment Submitted Successfully!\n\n` +
-          `📊 Your Score: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)\n` +
-          `⏱️ Time Spent: ${formatTime(timeSpent)}\n\n` +
-          `💾 Saved to:\n` +
-          `  • Tbl_Submissions ✓\n` +
-          `  • Tbl_ExamAttempts ✓\n\n` +
-          `Submission ID: ${result.data?.Submission_Id || 'Generated'}`;
+        // Animate for 2 seconds then show results
+        setTimeout(() => {
+          setSubmissionAnimation(false);
+        }, 2000);
         
-        alert(successMessage);
-        console.log('✅ Assignment submission completed successfully!');
+        console.log('✅ Assignment submitted successfully to Tbl_Assignments!');
+        console.log('📊 Score:', scoreData.totalScore + '/' + scoreData.maxScore);
         
         if (onComplete) onComplete(scoreData.totalScore);
       } else {
         console.error('❌ Submission failed:', result.message);
+        setSubmissionAnimation(false);
         alert('Failed to submit assignment: ' + (result.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('❌ Error submitting assignment:', error);
+      setSubmissionAnimation(false);
       alert('Error submitting assignment. Please check console and try again.');
     } finally {
       setSubmitting(false);
@@ -744,7 +796,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                   {assignment?.Description || assignment?.description || 'Answer all questions to the best of your ability.'}
                 </p>
               </div>              {questions.map((q, index) => (
-                <div key={q.id} className="question-card">
+                <div key={q.id} className="question-card" data-question-id={q.id}>
                   <div className="question-header">
                     <div className="question-number-badge" style={{ background: `${subjectConfig.color}20`, color: subjectConfig.color }}>
                       Question {index + 1}
@@ -756,14 +808,27 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                   <p className="question-text">{q.question}</p>
 
                   {q.type === 'text' ? (
-                    <textarea
-                      className="answer-textarea"
-                      rows="5"
-                      placeholder="Type your detailed answer here..."
-                      value={answers[q.id] || ''}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      style={{ borderColor: answers[q.id] ? subjectConfig.color : '#dee2e6' }}
-                    />
+                    <div className="text-answer-container">
+                      <textarea
+                        className="answer-textarea"
+                        rows="6"
+                        placeholder="Type your detailed answer here (minimum 20 words)..."
+                        value={answers[q.id] || ''}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        style={{ borderColor: validationErrors[q.id] ? '#dc3545' : (answers[q.id] ? subjectConfig.color : '#dee2e6') }}
+                        disabled={isSubmitted}
+                      />
+                      <div className="word-count-info">
+                        <span className={`word-count ${(answers[q.id] || '').trim().split(/\s+/).filter(w => w.length > 0).length >= 20 ? 'valid' : 'invalid'}`}>
+                          {(answers[q.id] || '').trim().split(/\s+/).filter(w => w.length > 0).length} / 20 words
+                        </span>
+                      </div>
+                      {validationErrors[q.id] && (
+                        <div className="validation-error">
+                          ⚠️ {validationErrors[q.id]}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div className="mcq-options">
                       {q.options.map((option, idx) => (
@@ -781,6 +846,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                             value={idx}
                             checked={answers[q.id] === idx.toString()}
                             onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                            disabled={isSubmitted}
                           />
                           <span className="option-letter" style={{ background: answers[q.id] === idx.toString() ? subjectConfig.color : '#e9ecef' }}>
                             {String.fromCharCode(65 + idx)}
@@ -791,17 +857,34 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                     </div>
                   )}
 
-                  {showResults && (
-                    <div className="answer-feedback">
-                      {q.type === 'mcq' && parseInt(answers[q.id]) === q.correctAnswer ? (
-                        <div className="feedback-correct">
-                          ✅ Correct! {q.explanation}
+                  {isSubmitted && (
+                    <div className="submitted-answer-display">
+                      <div className="your-answer-section">
+                        <strong>✍️ Your Answer:</strong>
+                        {q.type === 'text' ? (
+                          <div className="text-answer-display">
+                            {answers[q.id] || 'Not answered'}
+                          </div>
+                        ) : (
+                          <div className="mcq-answer-display">
+                            {answers[q.id] !== undefined ? q.options[parseInt(answers[q.id])] : 'Not answered'}
+                          </div>
+                        )}
+                      </div>
+                      {q.type === 'mcq' && (
+                        <div className="answer-feedback">
+                          {parseInt(answers[q.id]) === q.correctAnswer ? (
+                            <div className="feedback-correct">
+                              ✅ Correct! {q.explanation}
+                            </div>
+                          ) : (
+                            <div className="feedback-incorrect">
+                              ❌ Incorrect. Correct answer: {q.options[q.correctAnswer]}. {q.explanation}
+                            </div>
+                          )}
                         </div>
-                      ) : q.type === 'mcq' ? (
-                        <div className="feedback-incorrect">
-                          ❌ Incorrect. Correct answer: {q.options[q.correctAnswer]}. {q.explanation}
-                        </div>
-                      ) : (
+                      )}
+                      {q.type === 'text' && (
                         <div className="feedback-info">
                           💡 {q.explanation}
                         </div>
@@ -828,20 +911,45 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                     <span className="stat-label">Completion:</span>
                     <span className="stat-value">{progress}%</span>
                   </div>
+                  {isSubmitted && (
+                    <div className="stat-item">
+                      <span className="stat-label">Score:</span>
+                      <span className="stat-value">{score} / {questions.reduce((sum, q) => sum + q.marks, 0)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <button
                 className="submit-btn"
-                onClick={handleSubmit}
-                disabled={submitting || Object.keys(answers).length === 0}
-                style={{ background: submitting ? '#6c757d' : subjectConfig.color }}
+                onClick={() => handleSubmit(false)}
+                disabled={submitting || Object.keys(answers).length === 0 || isSubmitted}
+                style={{ background: submitting || isSubmitted ? '#6c757d' : subjectConfig.color }}
               >
-                {submitting ? 'Submitting...' : '✓ Submit Assignment'}
+                {submitting ? 'Submitting...' : isSubmitted ? '✓ Submitted' : '✓ Submit Assignment'}
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Animated Submission Overlay */}
+      {submissionAnimation && (
+        <div className="submission-overlay">
+          <div className="submission-animation-container">
+            <div className="checkmark-circle">
+              <div className="checkmark-stem"></div>
+              <div className="checkmark-kick"></div>
+            </div>
+            <h2 className="submission-title">Assignment Submitted!</h2>
+            <p className="submission-subtitle">Processing your answers...</p>
+            <div className="loading-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

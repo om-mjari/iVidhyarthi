@@ -17,7 +17,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   const [studyMaterials, setStudyMaterials] = useState({});
   const [loadingContent, setLoadingContent] = useState({});
 
-  // 7 Weeks of Assignments Structure
+  // Weeks Structure - All 7 Weeks
   const weeksStructure = [
     {
       week: 1,

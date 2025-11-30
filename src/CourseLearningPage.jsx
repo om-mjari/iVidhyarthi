@@ -3,7 +3,7 @@ import AssignmentPage from './AssignmentPage';
 import WeeklyAssignments from './WeeklyAssignments';
 import './CourseLearningPage.css';
 
-const CourseLearningPage = ({ onBackToDashboard }) => {
+const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentVideo, setCurrentVideo] = useState(0);
   const [completedVideos, setCompletedVideos] = useState([0]);
@@ -330,6 +330,38 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
         deadline: "2025-08-20",
         marks: 100,
         Assignment_Type: "Project"
+      },
+      {
+        id: 4,
+        title: "Week 04: Assignment",
+        description: "Cloud Integration and Data Analytics",
+        deadline: "2025-08-27",
+        marks: 100,
+        Assignment_Type: "Quiz"
+      },
+      {
+        id: 5,
+        title: "Week 05: Assignment",
+        description: "Security and Privacy in IoT Systems",
+        deadline: "2025-09-03",
+        marks: 100,
+        Assignment_Type: "Quiz"
+      },
+      {
+        id: 6,
+        title: "Week 06: Assignment",
+        description: "Edge Computing and Real-time Processing",
+        deadline: "2025-09-10",
+        marks: 100,
+        Assignment_Type: "Project"
+      },
+      {
+        id: 7,
+        title: "Week 07: Assignment",
+        description: "Final IoT System Design and Implementation",
+        deadline: "2025-09-17",
+        marks: 100,
+        Assignment_Type: "Project"
       }
     ],
     quizzes: [
@@ -360,6 +392,11 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
   const totalVideos = courseContent.videos.length;
   const totalAssignments = courseContent.assignments.length;
   const completionPercentage = progress || Math.round((completedVideos.length / totalVideos) * 100);
+  
+  // Calculate assignment progress (out of 7 weeks)
+  const completedAssignmentsCount = completedAssignments.length;
+  const totalWeeks = 7;
+  const assignmentProgressPercentage = Math.round((completedAssignmentsCount / totalWeeks) * 100);
 
   const handleVideoComplete = (videoId) => {
     if (!completedVideos.includes(videoId)) {
@@ -496,6 +533,33 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
           <div className="progress-card-header">
             <span className="progress-icon">📊</span>
             <h2>Course Progress</h2>
+            <button 
+              className="view-detailed-progress-btn"
+              onClick={() => onNavigate && onNavigate('course-progress')}
+              style={{
+                marginLeft: 'auto',
+                padding: '0.6rem 1.25rem',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+              }}
+            >
+              View Detailed Progress
+            </button>
           </div>
           <div className="progress-stats-grid">
             <div className="progress-stat-box">
@@ -585,14 +649,9 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
 
         {/* Assignments Section */}
         <div className="nptel-section">
-          <div className="section-header-with-action">
-            <h2 className="nptel-section-title">📝 Assignments</h2>
-            <button className="view-all-btn" onClick={handleViewAllAssignments}>
-              📊 View All 7 Weeks
-            </button>
-          </div>
+          <h2 className="nptel-section-title">📝 Assignments</h2>
           <div className="nptel-assignments-grid">
-            {courseContent.assignments.slice(0, 3).map((assignment) => (
+            {courseContent.assignments.map((assignment) => (
               <div key={assignment.id} className="nptel-assignment-card">
                 <div className="assignment-card-header">
                   <h3 className="assignment-title">{assignment.title || assignment.Title}</h3>
@@ -621,13 +680,48 @@ const CourseLearningPage = ({ onBackToDashboard }) => {
               </div>
             ))}
           </div>
-          
-          <div className="view-all-footer">
-            <button className="view-all-assignments-btn" onClick={handleViewAllAssignments}>
-              <span className="btn-icon">📚</span>
-              View Complete 7-Week Assignment Schedule
-              <span className="btn-arrow">→</span>
-            </button>
+        </div>
+
+        {/* Assignment Progress Status */}
+        <div className="nptel-section assignment-progress-section">
+          <h2 className="nptel-section-title">📈 Assignment Progress Status</h2>
+          <div className="assignment-progress-card">
+            <div className="progress-stats">
+              <div className="stat-item">
+                <span className="stat-label">Completed</span>
+                <span className="stat-value">{completedAssignmentsCount}</span>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <span className="stat-label">Total Weeks</span>
+                <span className="stat-value">{totalWeeks}</span>
+              </div>
+              <div className="stat-divider"></div>
+              <div className="stat-item">
+                <span className="stat-label">Progress</span>
+                <span className="stat-value">{assignmentProgressPercentage}%</span>
+              </div>
+            </div>
+            <div className="progress-bar-container">
+              <div className="progress-bar-track">
+                <div 
+                  className="progress-bar-fill"
+                  style={{ width: `${assignmentProgressPercentage}%` }}
+                >
+                  <span className="progress-bar-text">{assignmentProgressPercentage}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="progress-breakdown">
+              <div className="breakdown-item">
+                <span className="breakdown-dot completed-dot"></span>
+                <span className="breakdown-label">Completed: {completedAssignmentsCount}/{totalWeeks} assignments</span>
+              </div>
+              <div className="breakdown-item">
+                <span className="breakdown-dot pending-dot"></span>
+                <span className="breakdown-label">Pending: {totalWeeks - completedAssignmentsCount}/{totalWeeks} assignments</span>
+              </div>
+            </div>
           </div>
         </div>
 

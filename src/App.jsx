@@ -39,6 +39,7 @@ import MyProfile from './MyProfile';
 import MyCourses from './MyCourses';
 import MyCertifications from './MyCertifications';
 import RazorpayPayment from './components/RazorpayPayment/RazorpayPayment';
+import CourseProgress from './CourseProgress';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -602,7 +603,10 @@ function App() {
         <RazorpayPayment onPaymentSuccess={() => setRoute('learning')} />
       )}
       {route === 'learning' && (
-        <CourseLearningPage onBackToDashboard={() => setRoute('dashboard')} />
+        <CourseLearningPage onBackToDashboard={() => setRoute('dashboard')} onNavigate={(page) => setRoute(page)} />
+      )}
+      {route === 'course-progress' && (
+        <CourseProgress onNavigate={(page) => setRoute(page)} />
       )}
     </div>
   );

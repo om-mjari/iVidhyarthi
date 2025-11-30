@@ -14,6 +14,7 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
   const [showCoins, setShowCoins] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
   const [userDetails, setUserDetails] = useState({
     name: "Student",
     email: "student@example.com",
@@ -251,21 +252,152 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
             onChange={(e) => setAmount(e.target.value)}
           />
           
-          <div className="price-breakdown" style={{ marginTop: '15px', textAlign: 'left', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+          <div className="price-breakdown">
+            <div className="price-row">
               <span>Base Price:</span>
               <span>₹{parseFloat(amount || 0).toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', color: '#666' }}>
+            <div className="price-row gst-row">
               <span>GST (18%):</span>
               <span>₹{gstAmount.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #ddd', paddingTop: '5px', fontWeight: 'bold', fontSize: '1.1em' }}>
+            <div className="price-row total-row">
               <span>Total Payable:</span>
               <span>₹{totalAmount.toFixed(2)}</span>
             </div>
           </div>
         </div>
+
+        {/* Payment Method Selection */}
+        <div className="payment-methods-section">
+          <h3 className="payment-methods-title">Select Payment Method</h3>
+          
+          <div className="payment-methods-grid">
+            {/* UPI / QR */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'upi' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('upi')}
+            >
+              <div className="payment-method-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                  <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>UPI / QR</h4>
+                <p>GooglePay, PhonePe, BHIM & more</p>
+              </div>
+              {selectedPaymentMethod === 'upi' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+
+            {/* Google Pay */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'gpay' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('gpay')}
+            >
+              <div className="payment-method-icon gpay-icon">
+                <svg viewBox="0 0 48 48" fill="none">
+                  <circle cx="24" cy="24" r="20" fill="#4285F4"/>
+                  <circle cx="24" cy="24" r="16" fill="#34A853"/>
+                  <circle cx="24" cy="24" r="12" fill="#FBBC04"/>
+                  <circle cx="24" cy="24" r="8" fill="#EA4335"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>Google Pay</h4>
+                <p>Cards and UPI payment</p>
+              </div>
+              {selectedPaymentMethod === 'gpay' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+
+            {/* Debit/Credit Cards */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'card' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('card')}
+            >
+              <div className="payment-method-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>Debit/Credit Cards</h4>
+                <p>Visa, Master, Amex</p>
+              </div>
+              {selectedPaymentMethod === 'card' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+
+            {/* Net Banking */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'netbanking' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('netbanking')}
+            >
+              <div className="payment-method-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>Net Banking</h4>
+                <p>All Indian banks</p>
+              </div>
+              {selectedPaymentMethod === 'netbanking' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+
+            {/* Wallets */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'wallet' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('wallet')}
+            >
+              <div className="payment-method-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                  <line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>Wallets</h4>
+                <p>Paytm, Mobikwik, Freecharge</p>
+              </div>
+              {selectedPaymentMethod === 'wallet' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+
+            {/* EMI */}
+            <div 
+              className={`payment-method-card ${selectedPaymentMethod === 'emi' ? 'selected' : ''}`}
+              onClick={() => setSelectedPaymentMethod('emi')}
+            >
+              <div className="payment-method-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                  <path d="M16 3v4M8 3v4M2 11h20"/>
+                </svg>
+              </div>
+              <div className="payment-method-info">
+                <h4>EMI</h4>
+                <p>Easy installments</p>
+              </div>
+              {selectedPaymentMethod === 'emi' && (
+                <div className="payment-method-check">✓</div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <button className="pay-btn" onClick={handlePayment}>
           PAY NOW (₹{totalAmount.toFixed(2)})
         </button>

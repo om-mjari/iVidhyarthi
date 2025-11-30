@@ -555,13 +555,15 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
                         <p className="course-instructor">by {course.Lecturer_Id || course.instructor}</p>
                       </div>
                       <div className="price-button-row">
-                        <div className="course-price">
-                          ₹{course.Price || course.price}
+                        <div className="price-rating-wrapper">
+                          <div className="course-price">
+                            ₹{course.Price || course.price}
+                          </div>
+                          <div className="course-rating">
+                            {renderStars(course.rating || 4.5)}
+                          </div>
                         </div>
                         <button className="enroll-btn" onClick={() => handleEnroll(course)}>Enroll Now</button>
-                      </div>
-                      <div className="course-rating">
-                        {renderStars(course.rating || 4.5)}
                       </div>
                     </div>
                   </div>

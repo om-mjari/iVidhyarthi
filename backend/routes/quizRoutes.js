@@ -6,7 +6,8 @@ const QuizAttempt = require("../models/Tbl_QuizAttempts");
 // Generate and create quiz with AI-generated questions
 router.post("/generate", async (req, res) => {
   try {
-    const { Course_Id, Week_Number, Title, Topic, Time_Limit, Total_Marks } = req.body;
+    const { Course_Id, Week_Number, Title, Topic, Time_Limit, Total_Marks } =
+      req.body;
 
     if (!Course_Id || !Week_Number || !Topic) {
       return res.status(400).json({
@@ -103,14 +104,8 @@ router.get("/:quizId", async (req, res) => {
 // Submit quiz attempt
 router.post("/attempt", async (req, res) => {
   try {
-    const {
-      Quiz_Id,
-      Student_Id,
-      Course_Id,
-      Week_Number,
-      Answers,
-      Time_Spent,
-    } = req.body;
+    const { Quiz_Id, Student_Id, Course_Id, Week_Number, Answers, Time_Spent } =
+      req.body;
 
     if (!Quiz_Id || !Student_Id) {
       return res.status(400).json({
@@ -201,7 +196,7 @@ router.get("/attempts/student/:studentId", async (req, res) => {
 // Helper function to generate AI questions (placeholder)
 function generateAIQuestions(topic, count) {
   const questions = [];
-  
+
   for (let i = 1; i <= count; i++) {
     questions.push({
       question_id: i,

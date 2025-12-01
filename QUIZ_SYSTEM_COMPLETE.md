@@ -1,6 +1,7 @@
 # Quiz System Implementation - Complete ✅
 
 ## Overview
+
 The quiz system has been successfully implemented with AI-generated MCQs that are stored in MongoDB collections `Tbl_Quiz` and `Tbl_QuizAttempts`.
 
 ## Features Implemented
@@ -8,7 +9,9 @@ The quiz system has been successfully implemented with AI-generated MCQs that ar
 ### 1. Backend Infrastructure ✅
 
 #### Database Models
+
 - **`Tbl_Quiz`** - Stores quiz questions
+
   - Quiz_Id (auto-generated)
   - Course_Id
   - Week_Number
@@ -26,6 +29,7 @@ The quiz system has been successfully implemented with AI-generated MCQs that ar
   - Submitted_On
 
 #### API Endpoints
+
 ```
 POST   /api/quiz/generate
        - Generates new quiz for a course/week
@@ -48,18 +52,20 @@ POST   /api/quiz/attempt
 ### 2. Frontend UI ✅
 
 #### QuizPage Component (`src/QuizPage.jsx`)
+
 - **Timer**: 30-minute countdown with auto-submit
 - **Question Navigation**: Previous/Next buttons
 - **Question Indicators**: Visual progress with answered status
 - **Answer Selection**: Radio button UI with hover effects
 - **Auto-Submit**: When timer reaches 0
-- **Results Screen**: 
+- **Results Screen**:
   - Score percentage in circular display
   - Total marks achieved
   - Performance rating
   - Time spent
 
 #### Integration in CourseLearningPage
+
 - Added quiz state management
 - Implemented `handleQuizStart()` function:
   1. Checks for existing quiz
@@ -71,6 +77,7 @@ POST   /api/quiz/attempt
 ### 3. Styling ✅
 
 Created `QuizPage.css` with:
+
 - Modern gradient backgrounds
 - Glassmorphism effects
 - Smooth transitions and hover states
@@ -81,6 +88,7 @@ Created `QuizPage.css` with:
 ## How It Works
 
 ### User Flow
+
 1. **Student clicks "Start Quiz"** on any week
 2. **System checks** if quiz exists for that week
    - If exists: Load existing quiz
@@ -92,6 +100,7 @@ Created `QuizPage.css` with:
 7. **Data saved** to both collections
 
 ### Data Flow
+
 ```
 Click Start Quiz
     ↓
@@ -117,6 +126,7 @@ Display results
 ## File Changes
 
 ### Created Files
+
 1. `backend/models/Tbl_Quiz.js` (105 lines)
 2. `backend/models/Tbl_QuizAttempts.js` (80 lines)
 3. `backend/routes/quizRoutes.js` (170 lines)
@@ -124,6 +134,7 @@ Display results
 5. `src/QuizPage.css` (420 lines)
 
 ### Modified Files
+
 1. `backend/server.js` - Added quiz routes registration
 2. `src/CourseLearningPage.jsx` - Added quiz integration:
    - Imported QuizPage
@@ -135,19 +146,23 @@ Display results
 ## Testing the Feature
 
 ### 1. Start Backend Server
+
 ```bash
 cd backend
 npm start
 ```
+
 Server should show: `✅ Routes registered: - /api/quiz`
 
 ### 2. Start Frontend
+
 ```bash
 cd iVidhyarthi
 npm run dev
 ```
 
 ### 3. Test Quiz Flow
+
 1. Login as student
 2. Enroll in a course
 3. Navigate to course learning page
@@ -157,19 +172,23 @@ npm run dev
 7. View results
 
 ### 4. Verify in MongoDB
+
 Check `Tbl_Quiz` collection:
+
 ```javascript
-db.Tbl_Quiz.find({ Course_Id: "YOUR_COURSE_ID" })
+db.Tbl_Quiz.find({ Course_Id: "YOUR_COURSE_ID" });
 ```
 
 Check `Tbl_QuizAttempts` collection:
+
 ```javascript
-db.Tbl_QuizAttempts.find({ Student_Id: "YOUR_STUDENT_ID" })
+db.Tbl_QuizAttempts.find({ Student_Id: "YOUR_STUDENT_ID" });
 ```
 
 ## Quiz Question Structure
 
 Each quiz has 10 questions with this format:
+
 ```javascript
 {
   question_id: "Q1",
@@ -200,17 +219,20 @@ Each quiz has 10 questions with this format:
 ## Troubleshooting
 
 ### Quiz not loading
+
 - Check backend server is running on port 5000
 - Verify MongoDB connection
 - Check browser console for errors
 - Ensure auth token is valid
 
 ### Questions not generated
+
 - Check quizRoutes.js is loaded in server.js
 - Verify Tbl_Quiz model is properly defined
 - Check MongoDB connection string
 
 ### Timer not working
+
 - Ensure QuizPage.css is imported
 - Check browser console for JavaScript errors
 - Verify quiz object has Time_Limit property

@@ -3,6 +3,7 @@
 ## ✅ What Has Been Implemented
 
 ### 1. **Submit Assignment - Data Storage in Tbl_Assignments**
+
 When a student clicks "Submit Assignment", the data is now properly stored in **Tbl_Assignments** collection with the following structure:
 
 ```javascript
@@ -32,39 +33,52 @@ When a student clicks "Submit Assignment", the data is now properly stored in **
 #### Changes in `WeeklyAssignments.jsx`:
 
 **a. Added State Variables:**
+
 ```javascript
 const [viewingSubmission, setViewingSubmission] = useState(false);
 const [selectedSubmissionData, setSelectedSubmissionData] = useState(null);
 ```
 
 **b. Updated `fetchAssignmentsAndProgress()` Function:**
+
 - Now fetches submissions from `Tbl_Assignments` collection
 - Filters only submitted assignments for the current student
 - Separates original assignments from student submissions
+
 ```javascript
-const studentSubmissions = submissionsData.data.filter(a => 
-  a.Status === 'Submitted' && 
-  (a.Assignment_Id?.includes(`_${stuId}`) || a.Submission_Data?.Student_Id === stuId)
+const studentSubmissions = submissionsData.data.filter(
+  (a) =>
+    a.Status === "Submitted" &&
+    (a.Assignment_Id?.includes(`_${stuId}`) ||
+      a.Submission_Data?.Student_Id === stuId)
 );
 ```
 
 **c. Updated `getAssignmentStatus()` Function:**
+
 - Checks for submissions using the new key format: `AssignmentId_StudentId`
 - Returns submission data including score and submission date
+
 ```javascript
 const assignmentKey = `${assignment.Assignment_Id}_${studentId}`;
-const submission = submissions.find(s => 
-  s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
+const submission = submissions.find(
+  (s) =>
+    s.Assignment_Id === assignment.Assignment_Id ||
+    s.Assignment_Id === assignmentKey
 );
 ```
 
 **d. Updated `handleStartAssignment()` Function:**
+
 - Now checks if assignment is already submitted
 - If submitted, redirects to View Submission instead of starting new assignment
 - If not submitted, allows starting the assignment
+
 ```javascript
-const submission = submissions.find(s => 
-  s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
+const submission = submissions.find(
+  (s) =>
+    s.Assignment_Id === assignment.Assignment_Id ||
+    s.Assignment_Id === assignmentKey
 );
 
 if (submission) {
@@ -78,13 +92,14 @@ if (submission) {
 ### 3. **View Submission - Display Submitted Answers from Tbl_Assignments**
 
 #### New Function: `handleViewSubmission()`
+
 ```javascript
 const handleViewSubmission = async (assignmentId) => {
   const response = await fetch(
     `http://localhost:5000/api/assignments/submission/${assignmentId}/${studentId}`
   );
   const result = await response.json();
-  
+
   if (result.success && result.data) {
     setSelectedSubmissionData(result.data);
     setViewingSubmission(true);
@@ -93,16 +108,20 @@ const handleViewSubmission = async (assignmentId) => {
 ```
 
 #### New Submission Viewer Component
+
 A complete submission viewer has been added to `WeeklyAssignments.jsx` that displays:
 
 **Features:**
+
 - 📊 **Submission Statistics:**
+
   - Score (e.g., 85/100)
   - Percentage (e.g., 85%)
   - Time Spent (e.g., 3m 0s)
   - Submission Date & Time
 
 - 📝 **Detailed Answer Review:**
+
   - Question-by-question breakdown
   - ✅ Correct/❌ Incorrect indicators
   - User's selected answer highlighted
@@ -114,6 +133,7 @@ A complete submission viewer has been added to `WeeklyAssignments.jsx` that disp
   - Score summary
 
 **Visual Design:**
+
 - Color-coded correct (green) and incorrect (red) answers
 - Clean, modern UI with gradients
 - Responsive layout
@@ -122,21 +142,31 @@ A complete submission viewer has been added to `WeeklyAssignments.jsx` that disp
 ### 4. **UI/UX Improvements**
 
 #### Button States in Assignment Cards:
+
 ```javascript
-{status.status === 'Submitted' ? (
-  <button className="action-button completed" onClick={() => handleStartAssignment(week.week)}>
-    <span className="button-icon">👁️</span>
-    View Submission
-  </button>
-) : (
-  <button className="action-button start" onClick={() => handleStartAssignment(week.week)}>
-    <span className="button-icon">▶️</span>
-    Start Assignment
-  </button>
-)}
+{
+  status.status === "Submitted" ? (
+    <button
+      className="action-button completed"
+      onClick={() => handleStartAssignment(week.week)}
+    >
+      <span className="button-icon">👁️</span>
+      View Submission
+    </button>
+  ) : (
+    <button
+      className="action-button start"
+      onClick={() => handleStartAssignment(week.week)}
+    >
+      <span className="button-icon">▶️</span>
+      Start Assignment
+    </button>
+  );
+}
 ```
 
 **Button Behavior:**
+
 - ✅ **Submitted Assignments:** Shows "👁️ View Submission" button
 - 📝 **Pending Assignments:** Shows "▶️ Start Assignment" button
 - 🔒 **Not Available:** Button disabled with lock icon
@@ -160,6 +190,7 @@ Added comprehensive styles in `WeeklyAssignments.css`:
 ```
 
 **Color Scheme:**
+
 - ✅ Correct: Green (#10b981)
 - ❌ Incorrect: Red (#ef4444)
 - 📘 User Answer: Blue (#3b82f6)
@@ -213,6 +244,7 @@ Display submission with answers, score, and feedback
 ## 📝 API Endpoints Used
 
 ### 1. Submit Assignment
+
 ```
 POST /api/assignments/submit
 Body: {
@@ -223,12 +255,14 @@ Body: {
 ```
 
 ### 2. Get Submission
+
 ```
 GET /api/assignments/submission/:assignmentId/:studentId
 Returns: Submission record from Tbl_Assignments
 ```
 
 ### 3. Get Course Assignments
+
 ```
 GET /api/assignments/course/:courseId
 Returns: All assignments (including submissions) for a course
@@ -259,12 +293,14 @@ Returns: All assignments (including submissions) for a course
 ### For Developers:
 
 **Database Structure:**
+
 - Original assignments stored with simple `Assignment_Id`
 - Student submissions stored with `Assignment_Id = OriginalId_StudentId`
 - Status field distinguishes: "Pending" vs "Submitted"
 - Submission_Data field contains all submission details
 
 **Key Files Modified:**
+
 1. `src/WeeklyAssignments.jsx` - Main component logic
 2. `src/WeeklyAssignments.css` - Submission viewer styling
 3. `backend/routes/assignmentRoutes.js` - Submit/fetch endpoints (already implemented)
@@ -272,6 +308,7 @@ Returns: All assignments (including submissions) for a course
 ## 🎨 Visual Preview
 
 **Before Submission:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Week 01: Assignment      📝 Pending │
@@ -281,6 +318,7 @@ Returns: All assignments (including submissions) for a course
 ```
 
 **After Submission:**
+
 ```
 ┌─────────────────────────────────────┐
 │ Week 01: Assignment    ✅ Submitted │
@@ -292,6 +330,7 @@ Returns: All assignments (including submissions) for a course
 ```
 
 **Submission Viewer:**
+
 ```
 ┌─────────────────────────────────────┐
 │ 📊 Submission Details               │

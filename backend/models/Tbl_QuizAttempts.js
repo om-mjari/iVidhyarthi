@@ -7,7 +7,9 @@ const quizAttemptSchema = new mongoose.Schema(
       required: true,
       unique: true,
       default: function () {
-        return `QATTEMPT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return `QATTEMPT_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
       },
     },
     Quiz_Id: {

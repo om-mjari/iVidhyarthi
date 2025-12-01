@@ -94,8 +94,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_APP_PASSWORD,
   },
   tls: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -279,9 +279,9 @@ app.delete("/api/files/:id", async (req, res, next) => {
 app.post("/send-otp", async (req, res, next) => {
   try {
     const { email } = req.body;
-    
+
     console.log("📧 Send OTP request received for:", email);
-    
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       console.log("❌ Invalid email format");
       return res
@@ -305,7 +305,7 @@ app.post("/send-otp", async (req, res, next) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(email.trim(), { otp, expiresAt: Date.now() + OTP_EXPIRY_MS });
-    
+
     console.log("🔑 Generated OTP:", otp, "for", email.trim());
 
     const mailOptions = {
@@ -333,15 +333,13 @@ app.post("/send-otp", async (req, res, next) => {
         console.error("Error details:", {
           message: err.message,
           code: err.code,
-          command: err.command
+          command: err.command,
         });
-        return res
-          .status(500)
-          .json({ 
-            success: false, 
-            message: "Could not send OTP. Please check email configuration.",
-            error: err.message 
-          });
+        return res.status(500).json({
+          success: false,
+          message: "Could not send OTP. Please check email configuration.",
+          error: err.message,
+        });
       }
       console.log("✅ OTP email sent successfully!", info.messageId);
       return res.json({ success: true, message: "OTP sent successfully" });

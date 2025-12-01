@@ -1,7 +1,9 @@
 # 🔧 Fix: Assignment Submission "Route not found" Error
 
 ## ❌ Problem
+
 Getting error: **"Failed to submit assignment: Route not found"**
+
 ```
 POST http://localhost:5000/api/assignments/submit → 404 (Not Found)
 ```
@@ -13,6 +15,7 @@ POST http://localhost:5000/api/assignments/submit → 404 (Not Found)
 The route exists but the server needs to be restarted to load the changes.
 
 **In PowerShell Terminal:**
+
 ```powershell
 # Navigate to backend folder
 cd backend
@@ -24,6 +27,7 @@ node server.js
 ```
 
 **Expected Output:**
+
 ```
 ✅ MongoDB connected
 📦 GridFS initialized
@@ -42,9 +46,11 @@ node server.js
 ## 📝 What Was Fixed
 
 ### **1. Dual Storage System**
+
 Assignments are now stored in **BOTH** tables:
 
 #### **Tbl_Submissions** (Primary)
+
 ```javascript
 {
   Submission_Id: "SUB_1732876543_abc123xyz",
@@ -61,6 +67,7 @@ Assignments are now stored in **BOTH** tables:
 ```
 
 #### **Tbl_Assignments** (Secondary)
+
 ```javascript
 {
   Assignment_Id: "ASSIGN_123_STU_456",
@@ -82,12 +89,14 @@ Assignments are now stored in **BOTH** tables:
 ### **2. Updated AssignmentPage.jsx**
 
 **Before:**
+
 ```javascript
 // Only saved to Tbl_Assignments
 const response = await fetch('http://localhost:5000/api/assignments/submit', ...);
 ```
 
 **After:**
+
 ```javascript
 // Save to BOTH tables
 // 1. Tbl_Submissions
@@ -100,12 +109,15 @@ const assignmentsResponse = await fetch('http://localhost:5000/api/assignments/s
 ### **3. Updated WeeklyAssignments.jsx**
 
 **Fetches from both tables:**
+
 ```javascript
 // Get from Tbl_Submissions
 const submissionsResponse = await fetch(`/api/submissions/student/${stuId}`);
 
 // Get from Tbl_Assignments
-const tblAssignmentsResponse = await fetch(`/api/assignments/course/${courseId}`);
+const tblAssignmentsResponse = await fetch(
+  `/api/assignments/course/${courseId}`
+);
 
 // Combine both
 allSubmissions = [...submissionsData.data, ...tblAssignmentSubmissions];
@@ -116,13 +128,16 @@ allSubmissions = [...submissionsData.data, ...tblAssignmentSubmissions];
 ## 🧪 Testing Steps
 
 ### **1. Start Backend Server**
+
 ```powershell
 cd backend
 node server.js
 ```
 
 ### **2. Verify Routes Loaded**
+
 Check console output shows:
+
 ```
 ✅ Routes registered:
    - /api/assignments
@@ -132,11 +147,13 @@ Check console output shows:
 ### **3. Test API Endpoints**
 
 **Test 1: Submissions endpoint**
+
 ```powershell
 curl http://localhost:5000/api/submissions/student/YOUR_STUDENT_ID
 ```
 
 **Test 2: Assignments endpoint**
+
 ```powershell
 curl http://localhost:5000/api/assignments/course/YOUR_COURSE_ID
 ```
@@ -149,6 +166,7 @@ Both should return `{ success: true, data: [...] }`
 2. Answer questions
 3. Click "Submit Assignment"
 4. **Watch browser console:**
+
    - Should show: `📤 Submitting Assignment Data`
    - Should show: `📥 Tbl_Submissions Response: {success: true}`
    - Should show: `📥 Tbl_Assignments Response: {success: true}`
@@ -157,8 +175,8 @@ Both should return `{ success: true, data: [...] }`
 5. **Check MongoDB:**
    ```javascript
    // In MongoDB Compass or CLI
-   db.Tbl_Submissions.find({ Student_Id: "YOUR_ID" })
-   db.Tbl_Assignments.find({ "Submission_Data.Student_Id": "YOUR_ID" })
+   db.Tbl_Submissions.find({ Student_Id: "YOUR_ID" });
+   db.Tbl_Assignments.find({ "Submission_Data.Student_Id": "YOUR_ID" });
    ```
 
 ---
@@ -168,6 +186,7 @@ Both should return `{ success: true, data: [...] }`
 ### **Issue: Still getting 404 error**
 
 **Solution 1: Check server.js has routes**
+
 ```javascript
 // backend/server.js should have:
 const assignmentRoutes = require("./routes/assignmentRoutes");
@@ -178,12 +197,14 @@ app.use("/api/submissions", submissionRoutes);
 ```
 
 **Solution 2: Verify route files exist**
+
 ```powershell
 ls backend/routes/assignmentRoutes.js
 ls backend/routes/submissionRoutes.js
 ```
 
 **Solution 3: Check for syntax errors**
+
 ```powershell
 cd backend
 node -c routes/assignmentRoutes.js
@@ -193,14 +214,16 @@ node -c routes/submissionRoutes.js
 ### **Issue: CORS error**
 
 **Solution:** Add CORS middleware in server.js
+
 ```javascript
-const cors = require('cors');
+const cors = require("cors");
 app.use(cors());
 ```
 
 ### **Issue: MongoDB connection error**
 
 **Solution:** Check .env file
+
 ```
 MONGODB_URI=mongodb://localhost:27017/ividhyarthi
 # OR
@@ -212,12 +235,14 @@ MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ividhyarthi
 ## 📊 Database Verification
 
 ### **Check Tbl_Submissions**
+
 ```javascript
 // MongoDB Compass or CLI
-db.Tbl_Submissions.find({}).sort({ Submitted_On: -1 }).limit(5)
+db.Tbl_Submissions.find({}).sort({ Submitted_On: -1 }).limit(5);
 ```
 
 **Expected:**
+
 ```json
 [
   {
@@ -234,11 +259,13 @@ db.Tbl_Submissions.find({}).sort({ Submitted_On: -1 }).limit(5)
 ```
 
 ### **Check Tbl_Assignments**
+
 ```javascript
-db.Tbl_Assignments.find({ Status: "Submitted" }).limit(5)
+db.Tbl_Assignments.find({ Status: "Submitted" }).limit(5);
 ```
 
 **Expected:**
+
 ```json
 [
   {

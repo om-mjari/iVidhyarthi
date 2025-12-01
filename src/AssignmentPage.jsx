@@ -677,16 +677,30 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
         Status: 'Submitted'
       });
 
-      // Submit to backend
-      const response = await fetch('http://localhost:5000/api/submissions/create', {
+      // Submit to backend - Save to BOTH Tbl_Submissions AND Tbl_Assignments
+      
+      // 1. Save to Tbl_Submissions
+      const submissionsResponse = await fetch('http://localhost:5000/api/submissions/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(submissionData)
       });
 
-      const result = await response.json();
-      
-      console.log('📥 Server Response:', result);
+      const submissionsResult = await submissionsResponse.json();
+      console.log('📥 Tbl_Submissions Response:', submissionsResult);
+
+      // 2. Save to Tbl_Assignments
+      const assignmentsResponse = await fetch('http://localhost:5000/api/assignments/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(submissionData)
+      });
+
+      const assignmentsResult = await assignmentsResponse.json();
+      console.log('📥 Tbl_Assignments Response:', assignmentsResult);
+
+      // Use submissions result as primary
+      const result = submissionsResult;
       
       if (result.success) {
         setShowResults(true);
@@ -698,7 +712,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
           setSubmissionAnimation(false);
         }, 2000);
         
-        console.log('✅ Assignment submitted successfully to Tbl_Assignments!');
+        console.log('✅ Assignment submitted successfully to Tbl_Submissions & Tbl_Assignments!');
         console.log('📊 Score:', scoreData.totalScore + '/' + scoreData.maxScore);
         
         if (onComplete) onComplete(scoreData.totalScore);

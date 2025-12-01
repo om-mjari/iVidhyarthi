@@ -86,11 +86,16 @@ const upload = multer({
    Nodemailer / OTP Setup
    ============================ */
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // Use TLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 const OTP_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -114,6 +119,7 @@ const progressRoutes = require("./routes/progressRoutes");
 const feedbackRoutes = require("./routes/feedbackRoutes");
 const earningsRoutes = require("./routes/earningsRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
+const quizRoutes = require("./routes/quizRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -132,6 +138,7 @@ app.use("/api/progress", progressRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/certifications", certificationRoutes);
+app.use("/api/quiz", quizRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -148,6 +155,7 @@ console.log("   - /api/progress");
 console.log("   - /api/feedback");
 console.log("   - /api/earnings");
 console.log("   - /api/certifications");
+console.log("   - /api/quiz");
 
 /* ============================
    Health & readiness endpoints
@@ -271,10 +279,23 @@ app.delete("/api/files/:id", async (req, res, next) => {
 app.post("/send-otp", async (req, res, next) => {
   try {
     const { email } = req.body;
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
+    
+    console.log("📧 Send OTP request received for:", email);
+    
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      console.log("❌ Invalid email format");
       return res
         .status(400)
         .json({ success: false, message: "Valid email required" });
+    }
+
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+      console.error("❌ Email credentials not configured in .env file");
+      return res
+        .status(500)
+        .json({ success: false, message: "Email service not configured" });
+    }
 
     // Cleanup expired OTPs (simple sweep)
     const now = Date.now();
@@ -284,24 +305,49 @@ app.post("/send-otp", async (req, res, next) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(email.trim(), { otp, expiresAt: Date.now() + OTP_EXPIRY_MS });
+    
+    console.log("🔑 Generated OTP:", otp, "for", email.trim());
 
     const mailOptions = {
       from: `"iVidhyarthi Team" <${process.env.EMAIL_USER}>`,
       to: email.trim(),
       subject: "Your OTP - iVidhyarthi",
-      html: `<p>Your OTP is <strong>${otp}</strong>. It expires in 5 minutes.</p>`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #667eea;">iVidhyarthi - Email Verification</h2>
+          <p>Your One-Time Password (OTP) is:</p>
+          <div style="background: #f0f0f0; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+            ${otp}
+          </div>
+          <p style="color: #666;">This OTP will expire in 5 minutes.</p>
+          <p style="color: #666;">If you didn't request this OTP, please ignore this email.</p>
+        </div>
+      `,
     };
+
+    console.log("📮 Attempting to send email to:", email.trim());
 
     transporter.sendMail(mailOptions, (err, info) => {
       if (err) {
-        console.error("Error sending OTP mail:", err);
+        console.error("❌ Error sending OTP mail:", err);
+        console.error("Error details:", {
+          message: err.message,
+          code: err.code,
+          command: err.command
+        });
         return res
           .status(500)
-          .json({ success: false, message: "Could not send OTP" });
+          .json({ 
+            success: false, 
+            message: "Could not send OTP. Please check email configuration.",
+            error: err.message 
+          });
       }
-      return res.json({ success: true, message: "OTP sent" });
+      console.log("✅ OTP email sent successfully!", info.messageId);
+      return res.json({ success: true, message: "OTP sent successfully" });
     });
   } catch (err) {
+    console.error("❌ Unexpected error in send-otp:", err);
     next(err);
   }
 });

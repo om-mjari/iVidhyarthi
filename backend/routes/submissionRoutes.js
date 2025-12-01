@@ -35,55 +35,26 @@ router.post("/create", async (req, res) => {
       Status: Status || "Submitted",
     });
 
-    // Check if submission already exists
-    const existingSubmission = await Submission.findOne({
+    // Always create a NEW submission entry (allow multiple submissions per assignment)
+    const submission = new Submission({
       Assignment_Id,
       Student_Id,
+      Course_Id: Course_Id || null,
+      Submission_Content: Submission_Content || null,
+      Score: Score || null,
+      Time_Spent: Time_Spent || 0,
+      Status: Status || "Submitted",
+      Feedback: Feedback || "",
+      Submitted_On: new Date(),
     });
 
-    let submissionData;
+    await submission.save();
+    const submissionData = submission;
 
-    if (existingSubmission) {
-      // Update existing submission
-      existingSubmission.Submission_Content =
-        Submission_Content || existingSubmission.Submission_Content;
-      existingSubmission.Score =
-        Score !== undefined ? Score : existingSubmission.Score;
-      existingSubmission.Time_Spent =
-        Time_Spent || existingSubmission.Time_Spent;
-      existingSubmission.Status = Status || existingSubmission.Status;
-      existingSubmission.Feedback = Feedback || existingSubmission.Feedback;
-      existingSubmission.Submitted_On = new Date();
-
-      await existingSubmission.save();
-      submissionData = existingSubmission;
-
-      console.log(
-        "✅ Submission updated successfully:",
-        existingSubmission.Submission_Id
-      );
-    } else {
-      // Create new submission
-      const submission = new Submission({
-        Assignment_Id,
-        Student_Id,
-        Course_Id: Course_Id || null,
-        Submission_Content: Submission_Content || null,
-        Score: Score || null,
-        Time_Spent: Time_Spent || 0,
-        Status: Status || "Submitted",
-        Feedback: Feedback || "",
-        Submitted_On: new Date(),
-      });
-
-      await submission.save();
-      submissionData = submission;
-
-      console.log(
-        "✅ Submission created successfully:",
-        submission.Submission_Id
-      );
-    }
+    console.log(
+      "✅ New submission created successfully:",
+      submission.Submission_Id
+    );
 
     // Also save to Tbl_ExamAttempts for exam tracking
     try {
@@ -159,9 +130,7 @@ router.post("/create", async (req, res) => {
 
     res.json({
       success: true,
-      message: existingSubmission
-        ? "Submission updated successfully"
-        : "Submission created successfully",
+      message: "Submission created successfully",
       data: submissionData,
     });
   } catch (error) {

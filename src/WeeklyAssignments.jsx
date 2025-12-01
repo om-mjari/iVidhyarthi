@@ -16,6 +16,8 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   const [aiQuestions, setAiQuestions] = useState({});
   const [studyMaterials, setStudyMaterials] = useState({});
   const [loadingContent, setLoadingContent] = useState({});
+  const [viewingSubmission, setViewingSubmission] = useState(false);
+  const [selectedSubmissionData, setSelectedSubmissionData] = useState(null);
 
   // Weeks Structure - All 7 Weeks
   const weeksStructure = [
@@ -115,21 +117,55 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
       const assignmentsResponse = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
       const assignmentsData = await assignmentsResponse.json();
       
-      // Fetch student submissions
+      // Fetch student submissions from BOTH Tbl_Submissions AND Tbl_Assignments
+      // 1. Get from Tbl_Submissions
       const submissionsResponse = await fetch(`http://localhost:5000/api/submissions/student/${stuId}`);
       const submissionsData = await submissionsResponse.json();
+      
+      // 2. Get from Tbl_Assignments (submitted assignments)
+      const tblAssignmentsResponse = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
+      const tblAssignmentsData = await tblAssignmentsResponse.json();
+      
+      // Filter submitted assignments for this student from Tbl_Assignments
+      const tblAssignmentSubmissions = tblAssignmentsData.success 
+        ? tblAssignmentsData.data.filter(a => 
+            a.Status === 'Submitted' && 
+            (a.Assignment_Id?.includes(`_${stuId}`) || a.Submission_Data?.Student_Id === stuId)
+          )
+        : [];
+
+      // Combine submissions from both sources and get latest for each assignment
+      let allSubmissions = [];
+      if (submissionsData.success) {
+        allSubmissions = [...submissionsData.data];
+      }
+      // Add Tbl_Assignments submissions
+      allSubmissions = [...allSubmissions, ...tblAssignmentSubmissions];
+
+      // Group by Assignment_Id and keep only the latest submission for each
+      const latestSubmissions = {};
+      allSubmissions.forEach(submission => {
+        const assignmentId = submission.Assignment_Id;
+        if (!latestSubmissions[assignmentId] || 
+            new Date(submission.Submitted_On || submission.Submission_Data?.Submitted_On) > 
+            new Date(latestSubmissions[assignmentId].Submitted_On || latestSubmissions[assignmentId].Submission_Data?.Submitted_On)) {
+          latestSubmissions[assignmentId] = submission;
+        }
+      });
 
       // Fetch progress tracking
       const progressResponse = await fetch(`http://localhost:5000/api/progress/${courseId}/${stuId}`);
       const progressResult = await progressResponse.json();
 
       if (assignmentsData.success) {
-        setWeeklyAssignments(assignmentsData.data);
+        // Filter out submissions, keep only original assignments
+        const originalAssignments = assignmentsData.data.filter(a => 
+          a.Status !== 'Submitted' && !a.Assignment_Id?.includes('_')
+        );
+        setWeeklyAssignments(originalAssignments);
       }
 
-      if (submissionsData.success) {
-        setSubmissions(submissionsData.data);
-      }
+      setSubmissions(Object.values(latestSubmissions));
 
       if (progressResult.success) {
         setProgressData(progressResult.data);
@@ -149,15 +185,19 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
     if (!assignment) return { status: 'Not Available', color: '#6c757d', icon: '🔒' };
 
-    const submission = submissions.find(s => s.Assignment_Id === assignment.Assignment_Id);
+    // Check for submission in Tbl_Assignments with key format: AssignmentId_StudentId
+    const assignmentKey = `${assignment.Assignment_Id}_${studentId}`;
+    const submission = submissions.find(s => 
+      s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
+    );
     
     if (submission) {
       return { 
         status: 'Submitted', 
         color: '#28a745', 
         icon: '✅',
-        score: submission.Score,
-        submittedOn: new Date(submission.Submitted_On).toLocaleDateString()
+        score: submission.Submission_Data?.Score || submission.Score || 0,
+        submittedOn: new Date(submission.Submission_Data?.Submitted_On || submission.Submitted_On || new Date()).toLocaleDateString()
       };
     }
 
@@ -181,16 +221,29 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
     return Math.round((completedWeeks / totalWeeks) * 100);
   };
 
-  const handleStartAssignment = (week) => {
+  const handleStartAssignment = async (week) => {
     const assignment = weeklyAssignments.find(a => 
       a.Title?.includes(`Week 0${week}`) || a.Title?.includes(`Week ${week}`)
     );
 
-    if (assignment) {
+    if (!assignment) {
+      alert('Assignment not available yet. Please check back later.');
+      return;
+    }
+
+    // Check if already submitted
+    const assignmentKey = `${assignment.Assignment_Id}_${studentId}`;
+    const submission = submissions.find(s => 
+      s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
+    );
+
+    if (submission) {
+      // If submitted, view the submission instead
+      await handleViewSubmission(assignment.Assignment_Id);
+    } else {
+      // Start new assignment
       setSelectedAssignment(assignment);
       setShowAssignmentPage(true);
-    } else {
-      alert('Assignment not available yet. Please check back later.');
     }
   };
 
@@ -245,6 +298,61 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   const handleAssignmentBack = () => {
     setShowAssignmentPage(false);
     setSelectedAssignment(null);
+    setViewingSubmission(false);
+    setSelectedSubmissionData(null);
+  };
+
+  const handleViewSubmission = async (assignmentId) => {
+    if (!studentId) return;
+    
+    try {
+      // Try to get submission from Tbl_Assignments first
+      const assignmentsResponse = await fetch(
+        `http://localhost:5000/api/assignments/submission/${assignmentId}/${studentId}`
+      );
+      const assignmentsResult = await assignmentsResponse.json();
+      
+      if (assignmentsResult.success && assignmentsResult.data) {
+        setSelectedSubmissionData(assignmentsResult.data);
+        setViewingSubmission(true);
+        return;
+      }
+
+      // If not found, try Tbl_Submissions
+      const submissionsResponse = await fetch(
+        `http://localhost:5000/api/submissions/student/${studentId}`
+      );
+      const submissionsResult = await submissionsResponse.json();
+      
+      if (submissionsResult.success && submissionsResult.data) {
+        const submission = submissionsResult.data.find(s => s.Assignment_Id === assignmentId);
+        if (submission) {
+          // Convert Tbl_Submissions format to expected format
+          const convertedData = {
+            Assignment_Id: submission.Assignment_Id,
+            Marks: 100, // Default marks
+            Submission_Data: {
+              Student_Id: submission.Student_Id,
+              Course_Id: submission.Course_Id,
+              Score: submission.Score,
+              Time_Spent: submission.Time_Spent,
+              Submitted_On: submission.Submitted_On,
+              Feedback: submission.Feedback,
+              Answers: JSON.parse(submission.Submission_Content || '{}'),
+              Questions: [] // Will need to fetch questions separately
+            }
+          };
+          setSelectedSubmissionData(convertedData);
+          setViewingSubmission(true);
+          return;
+        }
+      }
+      
+      alert('No submission found for this assignment.');
+    } catch (error) {
+      console.error('Error fetching submission:', error);
+      alert('Error loading submission.');
+    }
   };
 
   const updateProgress = async () => {
@@ -286,6 +394,130 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
         onBack={handleAssignmentBack}
         onComplete={handleAssignmentComplete}
       />
+    );
+  }
+
+  // Show Submission Viewer
+  if (viewingSubmission && selectedSubmissionData) {
+    const submissionData = selectedSubmissionData.Submission_Data || {};
+    const answers = submissionData.Answers || {};
+    const questions = submissionData.Questions || [];
+    const score = submissionData.Score || 0;
+    const marks = selectedSubmissionData.Marks || 100;
+    const timeSpent = submissionData.Time_Spent || 0;
+    const submittedOn = new Date(submissionData.Submitted_On || selectedSubmissionData.createdAt).toLocaleString();
+
+    return (
+      <div className="submission-viewer-page">
+        <div className="submission-viewer-header">
+          <button className="back-button" onClick={handleAssignmentBack}>
+            ← Back to Assignments
+          </button>
+          <h1>Assignment Submission</h1>
+        </div>
+
+        <div className="submission-viewer-container">
+          <div className="submission-info-card">
+            <h2>📊 Submission Details</h2>
+            <div className="submission-stats">
+              <div className="stat-item">
+                <span className="stat-label">Score:</span>
+                <span className="stat-value">{score} / {marks}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Percentage:</span>
+                <span className="stat-value">{Math.round((score / marks) * 100)}%</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Time Spent:</span>
+                <span className="stat-value">
+                  {Math.floor(timeSpent / 60)}m {timeSpent % 60}s
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Submitted On:</span>
+                <span className="stat-value">{submittedOn}</span>
+              </div>
+            </div>
+
+            {submissionData.Feedback && (
+              <div className="feedback-section">
+                <h3>💬 Feedback</h3>
+                <p>{submissionData.Feedback}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="submission-answers-section">
+            <h2>📝 Your Answers</h2>
+            {questions && questions.length > 0 ? (
+              questions.map((question, index) => {
+                const questionId = question.id || index + 1;
+                const userAnswer = answers[questionId];
+                const correctAnswer = question.correctAnswer;
+                const isCorrect = String(userAnswer) === String(correctAnswer);
+
+                return (
+                  <div key={questionId} className={`question-review-card ${isCorrect ? 'correct' : 'incorrect'}`}>
+                    <div className="question-header">
+                      <span className="question-number">Question {index + 1}</span>
+                      <span className={`answer-badge ${isCorrect ? 'correct' : 'incorrect'}`}>
+                        {isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                      </span>
+                      <span className="question-marks">
+                        {isCorrect ? question.marks : 0} / {question.marks} marks
+                      </span>
+                    </div>
+
+                    <div className="question-content">
+                      <p className="question-text">{question.question}</p>
+
+                      {question.type === 'MCQ' && question.options && (
+                        <div className="options-list">
+                          {question.options.map((option, optIdx) => {
+                            const optionValue = optIdx + 1;
+                            const isUserAnswer = String(userAnswer) === String(optionValue);
+                            const isCorrectOption = String(correctAnswer) === String(optionValue);
+
+                            return (
+                              <div
+                                key={optIdx}
+                                className={`option-item ${isUserAnswer ? 'user-answer' : ''} ${isCorrectOption ? 'correct-answer' : ''}`}
+                              >
+                                <span className="option-label">{optionValue}.</span>
+                                <span className="option-text">{option}</span>
+                                {isUserAnswer && <span className="badge">Your Answer</span>}
+                                {isCorrectOption && <span className="badge correct">Correct Answer</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {question.type === 'Short Answer' && (
+                        <div className="text-answer-section">
+                          <div className="answer-box">
+                            <strong>Your Answer:</strong>
+                            <p>{userAnswer || 'Not answered'}</p>
+                          </div>
+                          {question.sampleAnswer && (
+                            <div className="sample-answer-box">
+                              <strong>Sample Answer:</strong>
+                              <p>{question.sampleAnswer}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p>No question data available.</p>
+            )}
+          </div>
+        </div>
+      </div>
     );
   }
 

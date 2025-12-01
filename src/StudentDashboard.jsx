@@ -394,9 +394,6 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
           </button>
         </div>
 
-        {/* Overlay backdrop */}
-        <div className={`filters-overlay ${showFilters ? 'active' : ''}`} onClick={() => setShowFilters(false)}></div>
-
         <div className={`main-content ${showFilters ? 'filters-open' : 'no-filters'}`}>
           {/* Filters Sidebar */}
           <aside

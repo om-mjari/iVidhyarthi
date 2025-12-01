@@ -47,6 +47,16 @@ const assignmentSchema = new mongoose.Schema(
       min: 0,
       default: 100,
     },
+    Submission_Data: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    Status: {
+      type: String,
+      enum: ["Pending", "Submitted", "Graded", "Reviewed"],
+      default: "Pending",
+    },
   },
   {
     timestamps: true,

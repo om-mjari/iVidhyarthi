@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AssignmentPage from './AssignmentPage';
 import WeeklyAssignments from './WeeklyAssignments';
+import QuizPage from './QuizPage';
 import './CourseLearningPage.css';
 
 const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
@@ -22,6 +23,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showAssignment, setShowAssignment] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [showWeeklyAssignments, setShowWeeklyAssignments] = useState(false);
+  const [submittedAssignments, setSubmittedAssignments] = useState({});
+  const [viewingSubmission, setViewingSubmission] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [loadingQuiz, setLoadingQuiz] = useState(false);
 
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
@@ -68,6 +75,66 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setSelectedCourse(defaultCourse);
     }
   }, []);
+
+  // Fetch submitted assignments on component mount
+  useEffect(() => {
+    if (studentId) {
+      fetchSubmittedAssignments();
+    }
+  }, [studentId]);
+
+  const fetchSubmittedAssignments = async () => {
+    if (!studentId) return;
+
+    try {
+      // Fetch all submissions from Tbl_Submissions
+      const submissionsResponse = await fetch(
+        `http://localhost:5000/api/submissions/student/${studentId}`
+      );
+      const submissionsResult = await submissionsResponse.json();
+
+      const submissions = {};
+      
+      // Map submissions from Tbl_Submissions (get latest for each assignment)
+      if (submissionsResult.success && submissionsResult.data) {
+        // Group submissions by Assignment_Id and get the latest one
+        const submissionsByAssignment = {};
+        
+        submissionsResult.data.forEach(submission => {
+          const assignmentId = submission.Assignment_Id;
+          
+          // If we don't have this assignment yet, or this submission is newer
+          if (!submissionsByAssignment[assignmentId] || 
+              new Date(submission.Submitted_On) > new Date(submissionsByAssignment[assignmentId].Submitted_On)) {
+            submissionsByAssignment[assignmentId] = submission;
+          }
+        });
+        
+        // Use the latest submission for each assignment
+        Object.keys(submissionsByAssignment).forEach(assignmentId => {
+          submissions[assignmentId] = submissionsByAssignment[assignmentId];
+        });
+      }
+
+      // Also check Tbl_Assignments for submissions
+      for (const assignment of courseContent.assignments) {
+        if (!submissions[assignment.id]) {
+          const response = await fetch(
+            `http://localhost:5000/api/assignments/submission/${assignment.id}/${studentId}`
+          );
+          const result = await response.json();
+          if (result.success && result.hasSubmission) {
+            submissions[assignment.id] = result.data;
+          }
+        }
+      }
+      
+      setSubmittedAssignments(submissions);
+      console.log('✅ Fetched latest submissions for each assignment:', submissions);
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+    }
+  };
 
   // Initialize course data with enrollment and earnings
   const initializeCourseData = async (course, userId, paymentData) => {
@@ -367,6 +434,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     quizzes: [
       {
         id: 1,
+        week: 1,
         title: "Week 1 Quiz",
         timeLimit: "30 minutes",
         marks: 50,
@@ -374,6 +442,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       },
       {
         id: 2,
+        week: 2,
         title: "Week 2 Quiz",
         timeLimit: "30 minutes",
         marks: 50,
@@ -381,6 +450,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       },
       {
         id: 3,
+        week: 3,
         title: "Week 3 Quiz",
         timeLimit: "30 minutes",
         marks: 50,
@@ -426,6 +496,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const handleAssignmentComplete = (score) => {
     if (selectedAssignment) {
       setCompletedAssignments(prev => [...prev, selectedAssignment.id]);
+      // Refresh submitted assignments list
+      fetchSubmittedAssignments();
       // Update progress
       setTimeout(updateProgress, 100);
     }
@@ -434,10 +506,145 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const handleAssignmentBack = () => {
     setShowAssignment(false);
     setSelectedAssignment(null);
+    setViewingSubmission(false);
+    setSelectedSubmission(null);
   };
 
-  const handleQuizStart = (quizId) => {
-    alert(`Starting Quiz ${quizId}`);
+  const handleViewSubmission = async (assignmentId) => {
+    if (!studentId) return;
+
+    try {
+      // First try to get from Tbl_Submissions
+      const submissionsResponse = await fetch(
+        `http://localhost:5000/api/submissions/student/${studentId}`
+      );
+      const submissionsResult = await submissionsResponse.json();
+      
+      if (submissionsResult.success && submissionsResult.data) {
+        // Get all submissions for this assignment and find the latest one
+        const assignmentSubmissions = submissionsResult.data.filter(s => s.Assignment_Id === assignmentId);
+        
+        if (assignmentSubmissions.length > 0) {
+          // Sort by Submitted_On date descending and get the most recent
+          const latestSubmission = assignmentSubmissions.sort((a, b) => 
+            new Date(b.Submitted_On) - new Date(a.Submitted_On)
+          )[0];
+          
+          // Get the original assignment to fetch questions
+          const assignment = courseContent.assignments.find(a => a.id === assignmentId);
+          
+          // Convert Tbl_Submissions format to expected format
+          const convertedData = {
+            Assignment_Id: latestSubmission.Assignment_Id,
+            Marks: assignment?.marks || 100,
+            Submission_Data: {
+              Student_Id: latestSubmission.Student_Id,
+              Course_Id: latestSubmission.Course_Id,
+              Score: latestSubmission.Score,
+              Time_Spent: latestSubmission.Time_Spent,
+              Submitted_On: latestSubmission.Submitted_On,
+              Feedback: latestSubmission.Feedback,
+              Answers: JSON.parse(latestSubmission.Submission_Content || '{}'),
+              Questions: assignment?.questions || [] // Use original assignment questions
+            }
+          };
+          setSelectedSubmission(convertedData);
+          setViewingSubmission(true);
+          console.log('📝 Viewing latest submission from Tbl_Submissions:', convertedData);
+          return;
+        }
+      }
+
+      // If not found in Tbl_Submissions, try Tbl_Assignments
+      const assignmentsResponse = await fetch(
+        `http://localhost:5000/api/assignments/submission/${assignmentId}/${studentId}`
+      );
+      const assignmentsResult = await assignmentsResponse.json();
+      
+      if (assignmentsResult.success && assignmentsResult.data) {
+        setSelectedSubmission(assignmentsResult.data);
+        setViewingSubmission(true);
+        console.log('📝 Viewing submission from Tbl_Assignments:', assignmentsResult.data);
+      } else {
+        alert('No submission found for this assignment.');
+      }
+    } catch (error) {
+      console.error('Error fetching submission:', error);
+      alert('Error loading submission.');
+    }
+  };
+
+  const handleQuizStart = async (weekNumber) => {
+    try {
+      setLoadingQuiz(true);
+      const authToken = localStorage.getItem('auth_token');
+      
+      if (!authToken) {
+        alert('Please login to start quiz');
+        return;
+      }
+
+      if (!courseInfo || !courseInfo.id) {
+        alert('Course information not available');
+        return;
+      }
+
+      // First, try to fetch existing quiz for this week
+      const fetchResponse = await fetch(
+        `http://localhost:5000/api/quiz/course/${courseInfo.id}/week/${weekNumber}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+
+      let quiz;
+      if (fetchResponse.ok) {
+        // Quiz exists, use it
+        quiz = await fetchResponse.json();
+      } else {
+        // Generate new quiz
+        const generateResponse = await fetch('http://localhost:5000/api/quiz/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            courseId: courseInfo.id,
+            courseName: courseInfo.title,
+            weekNumber: weekNumber,
+            topic: `Week ${weekNumber} - ${courseInfo.title}`
+          })
+        });
+
+        if (!generateResponse.ok) {
+          throw new Error('Failed to generate quiz');
+        }
+
+        quiz = await generateResponse.json();
+      }
+
+      setSelectedQuiz(quiz);
+      setShowQuiz(true);
+      setLoadingQuiz(false);
+    } catch (error) {
+      console.error('Error starting quiz:', error);
+      alert('Error starting quiz. Please try again.');
+      setLoadingQuiz(false);
+    }
+  };
+
+  const handleQuizComplete = () => {
+    setShowQuiz(false);
+    setSelectedQuiz(null);
+    // Optionally refresh quiz completion status here
+  };
+
+  const handleQuizBack = () => {
+    setShowQuiz(false);
+    setSelectedQuiz(null);
   };
 
   if (!selectedCourse) {
@@ -446,6 +653,19 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         <div className="loading-spinner"></div>
         <p>Loading course...</p>
       </div>
+    );
+  }
+
+  // Show Quiz Page if quiz is selected
+  if (showQuiz && selectedQuiz) {
+    return (
+      <QuizPage
+        quiz={selectedQuiz}
+        courseId={courseInfo?.id}
+        weekNumber={selectedQuiz.Week_Number}
+        onBack={handleQuizBack}
+        onComplete={handleQuizComplete}
+      />
     );
   }
 
@@ -468,6 +688,80 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         onBack={handleAssignmentBack}
         onComplete={handleAssignmentComplete}
       />
+    );
+  }
+
+  // Show Submission Viewer
+  if (viewingSubmission && selectedSubmission) {
+    return (
+      <div className="submission-viewer-page">
+        <div className="submission-viewer-header">
+          <button className="back-btn" onClick={handleAssignmentBack}>
+            ← Back to Course
+          </button>
+          <h1>Assignment Submission</h1>
+        </div>
+        <div className="submission-viewer-container">
+          <div className="submission-info-card">
+            <h2>Submission Details</h2>
+            <div className="submission-stats">
+              <div className="stat-item">
+                <span className="stat-label">Score:</span>
+                <span className="stat-value">{selectedSubmission.Submission_Data?.Score || 0} / {selectedSubmission.Marks}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Time Spent:</span>
+                <span className="stat-value">
+                  {Math.floor(selectedSubmission.Submission_Data?.Time_Spent / 60)}m {selectedSubmission.Submission_Data?.Time_Spent % 60}s
+                </span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">Submitted:</span>
+                <span className="stat-value">
+                  {new Date(selectedSubmission.Submission_Data?.Submitted_On).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="answers-display">
+            <h2>Your Answers</h2>
+            {selectedSubmission.Submission_Data?.Questions?.map((q, index) => (
+              <div key={q.id} className="answer-card">
+                <div className="question-header">
+                  <span className="question-number">Question {index + 1}</span>
+                  <span className="question-marks">{q.marks} Marks</span>
+                </div>
+                <p className="question-text">{q.question}</p>
+                
+                <div className="submitted-answer">
+                  <strong>Your Answer:</strong>
+                  <div className="answer-content">
+                    {q.type === 'text' 
+                      ? selectedSubmission.Submission_Data?.Answers[q.id] || 'Not answered'
+                      : q.options?.[parseInt(selectedSubmission.Submission_Data?.Answers[q.id])] || 'Not answered'
+                    }
+                  </div>
+                </div>
+
+                {q.type === 'mcq' && (
+                  <div className="correct-answer">
+                    <strong>Correct Answer:</strong>
+                    <div className="answer-content">
+                      {q.options?.[q.correctAnswer]}
+                    </div>
+                  </div>
+                )}
+
+                <div className="explanation">
+                  <strong>💡 Explanation:</strong>
+                  <p>{q.explanation}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -670,12 +964,22 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   <button 
                     className="nptel-btn nptel-btn-primary"
                     onClick={() => handleAssignmentStart(assignment.id)}
+                    disabled={submittedAssignments[assignment.id]}
+                    style={{ 
+                      opacity: submittedAssignments[assignment.id] ? 0.5 : 1,
+                      cursor: submittedAssignments[assignment.id] ? 'not-allowed' : 'pointer'
+                    }}
                   >
-                    Start Assignment
+                    {submittedAssignments[assignment.id] ? '✓ Submitted' : 'Start Assignment'}
                   </button>
-                  <button className="nptel-btn nptel-btn-secondary">
-                    View Submission
-                  </button>
+                  {submittedAssignments[assignment.id] && (
+                    <button 
+                      className="nptel-btn nptel-btn-secondary"
+                      onClick={() => handleViewSubmission(assignment.id)}
+                    >
+                      View Submission
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -742,9 +1046,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div className="quiz-actions">
                   <button 
                     className="nptel-btn nptel-btn-quiz"
-                    onClick={() => handleQuizStart(quiz.id)}
+                    onClick={() => handleQuizStart(quiz.week)}
+                    disabled={loadingQuiz}
                   >
-                    Start Quiz
+                    {loadingQuiz ? 'Loading...' : 'Start Quiz'}
                   </button>
                   {completedQuizzes.includes(quiz.id) && (
                     <span className="quiz-score">Score: 45/{quiz.marks}</span>

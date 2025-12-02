@@ -1039,7 +1039,7 @@ function CoursesTab() {
     }
   };
 
-  const startEdit = (course) => {
+  const startEdit = async (course) => {
     setEditingCourse(course);
     setForm({
       categoryId: course.categoryId?.toString() || '',
@@ -1048,32 +1048,43 @@ function CoursesTab() {
       duration: course.duration || '',
       description: course.description || ''
     });
-    // Populate topics with subtopics if present in course data
+    
+    // Fetch full course details including topics/subtopics from API
     try {
-      const existing = course.courseData && (course.courseData.Topics || course.courseData.topics || []);
-      if (existing && Array.isArray(existing) && existing.length > 0) {
-        const mapped = existing.map((t, idx) => ({
-          id: t.Topic_Id || t.id || Date.now() + idx,
-          Title: t.Title || t.title || t.Name || '',
-          Description: t.Description || t.description || '',
-          Order_Number: t.Order_Number != null ? Number(t.Order_Number) : idx + 1,
-          Estimated_Hours: t.Estimated_Hours != null ? String(t.Estimated_Hours) : '',
-          subtopics: (t.SubTopics || t.subtopics || []).map((sub, subIdx) => ({
-            id: sub.SubTopic_Id || sub.id || Date.now() + idx * 1000 + subIdx,
-            Title: sub.Title || sub.title || '',
-            Description: sub.Description || sub.description || '',
-            Order_Number: sub.Order_Number || `${t.Order_Number || idx + 1}.${subIdx + 1}`,
-            Parent_Topic_Id: t.Topic_Id || t.id
-          }))
-        }));
-        setTopics(mapped);
+      const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}`);
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const courseData = result.data;
+        const existing = courseData.Topics || [];
+        
+        if (existing && Array.isArray(existing) && existing.length > 0) {
+          const mapped = existing.map((t, idx) => ({
+            id: t.Topic_Id || t.id || Date.now() + idx,
+            Title: t.Title || t.title || t.Name || '',
+            Description: t.Description || t.description || '',
+            Order_Number: t.Order_Number != null ? Number(t.Order_Number) : idx + 1,
+            Estimated_Hours: t.Estimated_Hours != null ? String(t.Estimated_Hours) : '',
+            subtopics: (t.SubTopics || t.subtopics || []).map((sub, subIdx) => ({
+              id: sub.SubTopic_Id || sub.id || Date.now() + idx * 1000 + subIdx,
+              Title: sub.Title || sub.title || '',
+              Description: sub.Description || sub.description || '',
+              Order_Number: sub.Order_Number || `${t.Order_Number || idx + 1}.${subIdx + 1}`,
+              Parent_Topic_Id: t.Topic_Id || t.id
+            }))
+          }));
+          setTopics(mapped);
+        } else {
+          setTopics([]);
+        }
       } else {
         setTopics([]);
       }
     } catch (e) {
-      console.error('Error loading topics:', e);
+      console.error('Error loading course topics:', e);
       setTopics([]);
     }
+    
     setValidationErrors([]);
     // Scroll to top to show form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1092,8 +1103,21 @@ function CoursesTab() {
     setValidationErrors([]);
   };
 
-  const viewCourse = (course) => {
-    setViewingCourse(course);
+  const viewCourse = async (course) => {
+    try {
+      // Fetch full course details including topics/subtopics
+      const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}`);
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setViewingCourse({ ...course, fullData: result.data });
+      } else {
+        setViewingCourse(course);
+      }
+    } catch (error) {
+      console.error('Error fetching course details:', error);
+      setViewingCourse(course);
+    }
   };
 
   const closeViewCourse = () => {
@@ -1108,49 +1132,134 @@ function CoursesTab() {
       {viewingCourse && (
         <>
           <div className="lec-modal-overlay" onClick={closeViewCourse} />
-          <div className="lec-modal">
+          <div className="lec-modal lec-modal-large">
             <div className="lec-modal-header">
-              <h3>Course Details</h3>
-              <button className="btn-secondary" onClick={closeViewCourse}>×</button>
+              <h3>📚 Course Overview</h3>
+              <button className="btn-close" onClick={closeViewCourse}>×</button>
             </div>
             <div className="lec-modal-body">
-              <div style={{ marginBottom: '20px' }}>
+              {/* Course Image */}
+              <div className="view-course-image">
                 <img
-                  src={viewingCourse.image}
+                  src={viewingCourse.image || viewingCourse.fullData?.image_url}
                   alt={viewingCourse.name}
-                  style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '12px' }}
                 />
               </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Course Name:</span>
-                <span className="lec-view-value">{viewingCourse.name}</span>
+
+              {/* Course Info Grid */}
+              <div className="view-course-info-grid">
+                <div className="view-info-card">
+                  <div className="view-info-icon">📖</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Course Title</div>
+                    <div className="view-info-value">{viewingCourse.name}</div>
+                  </div>
+                </div>
+
+                <div className="view-info-card">
+                  <div className="view-info-icon">🏷️</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Category</div>
+                    <div className="view-info-value">
+                      {categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="view-info-card">
+                  <div className="view-info-icon">💰</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Price</div>
+                    <div className="view-info-value">₹{viewingCourse.price}</div>
+                  </div>
+                </div>
+
+                <div className="view-info-card">
+                  <div className="view-info-icon">⏱️</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Duration</div>
+                    <div className="view-info-value">{viewingCourse.duration || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <div className="view-info-card">
+                  <div className="view-info-icon">👨‍🏫</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Instructor</div>
+                    <div className="view-info-value">{viewingCourse.instructor}</div>
+                  </div>
+                </div>
+
+                <div className="view-info-card">
+                  <div className="view-info-icon">⭐</div>
+                  <div className="view-info-content">
+                    <div className="view-info-label">Rating</div>
+                    <div className="view-info-value">{viewingCourse.rating} / 5.0</div>
+                  </div>
+                </div>
               </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Category:</span>
-                <span className="lec-view-value">
-                  {categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}
-                </span>
-              </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Price:</span>
-                <span className="lec-view-value">₹{viewingCourse.price}</span>
-              </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Duration:</span>
-                <span className="lec-view-value">{viewingCourse.duration || 'N/A'}</span>
-              </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Instructor:</span>
-                <span className="lec-view-value">{viewingCourse.instructor}</span>
-              </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Rating:</span>
-                <span className="lec-view-value">{viewingCourse.rating} ⭐</span>
-              </div>
-              <div className="lec-view-field">
-                <span className="lec-view-label">Description:</span>
-                <span className="lec-view-value">{viewingCourse.description || 'No description available'}</span>
-              </div>
+
+              {/* Description Section */}
+              {viewingCourse.description && (
+                <div className="view-section">
+                  <h4 className="view-section-title">📝 Course Description</h4>
+                  <div className="view-description">
+                    {viewingCourse.description}
+                  </div>
+                </div>
+              )}
+
+              {/* Topics & Subtopics Section */}
+              {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
+                <div className="view-section">
+                  <h4 className="view-section-title">📋 Course Curriculum ({viewingCourse.fullData.Topics.length} Topics)</h4>
+                  <div className="view-topics-container">
+                    {viewingCourse.fullData.Topics.map((topic, idx) => (
+                      <div key={topic.Topic_Id || idx} className="view-topic-card">
+                        <div className="view-topic-header">
+                          <div className="view-topic-number">{topic.Order_Number}</div>
+                          <div className="view-topic-info">
+                            <div className="view-topic-title">{topic.Title}</div>
+                            {topic.Description && (
+                              <div className="view-topic-description">{topic.Description}</div>
+                            )}
+                            {topic.Estimated_Hours && (
+                              <div className="view-topic-hours">⏱ {topic.Estimated_Hours} hours</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Subtopics */}
+                        {topic.SubTopics && topic.SubTopics.length > 0 && (
+                          <div className="view-subtopics">
+                            {topic.SubTopics.map((sub, subIdx) => (
+                              <div key={sub.SubTopic_Id || subIdx} className="view-subtopic-item">
+                                <div className="view-subtopic-number">{sub.Order_Number}</div>
+                                <div className="view-subtopic-content">
+                                  <div className="view-subtopic-title">{sub.Title}</div>
+                                  {sub.Description && (
+                                    <div className="view-subtopic-description">{sub.Description}</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Topics Message */}
+              {(!viewingCourse.fullData?.Topics || viewingCourse.fullData.Topics.length === 0) && (
+                <div className="view-section">
+                  <div className="view-no-content">
+                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
+                    <div>No topics added to this course yet.</div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="lec-modal-footer">
               <button className="button primary" onClick={closeViewCourse}>Close</button>

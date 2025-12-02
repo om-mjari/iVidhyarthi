@@ -1,6 +1,186 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './LecturerDashboardPremium.css';
 
+// ============================================
+// AUTOMATIC COURSE IMAGE ASSIGNMENT SYSTEM
+// ============================================
+
+/**
+ * Category-based image pools with high-quality professional images
+ * Each category has multiple images to ensure variety
+ */
+const CATEGORY_IMAGE_POOLS = {
+  // Programming (Category ID: 1)
+  'Programming': [
+    'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80', // Code on screen
+    'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&q=80', // Programming workspace
+    'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80', // Developer coding
+    'https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=800&q=80', // JavaScript code
+    'https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=800&q=80', // Python programming
+  ],
+  
+  // Web Development (Category ID: 2)
+  'Web Development': [
+    'https://images.unsplash.com/photo-1547658719-da2b51169166?w=800&q=80', // Web design
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&q=80', // Laptop coding
+    'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?w=800&q=80', // Web development
+    'https://images.unsplash.com/photo-1508317469940-e3de49ba902e?w=800&q=80', // Responsive design
+    'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=800&q=80', // Web coding
+  ],
+  
+  // Mobile App Development (Category ID: 3)
+  'Mobile App Development': [
+    'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&q=80', // Mobile apps
+    'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800&q=80', // App development
+    'https://images.unsplash.com/photo-1526498460520-4c246339dccb?w=800&q=80', // Mobile UI
+    'https://images.unsplash.com/photo-1607252650355-f7fd0460ccdb?w=800&q=80', // App design
+    'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&q=80', // Smartphone apps
+  ],
+  
+  // Data Science (Category ID: 4)
+  'Data Science': [
+    'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80', // Data analytics
+    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80', // Data dashboard
+    'https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=800&q=80', // Data charts
+    'https://images.unsplash.com/photo-1543286386-2e659306cd6c?w=800&q=80', // Analytics graphs
+    'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=800&q=80', // Big data
+  ],
+  
+  // Cloud Computing (Category ID: 5)
+  'Cloud Computing': [
+    'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80', // Cloud network
+    'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&q=80', // Cloud infrastructure
+    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // Server room
+    'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800&q=80', // Cloud technology
+    'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=800&q=80', // Cloud computing
+  ],
+  
+  // Networking (Category ID: 6)
+  'Networking': [
+    'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // Network cables
+    'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&q=80', // Network infrastructure
+    'https://images.unsplash.com/photo-1606904825846-647eb07f5be2?w=800&q=80', // Networking devices
+    'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // Network connections
+    'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=800&q=80', // Network technology
+  ],
+  
+  // Cyber Security (Category ID: 7)
+  'Cyber Security': [
+    'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // Security lock
+    'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=800&q=80', // Cybersecurity
+    'https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&q=80', // Security shield
+    'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80', // Digital security
+    'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80', // Security lock code
+  ],
+  
+  // Designing (Category ID: 8)
+  'Designing': [
+    'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80', // UI design
+    'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=800&q=80', // Graphic design
+    'https://images.unsplash.com/photo-1609921212029-bb5a28e60960?w=800&q=80', // Design tools
+    'https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800&q=80', // Creative design
+    'https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=800&q=80', // Design workspace
+  ],
+  
+  // Business / Management (Category ID: 9)
+  'Business / Management': [
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80', // Business meeting
+    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&q=80', // Team collaboration
+    'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&q=80', // Business professional
+    'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80', // Office work
+    'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80', // Business strategy
+  ],
+  
+  // Language Learning (Category ID: 10)
+  'Language Learning': [
+    'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80', // Books learning
+    'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&q=80', // Language education
+    'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&q=80', // Books and learning
+    'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=800&q=80', // Language books
+    'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=800&q=80', // Writing learning
+  ],
+};
+
+/**
+ * Default high-quality professional images for uncategorized courses
+ */
+const DEFAULT_IMAGE_POOL = [
+  'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80', // Education abstract
+  'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&q=80', // University learning
+  'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&q=80', // Online course
+  'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&q=80', // Learning together
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80', // Professional course
+  'https://images.unsplash.com/photo-1513258496099-48168024aec0?w=800&q=80', // Educational setting
+  'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=800&q=80', // Study materials
+];
+
+/**
+ * Tracks used images per category to ensure variety
+ * Format: { categoryName: [usedImageIndexes] }
+ */
+let usedImagesTracker = {};
+
+/**
+ * Automatically assigns a course image based on category
+ * @param {number} categoryId - The category ID
+ * @param {string} categoryName - The category name
+ * @param {number} courseId - The course ID (for logging)
+ * @returns {object} - { Image_URL, Category, Assigned_By_System }
+ */
+function assignCourseImage(categoryId, categoryName, courseId = null) {
+  let selectedImage = '';
+  
+  // (A) Category-based image selection
+  if (categoryName && CATEGORY_IMAGE_POOLS[categoryName]) {
+    const categoryPool = CATEGORY_IMAGE_POOLS[categoryName];
+    
+    // Initialize tracker for this category if not exists
+    if (!usedImagesTracker[categoryName]) {
+      usedImagesTracker[categoryName] = [];
+    }
+    
+    // Get available images (not recently used)
+    let availableIndexes = categoryPool
+      .map((_, idx) => idx)
+      .filter(idx => !usedImagesTracker[categoryName].includes(idx));
+    
+    // Reset tracker if all images have been used
+    if (availableIndexes.length === 0) {
+      usedImagesTracker[categoryName] = [];
+      availableIndexes = categoryPool.map((_, idx) => idx);
+    }
+    
+    // Select random image from available ones
+    const randomIndex = availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
+    selectedImage = categoryPool[randomIndex];
+    
+    // Mark as used
+    usedImagesTracker[categoryName].push(randomIndex);
+    
+    // Keep only last 3 used images to allow repetition after a gap
+    if (usedImagesTracker[categoryName].length > 3) {
+      usedImagesTracker[categoryName].shift();
+    }
+  } 
+  // (B) Default random image if no category selected
+  else {
+    const randomIndex = Math.floor(Math.random() * DEFAULT_IMAGE_POOL.length);
+    selectedImage = DEFAULT_IMAGE_POOL[randomIndex];
+  }
+  
+  // Return image assignment metadata
+  const result = {
+    Course_Id: courseId,
+    Category: categoryName || 'Uncategorized',
+    Image_URL: selectedImage,
+    Assigned_By_System: true
+  };
+  
+  console.log('🖼️ Auto-assigned course image:', result);
+  
+  return result;
+}
+
 function TopBar({ onLogout }) {
   const lecturer = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
@@ -628,7 +808,7 @@ function CoursesTab() {
             instructor: lecturer?.name || 'Lecturer',
             price: course.Price,
             rating: 4.5,
-            image: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
+            image: course.image_url || 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80', // Use auto-assigned image or default
             description: course.Description || '',
             createdBy: 'lecturer',
             categoryId: course.Category_Id,
@@ -779,6 +959,17 @@ function CoursesTab() {
       // Get lecturer ID
       const lecturerId = lecturer.email || lecturer.id || `lecturer_${Date.now()}`;
 
+      // Get category name for image assignment
+      const selectedCategory = categories.find(cat => cat.categoryId === Number(form.categoryId));
+      const categoryName = selectedCategory?.categoryName || '';
+
+      // 🖼️ AUTOMATIC IMAGE ASSIGNMENT
+      const imageAssignment = assignCourseImage(
+        Number(form.categoryId),
+        categoryName,
+        null // Course ID will be assigned by backend
+      );
+
       // Prepare course data according to backend requirements
       const courseData = {
         // Required fields - ensure they are not empty
@@ -789,7 +980,10 @@ function CoursesTab() {
 
         // Optional fields
         Duration: form.duration.trim(),
-        Description: (form.description || '').trim()
+        Description: (form.description || '').trim(),
+        
+        // Auto-assigned image URL
+        image_url: imageAssignment.Image_URL
       };
 
       // Attach topics with subtopics if any
@@ -872,7 +1066,7 @@ function CoursesTab() {
         instructor: lecturer?.name || 'Lecturer',
         price: Number(responseData.Price || form.price),
         rating: 4.5,
-        image: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
+        image: responseData.image_url || imageAssignment.Image_URL, // Use auto-assigned image
         description: responseData.Description || form.description,
         createdBy: 'lecturer',
         categoryId: Number(responseData.Category_Id || form.categoryId),
@@ -929,12 +1123,32 @@ function CoursesTab() {
 
     try {
       const courseId = editingCourse.id;
+      
+      // Get category name for image assignment
+      const selectedCategory = categories.find(cat => cat.categoryId === Number(form.categoryId));
+      const categoryName = selectedCategory?.categoryName || '';
+      
+      // 🖼️ AUTO-ASSIGN NEW IMAGE IF CATEGORY CHANGED
+      const categoryChanged = editingCourse.categoryId !== Number(form.categoryId);
+      let imageUrl = editingCourse.image; // Keep existing image by default
+      
+      if (categoryChanged) {
+        const imageAssignment = assignCourseImage(
+          Number(form.categoryId),
+          categoryName,
+          courseId
+        );
+        imageUrl = imageAssignment.Image_URL;
+        console.log('🔄 Category changed - assigning new image:', imageAssignment);
+      }
+      
       const updatedData = {
         Title: form.name.trim(),
         Category_Id: Number(form.categoryId),
         Price: Number(form.price),
         Duration: form.duration.trim(),
-        Description: (form.description || '').trim()
+        Description: (form.description || '').trim(),
+        image_url: imageUrl // Include updated image
       };
 
       if (topics && topics.length > 0) {
@@ -979,7 +1193,7 @@ function CoursesTab() {
         instructor: lecturer?.name || 'Lecturer',
         price: Number(responseData.Price || form.price),
         rating: editingCourse.rating || 4.5,
-        image: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
+        image: responseData.image_url || imageUrl, // Use backend image or auto-assigned image
         description: responseData.Description || form.description,
         createdBy: 'lecturer',
         categoryId: Number(responseData.Category_Id || form.categoryId),
@@ -1138,76 +1352,51 @@ function CoursesTab() {
               <button className="btn-close" onClick={closeViewCourse}>×</button>
             </div>
             <div className="lec-modal-body">
-              {/* Course Image */}
-              <div className="view-course-image">
-                <img
-                  src={viewingCourse.image || viewingCourse.fullData?.image_url}
-                  alt={viewingCourse.name}
-                />
-              </div>
-
-              {/* Course Info Grid */}
-              <div className="view-course-info-grid">
-                <div className="view-info-card">
-                  <div className="view-info-icon">📖</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Course Title</div>
-                    <div className="view-info-value">{viewingCourse.name}</div>
-                  </div>
+              {/* Course Header - Image Left, Details Right */}
+              <div className="view-course-header">
+                <div className="view-course-image">
+                  <img
+                    src={viewingCourse.image || viewingCourse.fullData?.image_url}
+                    alt={viewingCourse.name}
+                  />
                 </div>
 
-                <div className="view-info-card">
-                  <div className="view-info-icon">🏷️</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Category</div>
-                    <div className="view-info-value">
-                      {categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}
+                <div className="view-course-header-details">
+                  <h2 className="view-course-title">{viewingCourse.name}</h2>
+                  
+                  <div className="view-course-meta">
+                    <div className="view-meta-item">
+                      <span className="view-meta-icon">🏷️</span>
+                      <span>{categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}</span>
+                    </div>
+                    <div className="view-meta-item">
+                      <span className="view-meta-icon">👨‍🏫</span>
+                      <span>{viewingCourse.instructor}</span>
+                    </div>
+                    <div className="view-meta-item">
+                      <span className="view-meta-icon">⭐</span>
+                      <span>{viewingCourse.rating} / 5.0</span>
                     </div>
                   </div>
-                </div>
 
-                <div className="view-info-card">
-                  <div className="view-info-icon">💰</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Price</div>
-                    <div className="view-info-value">₹{viewingCourse.price}</div>
-                  </div>
-                </div>
+                  {viewingCourse.description && (
+                    <div className="view-course-description-text">
+                      {viewingCourse.description}
+                    </div>
+                  )}
 
-                <div className="view-info-card">
-                  <div className="view-info-icon">⏱️</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Duration</div>
-                    <div className="view-info-value">{viewingCourse.duration || 'N/A'}</div>
-                  </div>
-                </div>
-
-                <div className="view-info-card">
-                  <div className="view-info-icon">👨‍🏫</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Instructor</div>
-                    <div className="view-info-value">{viewingCourse.instructor}</div>
-                  </div>
-                </div>
-
-                <div className="view-info-card">
-                  <div className="view-info-icon">⭐</div>
-                  <div className="view-info-content">
-                    <div className="view-info-label">Rating</div>
-                    <div className="view-info-value">{viewingCourse.rating} / 5.0</div>
+                  <div className="view-course-stats">
+                    <span className="view-stat-badge">
+                      <span>💰</span>
+                      <span>₹{viewingCourse.price}</span>
+                    </span>
+                    <span className="view-stat-badge">
+                      <span>⏱️</span>
+                      <span>{viewingCourse.duration || 'N/A'}</span>
+                    </span>
                   </div>
                 </div>
               </div>
-
-              {/* Description Section */}
-              {viewingCourse.description && (
-                <div className="view-section">
-                  <h4 className="view-section-title">📝 Course Description</h4>
-                  <div className="view-description">
-                    {viewingCourse.description}
-                  </div>
-                </div>
-              )}
 
               {/* Topics & Subtopics Section */}
               {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
@@ -1217,9 +1406,9 @@ function CoursesTab() {
                     {viewingCourse.fullData.Topics.map((topic, idx) => (
                       <div key={topic.Topic_Id || idx} className="view-topic-card">
                         <div className="view-topic-header">
-                          <div className="view-topic-number">{topic.Order_Number}</div>
+                          <span className="view-topic-number">{topic.Order_Number}.</span>
                           <div className="view-topic-info">
-                            <div className="view-topic-title">{topic.Title}</div>
+                            <span className="view-topic-title">{topic.Title}</span>
                             {topic.Description && (
                               <div className="view-topic-description">{topic.Description}</div>
                             )}
@@ -1234,9 +1423,9 @@ function CoursesTab() {
                           <div className="view-subtopics">
                             {topic.SubTopics.map((sub, subIdx) => (
                               <div key={sub.SubTopic_Id || subIdx} className="view-subtopic-item">
-                                <div className="view-subtopic-number">{sub.Order_Number}</div>
+                                <span className="view-subtopic-number">{sub.Order_Number}</span>
                                 <div className="view-subtopic-content">
-                                  <div className="view-subtopic-title">{sub.Title}</div>
+                                  <span className="view-subtopic-title">{sub.Title}</span>
                                   {sub.Description && (
                                     <div className="view-subtopic-description">{sub.Description}</div>
                                   )}
@@ -1337,6 +1526,29 @@ function CoursesTab() {
                 disabled={savingCourse}
               />
             </div>
+            
+            {/* Auto Image Assignment Notice */}
+            <div style={{ 
+              marginTop: '16px', 
+              padding: '12px 16px', 
+              background: 'linear-gradient(135deg, rgba(230, 255, 245, 0.5) 0%, rgba(234, 244, 255, 0.5) 100%)', 
+              border: '1px solid rgba(46, 139, 255, 0.2)',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '1.5rem' }}>🖼️</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--sky-dark)', marginBottom: '4px' }}>
+                  Smart Image Assignment
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-medium)', lineHeight: '1.5' }}>
+                  Professional course image will be automatically assigned based on your selected category. No manual upload needed!
+                </div>
+              </div>
+            </div>
+            
             {/* Course Topics Section */}
             <div style={{ marginTop: '20px' }} className="topic-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>

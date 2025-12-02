@@ -29,6 +29,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  
+  // Dynamic video progress state
+  const [videoProgress, setVideoProgress] = useState({
+    totalVideos: 0,
+    completedVideos: 0,
+    completionPercentage: 0
+  });
 
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
@@ -49,6 +56,56 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         console.error('Error decoding token:', e);
       }
     }
+
+    // Fetch enrolled course data from backend
+    const fetchEnrolledCourseData = async () => {
+      if (!savedCourse || !userId) return;
+      
+      try {
+        const courseData = JSON.parse(savedCourse);
+        const response = await fetch(`http://localhost:5000/api/courses/${courseData.id || courseData.Course_Id}`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        
+        if (response.ok) {
+          const enrolledCourse = await response.json();
+          setCourseInfo(enrolledCourse);
+          
+          // Fetch video progress after getting course info
+          fetchVideoProgress(userId, courseData.id || courseData.Course_Id, authToken);
+        }
+      } catch (error) {
+        console.error('Error fetching enrolled course:', error);
+      }
+    };
+
+    // Fetch video progress for this student and course
+    const fetchVideoProgress = async (studentId, courseId, token) => {
+      try {
+        const response = await fetch(
+          `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseId}/summary`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setVideoProgress(result.data);
+            setProgress(result.data.completionPercentage);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching video progress:', error);
+      }
+    };
+
+    fetchEnrolledCourseData();
 
     if (savedCourse) {
       try {
@@ -310,20 +367,20 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Course content data - NPTEL style with multi-language support
   const courseContent = {
     info: {
-      title: selectedCourse?.name || "Introduction to Internet of Things",
-      description: "This course covers the fundamentals of IoT, including sensors, actuators, networking protocols, and real-world applications. Learn how to build smart connected devices and understand the IoT ecosystem.",
-      objectives: [
+      title: courseInfo?.Name || selectedCourse?.name || "Introduction to Internet of Things",
+      description: courseInfo?.Description || selectedCourse?.description || "This course covers the fundamentals of IoT, including sensors, actuators, networking protocols, and real-world applications. Learn how to build smart connected devices and understand the IoT ecosystem.",
+      objectives: courseInfo?.Objectives || [
         "Understand the basic architecture and components of IoT systems",
         "Learn about various sensors, actuators, and communication protocols",
         "Develop skills to design and implement IoT applications",
         "Explore real-world IoT use cases and industry applications"
       ],
-      instructor: selectedCourse?.instructor || "Prof. Sudip Misra",
-      institution: "IIT Kharagpur",
-      duration: "12 Weeks",
-      level: "Beginner to Intermediate"
+      instructor: courseInfo?.Instructor || selectedCourse?.instructor || "Prof. Sudip Misra",
+      institution: courseInfo?.Institution || "IIT Kharagpur",
+      duration: courseInfo?.Duration || "12 Weeks",
+      level: courseInfo?.Level || "Beginner to Intermediate"
     },
-    videos: [
+    videos: courseInfo?.Videos || [
       {
         id: 1,
         title: "Introduction to IoT - Part I",
@@ -468,12 +525,73 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const totalWeeks = 7;
   const assignmentProgressPercentage = Math.round((completedAssignmentsCount / totalWeeks) * 100);
 
-  const handleVideoComplete = (videoId) => {
+  const handleVideoComplete = async (videoId) => {
     if (!completedVideos.includes(videoId)) {
       const newCompleted = [...completedVideos, videoId];
       setCompletedVideos(newCompleted);
+      
+      // Update video progress in database
+      await updateVideoProgressInDB(videoId, true);
+      
       // Update progress after state update
       setTimeout(updateProgress, 100);
+    }
+  };
+
+  // Update video progress in database
+  const updateVideoProgressInDB = async (videoId, isCompleted = false) => {
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const courseData = JSON.parse(localStorage.getItem('selected_course'));
+      
+      if (!authToken || !studentId || !courseData) return;
+
+      const video = courseContent.videos.find(v => v.id === videoId);
+      if (!video) return;
+
+      const endpoint = isCompleted 
+        ? 'http://localhost:5000/api/video-progress/mark-complete'
+        : 'http://localhost:5000/api/video-progress/update';
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          studentId: studentId,
+          studentEmail: localStorage.getItem('user_email') || '',
+          courseId: courseData.id || courseData.Course_Id,
+          courseName: courseData.name || courseData.Name,
+          videoId: videoId.toString(),
+          videoTitle: video.title,
+          totalDuration: 1800, // 30 minutes default
+          watchDuration: isCompleted ? 1800 : 900
+        })
+      });
+
+      if (response.ok) {
+        // Refresh video progress summary
+        const summaryResponse = await fetch(
+          `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseData.id || courseData.Course_Id}/summary`,
+          {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          }
+        );
+
+        if (summaryResponse.ok) {
+          const result = await summaryResponse.json();
+          if (result.success) {
+            setVideoProgress(result.data);
+            setProgress(result.data.completionPercentage);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error updating video progress:', error);
     }
   };
 
@@ -857,7 +975,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           </div>
           <div className="progress-stats-grid">
             <div className="progress-stat-box">
-              <div className="stat-number">{totalVideos}</div>
+              <div className="stat-number">{videoProgress.totalVideos || totalVideos}</div>
               <div className="stat-label">VIDEOS</div>
             </div>
             <div className="progress-stat-box">
@@ -865,7 +983,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               <div className="stat-label">ASSIGNMENTS</div>
             </div>
             <div className="progress-stat-box">
-              <div className="stat-number">{completionPercentage}%</div>
+              <div className="stat-number">{videoProgress.completionPercentage || completionPercentage}%</div>
               <div className="stat-label">COMPLETE</div>
             </div>
           </div>
@@ -874,11 +992,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <div className="progress-bar-container">
               <div 
                 className="progress-bar-fill" 
-                style={{ width: `${(completedVideos.length / totalVideos) * 100}%` }}
+                style={{ width: `${videoProgress.completionPercentage || 0}%` }}
               ></div>
             </div>
             <p className="progress-text">
-              {completedVideos.length} of {totalVideos} videos completed
+              {videoProgress.completedVideos || completedVideos.length} of {videoProgress.totalVideos || totalVideos} videos completed
             </p>
           </div>
         </div>

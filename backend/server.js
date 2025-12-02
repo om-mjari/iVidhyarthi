@@ -120,6 +120,7 @@ const feedbackRoutes = require("./routes/feedbackRoutes");
 const earningsRoutes = require("./routes/earningsRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
 const quizRoutes = require("./routes/quizRoutes");
+const videoProgressRoutes = require("./routes/videoProgressRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -139,6 +140,7 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/earnings", earningsRoutes);
 app.use("/api/certifications", certificationRoutes);
 app.use("/api/quiz", quizRoutes);
+app.use("/api/video-progress", videoProgressRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");

@@ -601,6 +601,10 @@ function CoursesTab() {
     duration: '',
     description: ''
   });
+  // Course topics state: nested structure with subtopics
+  // topics: [{ id, Title, Description, Order_Number, Estimated_Hours, subtopics: [...] }]
+  const [topics, setTopics] = useState([]);
+  const [validationErrors, setValidationErrors] = useState([]);
   const [editingCourse, setEditingCourse] = useState(null);
 
   const lecturer = useMemo(() => {
@@ -645,6 +649,106 @@ function CoursesTab() {
     }
   }, [lecturer]);
 
+  // Topic/Subtopic handlers with auto-numbering
+  const addMainTopic = () => {
+    const orderNum = topics.length + 1;
+    const newTopic = {
+      id: Date.now(),
+      Title: '',
+      Description: '',
+      Order_Number: orderNum,
+      Estimated_Hours: '',
+      subtopics: []
+    };
+    setTopics([...topics, newTopic]);
+    setValidationErrors([]);
+  };
+
+  const addSubTopic = (topicId) => {
+    setTopics(prev => prev.map(topic => {
+      if (topic.id === topicId) {
+        const subOrderNum = topic.subtopics.length + 1;
+        const newSubTopic = {
+          id: Date.now(),
+          Title: '',
+          Description: '',
+          Order_Number: `${topic.Order_Number}.${subOrderNum}`,
+          Parent_Topic_Id: topicId
+        };
+        return { ...topic, subtopics: [...topic.subtopics, newSubTopic] };
+      }
+      return topic;
+    }));
+    setValidationErrors([]);
+  };
+
+  const updateMainTopicField = (id, field, value) => {
+    setTopics(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+  };
+
+  const updateSubTopicField = (topicId, subTopicId, field, value) => {
+    setTopics(prev => prev.map(topic => {
+      if (topic.id === topicId) {
+        return {
+          ...topic,
+          subtopics: topic.subtopics.map(sub =>
+            sub.id === subTopicId ? { ...sub, [field]: value } : sub
+          )
+        };
+      }
+      return topic;
+    }));
+  };
+
+  const removeMainTopic = (id) => {
+    const filtered = topics.filter(t => t.id !== id);
+    // Re-number remaining topics
+    const renumbered = filtered.map((topic, idx) => ({
+      ...topic,
+      Order_Number: idx + 1,
+      subtopics: topic.subtopics.map((sub, subIdx) => ({
+        ...sub,
+        Order_Number: `${idx + 1}.${subIdx + 1}`
+      }))
+    }));
+    setTopics(renumbered);
+    setValidationErrors([]);
+  };
+
+  const removeSubTopic = (topicId, subTopicId) => {
+    setTopics(prev => prev.map(topic => {
+      if (topic.id === topicId) {
+        const filteredSubs = topic.subtopics.filter(sub => sub.id !== subTopicId);
+        // Re-number remaining subtopics
+        const renumberedSubs = filteredSubs.map((sub, idx) => ({
+          ...sub,
+          Order_Number: `${topic.Order_Number}.${idx + 1}`
+        }));
+        return { ...topic, subtopics: renumberedSubs };
+      }
+      return topic;
+    }));
+    setValidationErrors([]);
+  };
+
+  // Validation function
+  const validateTopics = () => {
+    const errors = [];
+    
+    if (topics.length < 3) {
+      errors.push('You must add at least 3 Main Topics to create a course.');
+    }
+    
+    topics.forEach((topic, idx) => {
+      if (topic.subtopics.length === 0) {
+        errors.push(`Main Topic ${idx + 1} must have at least 1 Sub Topic.`);
+      }
+    });
+    
+    setValidationErrors(errors);
+    return errors.length === 0;
+  };
+
   const addCourse = async () => {
     // Validate form
     if (!form.categoryId || !form.name || !form.price) {
@@ -654,6 +758,12 @@ function CoursesTab() {
 
     if (!form.duration) {
       window.alert('Please specify course duration');
+      return;
+    }
+
+    // Validate topics/subtopics
+    if (!validateTopics()) {
+      window.alert('Please fix the following issues:\n\n' + validationErrors.join('\n'));
       return;
     }
 
@@ -681,6 +791,21 @@ function CoursesTab() {
         Duration: form.duration.trim(),
         Description: (form.description || '').trim()
       };
+
+      // Attach topics with subtopics if any
+      if (topics && topics.length > 0) {
+        courseData.Topics = topics.map(t => ({
+          Title: (t.Title || '').trim(),
+          Description: (t.Description || '').trim(),
+          Order_Number: Number(t.Order_Number),
+          Estimated_Hours: t.Estimated_Hours ? Number(t.Estimated_Hours) : null,
+          SubTopics: t.subtopics.map(sub => ({
+            Title: (sub.Title || '').trim(),
+            Description: (sub.Description || '').trim(),
+            Order_Number: sub.Order_Number
+          }))
+        }));
+      }
 
       // Validate data before sending
       console.log('Lecturer object:', lecturer);
@@ -766,6 +891,8 @@ function CoursesTab() {
         duration: '',
         description: ''
       });
+      // Reset topics
+      setTopics([]);
 
       // Show success message
       window.alert('✓ Course created successfully!');
@@ -792,6 +919,12 @@ function CoursesTab() {
       return;
     }
 
+    // Validate topics/subtopics
+    if (!validateTopics()) {
+      window.alert('Please fix the following issues:\n\n' + validationErrors.join('\n'));
+      return;
+    }
+
     setSavingCourse(true);
 
     try {
@@ -803,6 +936,20 @@ function CoursesTab() {
         Duration: form.duration.trim(),
         Description: (form.description || '').trim()
       };
+
+      if (topics && topics.length > 0) {
+        updatedData.Topics = topics.map(t => ({
+          Title: (t.Title || '').trim(),
+          Description: (t.Description || '').trim(),
+          Order_Number: Number(t.Order_Number),
+          Estimated_Hours: t.Estimated_Hours ? Number(t.Estimated_Hours) : null,
+          SubTopics: t.subtopics.map(sub => ({
+            Title: (sub.Title || '').trim(),
+            Description: (sub.Description || '').trim(),
+            Order_Number: sub.Order_Number
+          }))
+        }));
+      }
 
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${courseId}`, {
         method: 'PUT',
@@ -853,6 +1000,8 @@ function CoursesTab() {
         duration: '',
         description: ''
       });
+      // Reset topics
+      setTopics([]);
 
       window.alert('✓ Course updated successfully!');
     } catch (error) {
@@ -899,6 +1048,33 @@ function CoursesTab() {
       duration: course.duration || '',
       description: course.description || ''
     });
+    // Populate topics with subtopics if present in course data
+    try {
+      const existing = course.courseData && (course.courseData.Topics || course.courseData.topics || []);
+      if (existing && Array.isArray(existing) && existing.length > 0) {
+        const mapped = existing.map((t, idx) => ({
+          id: t.Topic_Id || t.id || Date.now() + idx,
+          Title: t.Title || t.title || t.Name || '',
+          Description: t.Description || t.description || '',
+          Order_Number: t.Order_Number != null ? Number(t.Order_Number) : idx + 1,
+          Estimated_Hours: t.Estimated_Hours != null ? String(t.Estimated_Hours) : '',
+          subtopics: (t.SubTopics || t.subtopics || []).map((sub, subIdx) => ({
+            id: sub.SubTopic_Id || sub.id || Date.now() + idx * 1000 + subIdx,
+            Title: sub.Title || sub.title || '',
+            Description: sub.Description || sub.description || '',
+            Order_Number: sub.Order_Number || `${t.Order_Number || idx + 1}.${subIdx + 1}`,
+            Parent_Topic_Id: t.Topic_Id || t.id
+          }))
+        }));
+        setTopics(mapped);
+      } else {
+        setTopics([]);
+      }
+    } catch (e) {
+      console.error('Error loading topics:', e);
+      setTopics([]);
+    }
+    setValidationErrors([]);
     // Scroll to top to show form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -912,6 +1088,8 @@ function CoursesTab() {
       duration: '',
       description: ''
     });
+    setTopics([]);
+    setValidationErrors([]);
   };
 
   const viewCourse = (course) => {
@@ -1049,6 +1227,85 @@ function CoursesTab() {
                 rows="3"
                 disabled={savingCourse}
               />
+            </div>
+            {/* Course Topics Section */}
+            <div style={{ marginTop: '20px' }} className="topic-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div>
+                  <label className="label" style={{ marginBottom: '4px' }}>Course Topics & Sub Topics</label>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-medium)', fontWeight: '500' }}>
+                    Required: At least 3 Main Topics, each with at least 1 Sub Topic
+                  </div>
+                </div>
+                <button type="button" className="button primary" onClick={addMainTopic} disabled={savingCourse} style={{ padding: '10px 16px', fontSize: '0.9rem' }}>+ Add Main Topic</button>
+              </div>
+
+              {/* Validation Errors */}
+              {validationErrors.length > 0 && (
+                <div className="validation-errors" style={{ marginBottom: '16px', padding: '12px', background: 'rgba(255, 107, 107, 0.1)', border: '1px solid rgba(255, 107, 107, 0.3)', borderRadius: '8px' }}>
+                  {validationErrors.map((err, idx) => (
+                    <div key={idx} style={{ color: '#d32f2f', fontSize: '0.9rem', fontWeight: '600', marginBottom: idx < validationErrors.length - 1 ? '6px' : '0' }}>
+                      ⚠ {err}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {topics.length === 0 && (
+                <div className="muted" style={{ padding: '20px', textAlign: 'center', background: 'rgba(46, 139, 255, 0.05)', borderRadius: '12px', border: '1px dashed rgba(46, 139, 255, 0.2)' }}>
+                  No topics added yet. Click "Add Main Topic" to get started.
+                </div>
+              )}
+
+              {/* Main Topics */}
+              {topics.map((topic, topicIdx) => (
+                <div key={topic.id} className="main-topic-block" style={{ marginBottom: '16px', padding: '16px', background: 'rgba(255, 255, 255, 0.9)', borderRadius: '12px', border: '1px solid rgba(46, 139, 255, 0.15)' }}>
+                  {/* Main Topic Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--sky-dark)', minWidth: '40px' }}>
+                      {topic.Order_Number}.
+                    </div>
+                    <div style={{ flex: 1, fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-dark)' }}>
+                      Main Topic {topicIdx + 1}
+                    </div>
+                    <button type="button" className="button ghost sm" onClick={() => removeMainTopic(topic.id)} disabled={savingCourse} style={{ color: '#d32f2f' }}>Remove</button>
+                  </div>
+
+                  {/* Main Topic Fields */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                    <input className="input topic-field" placeholder="Main Topic Title *" value={topic.Title} onChange={(e) => updateMainTopicField(topic.id, 'Title', e.target.value)} disabled={savingCourse} />
+                    <input className="input topic-field" placeholder="Description" value={topic.Description} onChange={(e) => updateMainTopicField(topic.id, 'Description', e.target.value)} disabled={savingCourse} />
+                    <input className="input topic-field" placeholder="Est. Hours" type="number" value={topic.Estimated_Hours} onChange={(e) => updateMainTopicField(topic.id, 'Estimated_Hours', e.target.value)} disabled={savingCourse} />
+                  </div>
+
+                  {/* Sub Topics Section */}
+                  <div className="subtopics-section" style={{ marginTop: '12px', paddingLeft: '20px', borderLeft: '3px solid var(--sky-medium)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-medium)' }}>
+                        Sub Topics ({topic.subtopics.length})
+                      </div>
+                      <button type="button" className="button secondary" onClick={() => addSubTopic(topic.id)} disabled={savingCourse} style={{ padding: '6px 12px', fontSize: '0.8rem' }}>+ Add Sub Topic</button>
+                    </div>
+
+                    {topic.subtopics.length === 0 && (
+                      <div className="muted" style={{ fontSize: '0.85rem', padding: '10px', background: 'rgba(255, 181, 71, 0.1)', borderRadius: '8px', border: '1px dashed rgba(255, 181, 71, 0.3)' }}>
+                        ⚠ Add at least 1 Sub Topic
+                      </div>
+                    )}
+
+                    {topic.subtopics.map((subTopic, subIdx) => (
+                      <div key={subTopic.id} className="subtopic-row" style={{ display: 'grid', gridTemplateColumns: '80px 2fr 3fr auto', gap: '8px', alignItems: 'center', marginBottom: '8px', padding: '10px', background: 'rgba(234, 244, 255, 0.5)', borderRadius: '8px' }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-medium)' }}>
+                          {subTopic.Order_Number}
+                        </div>
+                        <input className="input topic-field" placeholder="Sub Topic Title *" value={subTopic.Title} onChange={(e) => updateSubTopicField(topic.id, subTopic.id, 'Title', e.target.value)} disabled={savingCourse} style={{ padding: '8px 10px' }} />
+                        <input className="input topic-field" placeholder="Description" value={subTopic.Description} onChange={(e) => updateSubTopicField(topic.id, subTopic.id, 'Description', e.target.value)} disabled={savingCourse} style={{ padding: '8px 10px' }} />
+                        <button type="button" className="button ghost sm" onClick={() => removeSubTopic(topic.id, subTopic.id)} disabled={savingCourse} style={{ padding: '6px 10px' }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
               {editingCourse ? (

@@ -587,6 +587,16 @@ function ProfileSlideOver({ open, onClose }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Reset Password State
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1: Send OTP, 2: Verify OTP, 3: New Password
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
+
   // Fetch profile data from database when modal opens
   useEffect(() => {
     if (open) {
@@ -725,6 +735,126 @@ function ProfileSlideOver({ open, onClose }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Reset Password Functions
+  const handleSendOTP = async () => {
+    setResetError('');
+    setResetSuccess('');
+    setResetLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:5000/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.trim() })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setResetSuccess('OTP sent to your email!');
+        setTimeout(() => {
+          setResetStep(2);
+          setResetSuccess('');
+        }, 1500);
+      } else {
+        setResetError(result.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setResetError('Network error. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    setResetError('');
+    setResetSuccess('');
+
+    if (!otp || otp.length !== 6) {
+      return setResetError('Please enter a valid 6-digit OTP');
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email.trim(), otp: otp.trim() })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setResetSuccess('OTP verified! Set your new password.');
+        setTimeout(() => {
+          setResetStep(3);
+          setResetSuccess('');
+        }, 1500);
+      } else {
+        setResetError(result.message || 'Invalid OTP');
+      }
+    } catch (error) {
+      setResetError('Network error. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setResetError('');
+    setResetSuccess('');
+
+    if (newPassword.length < 6) {
+      return setResetError('Password must be at least 6 characters');
+    }
+
+    if (newPassword !== confirmPassword) {
+      return setResetError('Passwords do not match');
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: form.email.trim(), 
+          newPassword: newPassword 
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setResetSuccess('Password reset successfully!');
+        setTimeout(() => {
+          setShowResetPassword(false);
+          setResetStep(1);
+          setOtp('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setResetSuccess('');
+        }, 2000);
+      } else {
+        setResetError(result.message || 'Failed to reset password');
+      }
+    } catch (error) {
+      setResetError('Network error. Please try again.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const cancelResetPassword = () => {
+    setShowResetPassword(false);
+    setResetStep(1);
+    setOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setResetError('');
+    setResetSuccess('');
   };
 
   return (
@@ -885,6 +1015,219 @@ function ProfileSlideOver({ open, onClose }) {
                   disabled={saving}
                 />
               </label>
+            </div>
+            
+            {/* Reset Password Section */}
+            <div className="profile-section" style={{ borderTop: '2px solid #E6FFF5', paddingTop: '24px', marginTop: '24px' }}>
+              <h4 className="section-title" style={{ color: '#667eea' }}>🔐 Security Settings</h4>
+              
+              {!showResetPassword ? (
+                <div>
+                  <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '16px' }}>
+                    Update your password to keep your account secure
+                  </p>
+                  <button 
+                    type="button" 
+                    className="button secondary" 
+                    onClick={() => setShowResetPassword(true)}
+                    style={{ 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      border: 'none'
+                    }}
+                  >
+                    🔑 Reset Password
+                  </button>
+                </div>
+              ) : (
+                <div style={{ background: '#F9FAFB', padding: '20px', borderRadius: '12px', border: '2px solid #E6FFF5' }}>
+                  {/* Step 1: Send OTP */}
+                  {resetStep === 1 && (
+                    <div>
+                      <label className="lec-form-field">
+                        <span>Email Address</span>
+                        <input 
+                          className="input" 
+                          type="email" 
+                          value={form.email} 
+                          disabled
+                          style={{ background: 'white' }}
+                        />
+                      </label>
+                      
+                      {resetError && (
+                        <div className="alert-error" style={{ marginTop: '12px' }}>
+                          ⚠️ {resetError}
+                        </div>
+                      )}
+                      
+                      {resetSuccess && (
+                        <div className="alert-success" style={{ marginTop: '12px' }}>
+                          {resetSuccess}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        <button 
+                          type="button" 
+                          className="button ghost" 
+                          onClick={cancelResetPassword}
+                          disabled={resetLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          className="button primary" 
+                          onClick={handleSendOTP}
+                          disabled={resetLoading}
+                          style={{ flex: 1 }}
+                        >
+                          {resetLoading ? 'Sending...' : '📧 Send OTP'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Step 2: Verify OTP */}
+                  {resetStep === 2 && (
+                    <div>
+                      <label className="lec-form-field">
+                        <span>Enter OTP (sent to {form.email})</span>
+                        <input 
+                          className="input" 
+                          type="text" 
+                          placeholder="123456"
+                          value={otp}
+                          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          maxLength={6}
+                          style={{ 
+                            fontSize: '24px', 
+                            letterSpacing: '8px', 
+                            textAlign: 'center',
+                            background: 'white'
+                          }}
+                        />
+                      </label>
+                      
+                      <p style={{ fontSize: '13px', color: '#666', marginTop: '8px', textAlign: 'center' }}>
+                        Didn't receive the code? 
+                        <button 
+                          type="button" 
+                          onClick={() => { setResetStep(1); setOtp(''); }}
+                          style={{ 
+                            background: 'none', 
+                            border: 'none', 
+                            color: '#667eea', 
+                            cursor: 'pointer', 
+                            textDecoration: 'underline',
+                            marginLeft: '4px'
+                          }}
+                        >
+                          Resend OTP
+                        </button>
+                      </p>
+                      
+                      {resetError && (
+                        <div className="alert-error" style={{ marginTop: '12px' }}>
+                          ⚠️ {resetError}
+                        </div>
+                      )}
+                      
+                      {resetSuccess && (
+                        <div className="alert-success" style={{ marginTop: '12px' }}>
+                          {resetSuccess}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        <button 
+                          type="button" 
+                          className="button ghost" 
+                          onClick={cancelResetPassword}
+                          disabled={resetLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          className="button primary" 
+                          onClick={handleVerifyOTP}
+                          disabled={resetLoading}
+                          style={{ flex: 1 }}
+                        >
+                          {resetLoading ? 'Verifying...' : '✓ Verify OTP'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Step 3: Set New Password */}
+                  {resetStep === 3 && (
+                    <div>
+                      <label className="lec-form-field">
+                        <span>New Password</span>
+                        <input 
+                          className="input" 
+                          type="password" 
+                          placeholder="Enter new password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          style={{ background: 'white' }}
+                        />
+                      </label>
+                      
+                      <label className="lec-form-field">
+                        <span>Confirm New Password</span>
+                        <input 
+                          className="input" 
+                          type="password" 
+                          placeholder="Confirm new password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          style={{ background: 'white' }}
+                        />
+                      </label>
+                      
+                      <small style={{ fontSize: '13px', color: '#666', display: 'block', marginTop: '8px' }}>
+                        Password must be at least 6 characters long
+                      </small>
+                      
+                      {resetError && (
+                        <div className="alert-error" style={{ marginTop: '12px' }}>
+                          ⚠️ {resetError}
+                        </div>
+                      )}
+                      
+                      {resetSuccess && (
+                        <div className="alert-success" style={{ marginTop: '12px' }}>
+                          {resetSuccess}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        <button 
+                          type="button" 
+                          className="button ghost" 
+                          onClick={cancelResetPassword}
+                          disabled={resetLoading}
+                        >
+                          Cancel
+                        </button>
+                        <button 
+                          type="button" 
+                          className="button primary" 
+                          onClick={handleResetPassword}
+                          disabled={resetLoading}
+                          style={{ flex: 1 }}
+                        >
+                          {resetLoading ? 'Resetting...' : '🔒 Reset Password'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div className="lec-profile-actions">

@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import './LoginPremium.css';
 import Logo from './Logo';
+import ForgotPassword from './ForgotPassword';
 
 const Login = ({ onAuthenticated, onSwitchToSignup, onAdminLogin }) => {
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // If Forgot Password mode is active, show that component
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
 
   // MongoDB API connection
   const API_BASE_URL = 'http://localhost:5000/api';
@@ -365,7 +372,7 @@ const Login = ({ onAuthenticated, onSwitchToSignup, onAdminLogin }) => {
                 <input type="checkbox" />
                 <span className="checkbox-label">Remember</span>
               </label>
-              <button type="button" className="forgot-link">Forgot Password?</button>
+              <button type="button" className="forgot-link" onClick={() => setShowForgotPassword(true)}>Forgot Password?</button>
             </div>
 
             {/* Login Button */}

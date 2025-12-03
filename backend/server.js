@@ -385,6 +385,51 @@ app.post("/verify-otp", (req, res) => {
   res.json({ success: true, message: "OTP verified" });
 });
 
+/** Reset Password */
+app.post("/reset-password", async (req, res, next) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and new password are required"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters"
+      });
+    }
+
+    const User = require("./models/User");
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Update password using the virtual setter
+    user.password = newPassword;
+    await user.save();
+
+    console.log("✅ Password reset successful for:", email);
+
+    res.json({
+      success: true,
+      message: "Password reset successfully"
+    });
+  } catch (err) {
+    console.error("❌ Error resetting password:", err);
+    next(err);
+  }
+});
+
 /* ============================
    Test email (optional)
    ============================ */

@@ -149,6 +149,19 @@ const Auth = ({ onAuthenticated }) => {
             </button>
           </form>
 
+          {form.mode === 'login' && (
+            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, mode: 'forgot' }))}
+                className="link"
+                style={{ fontSize: '14px', color: '#667eea', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
+
           <div className="switch">
             {form.mode === 'login' ? (
               <span>New here? <button type="button" onClick={switchMode} className="link">Create an account</button></span>

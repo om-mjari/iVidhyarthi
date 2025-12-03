@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './LecturerDashboardPremium.css';
+import './UploadsModule.css';
 
 // ============================================
 // AUTOMATIC COURSE IMAGE ASSIGNMENT SYSTEM
@@ -213,132 +214,166 @@ function Stat({ label, value, trend, icon }) {
 }
 
 function ProfileSlideOver({ open, onClose }) {
-  const [form, setForm] = useState(() => {
-    try {
-      // First try to get existing profile data
-      const profile = JSON.parse(localStorage.getItem('lecturer_profile') || '{}');
-
-      // If no profile exists, try to initialize from lecturer_user data
-      if (!profile.name) {
-        const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
-        return {
-          name: lecturer.name || '',
-          email: lecturer.email || '',
-          birthdate: '',
-          gender: '',
-          subjects: lecturer.specialization || '',
-          qualifications: ''
-        };
-      }
-
-      return {
-        name: '',
-        email: '',
-        birthdate: '',
-        gender: '',
-        subjects: '',
-        qualifications: '',
-        ...profile // Spread existing profile data to ensure all fields are included
-      };
-    } catch (error) {
-      console.error('Error initializing profile:', error);
-      return {
-        name: '',
-        email: '',
-        birthdate: '',
-        gender: '',
-        subjects: '',
-        qualifications: ''
-      };
-    }
+  const API_BASE_URL = 'http://localhost:5000/api';
+  const [form, setForm] = useState({
+    Full_Name: '',
+    email: '',
+    Mobile_No: '',
+    DOB: '',
+    Gender: '',
+    Specialization: '',
+    Highest_Qualification: '',
+    Designation: '',
+    Experience_Years: '',
+    Institute_Name: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Update form when it opens to get the latest data
+  // Fetch profile data from database when modal opens
   useEffect(() => {
     if (open) {
-      try {
-        const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
-        const profile = JSON.parse(localStorage.getItem('lecturer_profile') || '{}');
+      fetchProfileData();
+    }
+  }, [open]);
 
-        // Format birthdate for input[type="date"]
-        let formattedBirthdate = '';
-        if (profile.birthdate) {
-          const date = new Date(profile.birthdate);
+  const fetchProfileData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+      const identifier = lecturer.email || lecturer.id;
+      
+      if (!identifier) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/lecturer-profile/${encodeURIComponent(identifier)}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        const data = result.data;
+        
+        // Format DOB for input[type="date"]
+        let formattedDOB = '';
+        if (data.DOB) {
+          const date = new Date(data.DOB);
           if (!isNaN(date.getTime())) {
-            formattedBirthdate = date.toISOString().split('T')[0];
+            formattedDOB = date.toISOString().split('T')[0];
           }
         }
 
         setForm({
-          // Start with current form values as fallback
-          ...form,
-          // Update with lecturer data
-          name: lecturer.name || form.name,
-          email: lecturer.email || form.email,
-          subjects: lecturer.specialization || form.subjects || '',
-          // Update with profile data, preserving existing values if not in profile
-          birthdate: formattedBirthdate,
-          gender: profile.gender || '',
-          qualifications: profile.qualifications || '',
-          // Keep other existing form fields
-          ...profile
+          Full_Name: data.Full_Name || '',
+          email: data.email || '',
+          Mobile_No: data.Mobile_No || '',
+          DOB: formattedDOB,
+          Gender: data.Gender || '',
+          Specialization: data.Specialization || '',
+          Highest_Qualification: data.Highest_Qualification || '',
+          Designation: data.Designation || '',
+          Experience_Years: data.Experience_Years || '',
+          Institute_Name: data.Institute_Name || ''
         });
-      } catch (error) {
-        console.error('Error updating profile data:', error);
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('lecturer_profile', JSON.stringify(data));
+      } else {
+        throw new Error(result.message || 'Failed to fetch profile');
       }
+    } catch (err) {
+      console.error('Error fetching profile:', err);
+      setError(err.message || 'Failed to load profile data');
+      
+      // Fallback to localStorage
+      try {
+        const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+        setForm(prev => ({
+          ...prev,
+          Full_Name: lecturer.name || '',
+          email: lecturer.email || '',
+          Specialization: lecturer.specialization || ''
+        }));
+      } catch (e) {
+        console.error('Error loading from localStorage:', e);
+      }
+    } finally {
+      setLoading(false);
     }
-  }, [open]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    // For radio buttons, use the value, for checkboxes use checked, otherwise use value
-    const newValue = type === 'radio' ? value :
-      type === 'checkbox' ? checked :
-        value;
-    setForm(prev => ({ ...prev, [name]: newValue }));
   };
 
-  const save = (e) => {
-    e?.preventDefault(); // Prevent form submission if called from form
-    try {
-      // Get current lecturer data
-      const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+    setError('');
+    setSuccess('');
+  };
 
-      // Update lecturer data with new values
+  const save = async (e) => {
+    e?.preventDefault();
+    setSaving(true);
+    setError('');
+    setSuccess('');
+    
+    try {
+      const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+      const identifier = lecturer.email || lecturer.id;
+      
+      if (!identifier) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      // Prepare update data
+      const updateData = {
+        Full_Name: form.Full_Name.trim(),
+        email: form.email.trim(),
+        Mobile_No: form.Mobile_No.trim(),
+        DOB: form.DOB || null,
+        Gender: form.Gender,
+        Specialization: form.Specialization.trim(),
+        Highest_Qualification: form.Highest_Qualification.trim(),
+        Designation: form.Designation.trim(),
+        Experience_Years: form.Experience_Years ? Number(form.Experience_Years) : null
+      };
+
+      const response = await fetch(`${API_BASE_URL}/lecturer-profile/${encodeURIComponent(identifier)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to update profile');
+      }
+
+      // Update localStorage with new data
       const updatedLecturer = {
         ...lecturer,
-        name: form.name || lecturer.name,
-        email: form.email || lecturer.email,
-        specialization: form.subjects || lecturer.specialization
-      };
-
-      // Save updated lecturer data
-      localStorage.setItem('lecturer_user', JSON.stringify(updatedLecturer));
-
-      // Prepare profile data to save
-      const profileToSave = {
-        name: form.name,
+        name: form.Full_Name,
         email: form.email,
-        birthdate: form.birthdate,  // This will be in YYYY-MM-DD format from the date input
-        gender: form.gender,
-        subjects: form.subjects,
-        qualifications: form.qualifications,
-        lastUpdated: new Date().toISOString()
+        specialization: form.Specialization
       };
+      localStorage.setItem('lecturer_user', JSON.stringify(updatedLecturer));
+      localStorage.setItem('lecturer_profile', JSON.stringify(result.data));
 
-      // Save profile data
-      localStorage.setItem('lecturer_profile', JSON.stringify(profileToSave));
-
-      // Update the UI by forcing a re-render
-      setForm(prev => ({ ...prev, ...profileToSave }));
-
-      // Close the modal if onClose is provided
-      if (onClose) onClose();
-
-      // Show success message (you can add a toast or alert here if needed)
-      console.log('Profile updated successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
+      setSuccess('✓ Profile updated successfully!');
+      
+      setTimeout(() => {
+        if (onClose) onClose();
+        // Reload page to reflect changes
+        window.location.reload();
+      }, 1500);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError(err.message || 'Failed to save profile');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -347,97 +382,738 @@ function ProfileSlideOver({ open, onClose }) {
       <div className={`lec-profile-overlay ${open ? 'open' : ''}`} onClick={onClose} />
       <aside className={`lec-profile-panel ${open ? 'open' : ''}`} aria-hidden={!open}>
         <div className="lec-profile-header">
-          <h3>Profile</h3>
-          <button className="btn-secondary" onClick={onClose} aria-label="Close profile">×</button>
+          <h3>👤 My Profile</h3>
+          <button className="btn-close" onClick={onClose} aria-label="Close profile">×</button>
         </div>
-        <form className="lec-profile-form" onSubmit={(e) => e.preventDefault()}>
-          <label className="lec-form-field">
-            <span>Name</span>
-            <input className="input" type="text" name="name" value={form.name} onChange={handleChange} placeholder="Your name" />
-          </label>
-          <label className="lec-form-field">
-            <span>Birthdate</span>
-            <input className="input" type="date" name="birthdate" value={form.birthdate} onChange={handleChange} />
-          </label>
-          <label className="lec-form-field">
-            <span>Subjects</span>
-            <textarea className="input" name="subjects" value={form.subjects} onChange={handleChange} rows="3" placeholder="e.g., DSA, React, Python" />
-          </label>
-          <label className="lec-form-field">
-            <span>Qualifications</span>
-            <textarea className="input" name="qualifications" value={form.qualifications} onChange={handleChange} rows="3" placeholder="e.g., M.Tech, PhD" />
-          </label>
-          <div className="lec-form-field">
-            <span>Gender</span>
-            <div className="radio-group">
-              <label><input type="radio" name="gender" value="Male" checked={form.gender === 'Male'} onChange={handleChange} /> Male</label>
-              <label><input type="radio" name="gender" value="Female" checked={form.gender === 'Female'} onChange={handleChange} /> Female</label>
-              <label><input type="radio" name="gender" value="Other" checked={form.gender === 'Other'} onChange={handleChange} /> Other</label>
+        
+        {loading ? (
+          <div className="lec-profile-loading">
+            <div className="loading-spinner"></div>
+            <p>Loading profile data...</p>
+          </div>
+        ) : (
+          <form className="lec-profile-form" onSubmit={save}>
+            {error && (
+              <div className="alert-error">
+                ⚠️ {error}
+              </div>
+            )}
+            
+            {success && (
+              <div className="alert-success">
+                {success}
+              </div>
+            )}
+
+            <div className="profile-section">
+              <h4 className="section-title">Personal Information</h4>
+              
+              <label className="lec-form-field">
+                <span>Full Name *</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  name="Full_Name" 
+                  value={form.Full_Name} 
+                  onChange={handleChange} 
+                  placeholder="Enter your full name"
+                  required
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Email *</span>
+                <input 
+                  className="input" 
+                  type="email" 
+                  name="email" 
+                  value={form.email} 
+                  onChange={handleChange} 
+                  placeholder="your.email@example.com"
+                  required
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Mobile Number</span>
+                <input 
+                  className="input" 
+                  type="tel" 
+                  name="Mobile_No" 
+                  value={form.Mobile_No} 
+                  onChange={handleChange} 
+                  placeholder="+91 98765 43210"
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Date of Birth</span>
+                <input 
+                  className="input" 
+                  type="date" 
+                  name="DOB" 
+                  value={form.DOB} 
+                  onChange={handleChange}
+                  disabled={saving}
+                />
+              </label>
+              
+              <div className="lec-form-field">
+                <span>Gender</span>
+                <div className="radio-group">
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="Gender" 
+                      value="male" 
+                      checked={form.Gender === 'male'} 
+                      onChange={handleChange}
+                      disabled={saving}
+                    /> 
+                    Male
+                  </label>
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="Gender" 
+                      value="female" 
+                      checked={form.Gender === 'female'} 
+                      onChange={handleChange}
+                      disabled={saving}
+                    /> 
+                    Female
+                  </label>
+                  <label>
+                    <input 
+                      type="radio" 
+                      name="Gender" 
+                      value="other" 
+                      checked={form.Gender === 'other'} 
+                      onChange={handleChange}
+                      disabled={saving}
+                    /> 
+                    Other
+                  </label>
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="lec-profile-actions">
-            <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
-            <button type="button" className="btn-primary" onClick={save}>Update</button>
-          </div>
-        </form>
+
+            <div className="profile-section">
+              <h4 className="section-title">Professional Information</h4>
+              
+              <label className="lec-form-field">
+                <span>Institute</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  value={form.Institute_Name} 
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
+                />
+                <small style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '4px' }}>Institute cannot be changed</small>
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Specialization</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  name="Specialization" 
+                  value={form.Specialization} 
+                  onChange={handleChange} 
+                  placeholder="e.g., Computer Science, Data Science, Web Development"
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Highest Qualification</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  name="Highest_Qualification" 
+                  value={form.Highest_Qualification} 
+                  onChange={handleChange} 
+                  placeholder="e.g., M.Tech, PhD, M.Sc"
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Designation</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  name="Designation" 
+                  value={form.Designation} 
+                  onChange={handleChange} 
+                  placeholder="e.g., Assistant Professor, Senior Lecturer"
+                  disabled={saving}
+                />
+              </label>
+              
+              <label className="lec-form-field">
+                <span>Years of Experience</span>
+                <input 
+                  className="input" 
+                  type="number" 
+                  name="Experience_Years" 
+                  value={form.Experience_Years} 
+                  onChange={handleChange} 
+                  placeholder="Enter years"
+                  min="0"
+                  disabled={saving}
+                />
+              </label>
+            </div>
+            
+            <div className="lec-profile-actions">
+              <button type="button" className="button ghost" onClick={onClose} disabled={saving}>Cancel</button>
+              <button type="submit" className="button primary" disabled={saving || loading}>
+                {saving ? 'Saving...' : '💾 Save Changes'}
+              </button>
+            </div>
+          </form>
+        )}
       </aside>
     </>
   );
 }
 
 function UploadsTab() {
-  const [materials, setMaterials] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('lecturer_materials')) || []; } catch { return []; }
-  });
-  const [fileMeta, setFileMeta] = useState({ title: '', type: 'PDF', url: '' });
+  const API_BASE_URL = 'http://localhost:5000/api';
+  const [activeUploadTab, setActiveUploadTab] = useState('materials');
+  const [courses, setCourses] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [loadingTopics, setLoadingTopics] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState('');
+  const [uploadError, setUploadError] = useState('');
 
-  const addMaterial = () => {
-    if (!fileMeta.title || !fileMeta.url) return;
-    const next = [...materials, { ...fileMeta, id: Date.now() }];
-    setMaterials(next);
-    localStorage.setItem('lecturer_materials', JSON.stringify(next));
-    setFileMeta({ title: '', type: 'PDF', url: '' });
+  // Material upload state
+  const [materialForm, setMaterialForm] = useState({
+    title: '',
+    contentType: 'pdf',
+    file: null
+  });
+
+  // Assignment upload state
+  const [assignmentForm, setAssignmentForm] = useState({
+    title: '',
+    description: '',
+    dueDate: '',
+    assignmentType: 'pdf',
+    marks: 100,
+    file: null
+  });
+
+  const lecturer = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
+  }, []);
+
+  // Fetch courses on mount
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      const response = await fetch(`${API_BASE_URL}/tbl-courses?lecturerId=${lecturerId}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        setCourses(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
+  // Fetch topics when course is selected
+  const handleCourseChange = async (courseId) => {
+    setSelectedCourse(courseId);
+    setSelectedTopic('');
+    setTopics([]);
+    
+    if (!courseId) return;
+
+    setLoadingTopics(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/tbl-courses/${courseId}`);
+      const result = await response.json();
+      
+      if (result.success && result.data && result.data.Topics) {
+        setTopics(result.data.Topics);
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+      setUploadError('Failed to load topics');
+    } finally {
+      setLoadingTopics(false);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e, type) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (type === 'materials') {
+      const contentType = materialForm.contentType;
+      if (contentType === 'pdf' && !file.type.includes('pdf')) {
+        setUploadError('Please select a PDF file');
+        return;
+      }
+      if (contentType === 'video' && !file.type.includes('video')) {
+        setUploadError('Please select a video file');
+        return;
+      }
+      setMaterialForm(prev => ({ ...prev, file }));
+    } else {
+      setAssignmentForm(prev => ({ ...prev, file }));
+    }
+    setUploadError('');
+  };
+
+  // Upload material
+  const uploadMaterial = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedCourse || !selectedTopic || !materialForm.title || !materialForm.file) {
+      setUploadError('Please fill all required fields and select a file');
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadError('');
+    setUploadSuccess('');
+
+    try {
+      // Upload file first
+      const formData = new FormData();
+      formData.append('file', materialForm.file);
+
+      const uploadResponse = await fetch(`${API_BASE_URL}/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const uploadResult = await uploadResponse.json();
+
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.message || 'File upload failed');
+      }
+
+      // Save content metadata
+      const contentData = {
+        Course_Id: selectedCourse,
+        Topic_Id: selectedTopic,
+        Title: materialForm.title,
+        Content_Type: materialForm.contentType,
+        File_Url: `${API_BASE_URL}/files/${uploadResult.fileId}`
+      };
+
+      const saveResponse = await fetch(`${API_BASE_URL}/course-content`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contentData)
+      });
+
+      const saveResult = await saveResponse.json();
+
+      if (!saveResult.success) {
+        throw new Error(saveResult.message || 'Failed to save content');
+      }
+
+      setUploadSuccess('✓ Material uploaded successfully!');
+      setMaterialForm({ title: '', contentType: 'pdf', file: null });
+      document.getElementById('material-file-input').value = '';
+
+      setTimeout(() => setUploadSuccess(''), 3000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(error.message || 'Upload failed');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Upload assignment
+  const uploadAssignment = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedCourse || !selectedTopic || !assignmentForm.title || !assignmentForm.description || !assignmentForm.dueDate) {
+      setUploadError('Please fill all required fields');
+      return;
+    }
+
+    setUploadingFile(true);
+    setUploadError('');
+    setUploadSuccess('');
+
+    try {
+      let fileUrl = null;
+
+      // Upload file if provided
+      if (assignmentForm.file) {
+        const formData = new FormData();
+        formData.append('file', assignmentForm.file);
+
+        const uploadResponse = await fetch(`${API_BASE_URL}/upload`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const uploadResult = await uploadResponse.json();
+
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.message || 'File upload failed');
+        }
+
+        fileUrl = `${API_BASE_URL}/files/${uploadResult.fileId}`;
+      }
+
+      // Save assignment
+      const assignmentData = {
+        Course_Id: selectedCourse,
+        Topic_Id: selectedTopic,
+        Title: assignmentForm.title,
+        Description: assignmentForm.description,
+        Due_Date: new Date(assignmentForm.dueDate).toISOString(),
+        Assignment_Type: assignmentForm.assignmentType === 'pdf' ? 'Individual' : assignmentForm.assignmentType === 'task' ? 'Project' : 'Other',
+        Marks: Number(assignmentForm.marks),
+        Submission_Data: fileUrl ? { file_url: fileUrl } : null
+      };
+
+      const saveResponse = await fetch(`${API_BASE_URL}/assignments/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(assignmentData)
+      });
+
+      const saveResult = await saveResponse.json();
+
+      if (!saveResult.success) {
+        throw new Error(saveResult.message || 'Failed to save assignment');
+      }
+
+      setUploadSuccess('✓ Assignment created successfully!');
+      setAssignmentForm({
+        title: '',
+        description: '',
+        dueDate: '',
+        assignmentType: 'pdf',
+        marks: 100,
+        file: null
+      });
+      if (document.getElementById('assignment-file-input')) {
+        document.getElementById('assignment-file-input').value = '';
+      }
+
+      setTimeout(() => setUploadSuccess(''), 3000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(error.message || 'Upload failed');
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   return (
-    <div className="panel">
-      <h3>Course Materials</h3>
-      <div className="grid-3">
-        <div>
-          <label className="label">Title</label>
-          <input className="input" value={fileMeta.title} onChange={(e) => setFileMeta({ ...fileMeta, title: e.target.value })} />
-        </div>
-        <div>
-          <label className="label">Type</label>
-          <select className="input" value={fileMeta.type} onChange={(e) => setFileMeta({ ...fileMeta, type: e.target.value })}>
-            <option>PDF</option>
-            <option>Video</option>
-            <option>Notes</option>
-          </select>
-        </div>
-        <div>
-          <label className="label">Link / URL</label>
-          <input className="input" placeholder="https://..." value={fileMeta.url} onChange={(e) => setFileMeta({ ...fileMeta, url: e.target.value })} />
-        </div>
+    <div className="uploads-container">
+      {/* Upload Type Tabs */}
+      <div className="upload-tabs">
+        <button 
+          className={`upload-tab ${activeUploadTab === 'materials' ? 'active' : ''}`}
+          onClick={() => setActiveUploadTab('materials')}
+        >
+          <span className="tab-icon">📚</span>
+          <span>Course Materials</span>
+        </button>
+        <button 
+          className={`upload-tab ${activeUploadTab === 'assignments' ? 'active' : ''}`}
+          onClick={() => setActiveUploadTab('assignments')}
+        >
+          <span className="tab-icon">📝</span>
+          <span>Assignments</span>
+        </button>
       </div>
-      <button className="button primary" onClick={addMaterial}>Add Material</button>
 
-      <div className="items-list">
-        {materials.length === 0 && <div className="muted">No materials uploaded yet.</div>}
-        {materials.map((m) => (
-          <div className="item" key={m.id}>
-            <div>
-              <div className="item-title">{m.title}</div>
-              <div className="item-sub">{m.type} • <a href={m.url} target="_blank">Open</a></div>
-            </div>
-            <button className="button ghost sm" onClick={() => {
-              const next = materials.filter(x => x.id !== m.id);
-              setMaterials(next);
-              localStorage.setItem('lecturer_materials', JSON.stringify(next));
-            }}>Remove</button>
+      {/* Course & Topic Selection */}
+      <div className="upload-selection-card">
+        <div className="selection-grid">
+          <div className="selection-field">
+            <label className="selection-label">
+              <span className="label-icon">📖</span>
+              Select Course *
+            </label>
+            <select 
+              className="selection-input"
+              value={selectedCourse}
+              onChange={(e) => handleCourseChange(e.target.value)}
+              disabled={uploadingFile}
+            >
+              <option value="">Choose a course...</option>
+              {courses.map(course => (
+                <option key={course.Course_Id} value={course.Course_Id}>
+                  {course.Title}
+                </option>
+              ))}
+            </select>
           </div>
-        ))}
+
+          <div className="selection-field">
+            <label className="selection-label">
+              <span className="label-icon">🎯</span>
+              Select Topic *
+            </label>
+            <select 
+              className="selection-input"
+              value={selectedTopic}
+              onChange={(e) => setSelectedTopic(e.target.value)}
+              disabled={!selectedCourse || loadingTopics || uploadingFile}
+            >
+              <option value="">
+                {loadingTopics ? 'Loading topics...' : 'Choose a topic...'}
+              </option>
+              {topics.map(topic => (
+                <option key={topic.Topic_Id} value={topic.Topic_Id}>
+                  {topic.Order_Number}. {topic.Title}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {!selectedCourse && (
+          <div className="selection-hint">
+            <span>💡</span>
+            <span>Select a course to view its topics</span>
+          </div>
+        )}
       </div>
+
+      {/* Alert Messages */}
+      {uploadSuccess && (
+        <div className="upload-alert upload-success">
+          {uploadSuccess}
+        </div>
+      )}
+      
+      {uploadError && (
+        <div className="upload-alert upload-error">
+          ⚠️ {uploadError}
+        </div>
+      )}
+
+      {/* Upload Forms */}
+      {selectedCourse && selectedTopic && (
+        <>
+          {activeUploadTab === 'materials' && (
+            <form className="upload-form-card" onSubmit={uploadMaterial}>
+              <div className="form-header">
+                <h3>📚 Upload Course Material</h3>
+                <p>Add PDF, Notes, or Video content for your students</p>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field full-width">
+                  <label className="form-label">Material Title *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Introduction to React Hooks"
+                    value={materialForm.title}
+                    onChange={(e) => setMaterialForm(prev => ({ ...prev, title: e.target.value }))}
+                    disabled={uploadingFile}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Content Type *</label>
+                  <select
+                    className="form-input"
+                    value={materialForm.contentType}
+                    onChange={(e) => setMaterialForm(prev => ({ ...prev, contentType: e.target.value, file: null }))}
+                    disabled={uploadingFile}
+                  >
+                    <option value="pdf">📄 PDF Document</option>
+                    <option value="notes">📝 Notes/Text</option>
+                    <option value="video">🎥 Video</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Upload File *</label>
+                  <div className="file-upload-wrapper">
+                    <input
+                      type="file"
+                      id="material-file-input"
+                      className="file-input"
+                      onChange={(e) => handleFileSelect(e, 'materials')}
+                      accept={
+                        materialForm.contentType === 'pdf' ? '.pdf' :
+                        materialForm.contentType === 'video' ? 'video/*' :
+                        '.txt,.doc,.docx'
+                      }
+                      disabled={uploadingFile}
+                      required
+                    />
+                    <label htmlFor="material-file-input" className="file-label">
+                      <span className="file-icon">📎</span>
+                      <span className="file-text">
+                        {materialForm.file ? materialForm.file.name : 'Choose file...'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="button primary large"
+                  disabled={uploadingFile}
+                >
+                  {uploadingFile ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀</span>
+                      <span>Upload Material</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {activeUploadTab === 'assignments' && (
+            <form className="upload-form-card" onSubmit={uploadAssignment}>
+              <div className="form-header">
+                <h3>📝 Create Assignment</h3>
+                <p>Set up a new assignment for your students</p>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-field full-width">
+                  <label className="form-label">Assignment Title *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g., Week 5 - React Project"
+                    value={assignmentForm.title}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, title: e.target.value }))}
+                    disabled={uploadingFile}
+                    required
+                  />
+                </div>
+
+                <div className="form-field full-width">
+                  <label className="form-label">Description *</label>
+                  <textarea
+                    className="form-input form-textarea"
+                    placeholder="Describe the assignment objectives and requirements..."
+                    rows="4"
+                    value={assignmentForm.description}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, description: e.target.value }))}
+                    disabled={uploadingFile}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Due Date *</label>
+                  <input
+                    type="datetime-local"
+                    className="form-input"
+                    value={assignmentForm.dueDate}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                    disabled={uploadingFile}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Total Marks *</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    placeholder="100"
+                    min="1"
+                    value={assignmentForm.marks}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, marks: e.target.value }))}
+                    disabled={uploadingFile}
+                    required
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Assignment Type</label>
+                  <select
+                    className="form-input"
+                    value={assignmentForm.assignmentType}
+                    onChange={(e) => setAssignmentForm(prev => ({ ...prev, assignmentType: e.target.value }))}
+                    disabled={uploadingFile}
+                  >
+                    <option value="pdf">📄 PDF Document</option>
+                    <option value="task">✅ Task</option>
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label className="form-label">Attachment (Optional)</label>
+                  <div className="file-upload-wrapper">
+                    <input
+                      type="file"
+                      id="assignment-file-input"
+                      className="file-input"
+                      onChange={(e) => handleFileSelect(e, 'assignments')}
+                      disabled={uploadingFile}
+                    />
+                    <label htmlFor="assignment-file-input" className="file-label">
+                      <span className="file-icon">📎</span>
+                      <span className="file-text">
+                        {assignmentForm.file ? assignmentForm.file.name : 'Choose file...'}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="button primary large"
+                  disabled={uploadingFile}
+                >
+                  {uploadingFile ? (
+                    <>
+                      <span className="spinner"></span>
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>✨</span>
+                      <span>Create Assignment</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
     </div>
   );
 }

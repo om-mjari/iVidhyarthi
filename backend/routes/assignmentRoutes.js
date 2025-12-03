@@ -23,18 +23,40 @@ router.get("/course/:courseId", async (req, res) => {
   }
 });
 
-// Create assignment
-router.post("/create", async (req, res) => {
+// Create assignment (root route)
+router.post("/", async (req, res) => {
   try {
     const assignment = new Assignment(req.body);
     await assignment.save();
 
-    res.json({
+    res.status(201).json({
       success: true,
       message: "Assignment created successfully",
       data: assignment,
     });
   } catch (error) {
+    console.error("Error creating assignment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error creating assignment",
+      error: error.message,
+    });
+  }
+});
+
+// Create assignment (legacy /create route)
+router.post("/create", async (req, res) => {
+  try {
+    const assignment = new Assignment(req.body);
+    await assignment.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Assignment created successfully",
+      data: assignment,
+    });
+  } catch (error) {
+    console.error("Error creating assignment:", error);
     res.status(500).json({
       success: false,
       message: "Error creating assignment",

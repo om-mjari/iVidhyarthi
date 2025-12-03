@@ -757,7 +757,7 @@
 }
 
 /* ============================================
-   PROFILE SLIDE-OVER
+   PROFILE SLIDE-OVER - ENHANCED
 ============================================ */
 .lec-profile-overlay {
   position: fixed;
@@ -765,9 +765,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
@@ -784,15 +784,17 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(500px, 90vw);
+  width: min(560px, 90vw);
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.1);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.15);
   transform: translateX(100%);
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2001;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .lec-profile-panel.open {
@@ -804,25 +806,77 @@
   justify-content: space-between;
   align-items: center;
   padding: 2rem 2.5rem;
-  border-bottom: 1px solid rgba(46, 139, 255, 0.1);
-  background: linear-gradient(135deg, rgba(230, 255, 245, 0.3) 0%, rgba(234, 244, 255, 0.3) 100%);
+  border-bottom: 2px solid rgba(46, 139, 255, 0.15);
+  background: linear-gradient(135deg, rgba(230, 255, 245, 0.4) 0%, rgba(234, 244, 255, 0.4) 100%);
+  flex-shrink: 0;
 }
 
 .lec-profile-header h3 {
   margin: 0;
   font-size: 1.75rem;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--mint-dark) 0%, var(--sky-dark) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lec-profile-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  gap: 1.5rem;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(46, 139, 255, 0.2);
+  border-top-color: var(--sky-dark);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.lec-profile-loading p {
+  font-size: 1rem;
+  color: var(--text-medium);
+  font-weight: 600;
 }
 
 .lec-profile-form {
-  padding: 2.5rem;
+  padding: 2rem 2.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
+  flex: 1;
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: rgba(234, 244, 255, 0.25);
+  border-radius: 12px;
+  border: 1px solid rgba(46, 139, 255, 0.1);
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid rgba(46, 139, 255, 0.15);
 }
 
 .lec-form-field {
@@ -835,12 +889,46 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-dark);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.lec-form-field input.input,
+.lec-form-field textarea.input {
+  padding: 0.875rem 1rem;
+  border: 1.5px solid rgba(46, 139, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.lec-form-field input.input:focus,
+.lec-form-field textarea.input:focus {
+  border-color: var(--sky-dark);
+  box-shadow: 0 0 0 3px rgba(46, 139, 255, 0.1);
+  outline: none;
+}
+
+.lec-form-field input.input:disabled {
+  background: rgba(200, 200, 200, 0.1);
+  cursor: not-allowed;
+  color: var(--text-light);
+}
+
+.lec-form-field small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 0.25rem;
 }
 
 .radio-group {
   display: flex;
   gap: 1.5rem;
   padding: 0.5rem 0;
+  flex-wrap: wrap;
 }
 
 .radio-group label {
@@ -850,20 +938,120 @@
   font-weight: 600;
   color: var(--text-medium);
   cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.radio-group label:hover {
+  background: rgba(46, 139, 255, 0.08);
 }
 
 .radio-group input[type="radio"] {
   accent-color: var(--sky-dark);
   width: 18px;
   height: 18px;
+  cursor: pointer;
+}
+
+.alert-error {
+  padding: 1rem 1.25rem;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1.5px solid rgba(255, 107, 107, 0.3);
+  border-radius: 8px;
+  color: #d32f2f;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alert-success {
+  padding: 1rem 1.25rem;
+  background: rgba(0, 216, 150, 0.1);
+  border: 1.5px solid rgba(0, 216, 150, 0.3);
+  border-radius: 8px;
+  color: #00a878;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .lec-profile-actions {
   display: flex;
   gap: 1rem;
   margin-top: 1rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(46, 139, 255, 0.1);
+  padding: 1.5rem 0 0 0;
+  border-top: 2px solid rgba(46, 139, 255, 0.1);
+}
+
+.lec-profile-actions button {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.lec-profile-actions button.ghost {
+  background: rgba(108, 117, 125, 0.1);
+  color: var(--text-medium);
+  border: 1.5px solid rgba(108, 117, 125, 0.2);
+}
+
+.lec-profile-actions button.ghost:hover:not(:disabled) {
+  background: rgba(108, 117, 125, 0.2);
+  border-color: rgba(108, 117, 125, 0.3);
+}
+
+.lec-profile-actions button.primary {
+  background: linear-gradient(135deg, var(--mint-dark) 0%, var(--sky-dark) 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(46, 139, 255, 0.3);
+}
+
+.lec-profile-actions button.primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(46, 139, 255, 0.4);
+}
+
+.lec-profile-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .lec-profile-panel {
+    width: 100vw;
+  }
+  
+  .lec-profile-header {
+    padding: 1.5rem;
+  }
+  
+  .lec-profile-header h3 {
+    font-size: 1.4rem;
+  }
+  
+  .lec-profile-form {
+    padding: 1.5rem;
+  }
+  
+  .profile-section {
+    padding: 1rem;
+  }
+  
+  .radio-group {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 }
 
 /* ============================================

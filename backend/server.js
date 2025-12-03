@@ -121,6 +121,8 @@ const earningsRoutes = require("./routes/earningsRoutes");
 const certificationRoutes = require("./routes/certificationRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const videoProgressRoutes = require("./routes/videoProgressRoutes");
+const courseContentRoutes = require("./routes/courseContentRoutes");
+const lecturerProfileRoutes = require("./routes/lecturerProfile");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -141,6 +143,8 @@ app.use("/api/earnings", earningsRoutes);
 app.use("/api/certifications", certificationRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/video-progress", videoProgressRoutes);
+app.use("/api/course-content", courseContentRoutes);
+app.use("/api/lecturer-profile", lecturerProfileRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");

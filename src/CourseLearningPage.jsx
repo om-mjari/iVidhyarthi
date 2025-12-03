@@ -1060,11 +1060,27 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             </button>
           </div>
           <div className="progress-stats-grid">
-            <div className="progress-stat-box">
+            <div 
+              className="progress-stat-box" 
+              onClick={() => {
+                const videoSection = document.querySelector('.nptel-videos-grid');
+                if (videoSection) {
+                  videoSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            >
               <div className="stat-number">{videoProgress.totalVideos || totalVideos}</div>
               <div className="stat-label">VIDEOS</div>
             </div>
-            <div className="progress-stat-box">
+            <div 
+              className="progress-stat-box"
+              onClick={() => {
+                const assignmentSection = document.querySelector('.nptel-assignments-grid');
+                if (assignmentSection) {
+                  assignmentSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            >
               <div className="stat-number">{totalAssignments}</div>
               <div className="stat-label">ASSIGNMENTS</div>
             </div>

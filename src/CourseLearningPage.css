@@ -280,6 +280,8 @@
   transform-style: preserve-3d;
   position: relative;
   overflow: hidden;
+  cursor: pointer;
+  user-select: none;
 }
 
 .progress-stat-box::before {

@@ -5,6 +5,7 @@ const Tbl_Enrollments = require("../models/Tbl_Enrollments");
 const Tbl_CourseContent = require("../models/Tbl_CourseContent");
 const Tbl_Assignments = require("../models/Tbl_Assignments");
 const Tbl_Lecturers = require("../models/Tbl_Lecturers");
+const Tbl_Students = require("../models/Tbl_Students");
 const User = require("../models/User");
 
 // Get lecturer overview statistics
@@ -172,6 +173,98 @@ router.get("/:lecturerId", async (req, res) => {
       growthPercentage = 100;
     }
 
+    // Check if detailed data is requested
+    const includeDetails = req.query.details === 'true';
+    let detailedData = {};
+
+    if (includeDetails) {
+      // Get students detail
+      const enrollmentsWithStudents = await Tbl_Enrollments.find({
+        Course_Id: { $in: courseIds }
+      }).sort({ Enrolled_On: -1 }).limit(100);
+
+      const studentsDetail = await Promise.all(
+        enrollmentsWithStudents.map(async (enrollment) => {
+          const student = await Tbl_Students.findOne({ User_Id: enrollment.Student_Id });
+          const studentUser = await User.findById(enrollment.Student_Id);
+          const course = await Tbl_Courses.findOne({ Course_Id: enrollment.Course_Id });
+
+          return {
+            id: enrollment.Enrollment_Id,
+            studentName: student ? student.Full_Name : 'Unknown Student',
+            email: studentUser ? studentUser.email : 'N/A',
+            course: course ? course.Title : 'Unknown Course',
+            enrollDate: enrollment.Enrolled_On,
+            status: enrollment.Status
+          };
+        })
+      );
+
+      // Get courses detail
+      const coursesDetail = await Promise.all(
+        lecturerCourses.map(async (course) => {
+          const enrollmentCount = await Tbl_Enrollments.countDocuments({
+            Course_Id: course.Course_Id
+          });
+          
+          return {
+            id: course.Course_Id,
+            title: course.Title,
+            enrollments: enrollmentCount,
+            status: course.Status,
+            isActive: course.Is_Active
+          };
+        })
+      );
+
+      // Get materials detail
+      const materials = await Tbl_CourseContent.find({
+        Course_Id: { $in: courseIds }
+      }).sort({ Uploaded_On: -1 }).limit(100);
+
+      const materialsDetail = await Promise.all(
+        materials.map(async (material) => {
+          const course = await Tbl_Courses.findOne({ Course_Id: material.Course_Id });
+          
+          return {
+            id: material.Content_Id,
+            title: material.Title,
+            type: material.Content_Type,
+            course: course ? course.Title : 'Unknown Course',
+            uploadedDate: material.Uploaded_On,
+            fileUrl: material.File_Url
+          };
+        })
+      );
+
+      // Get assignments detail
+      const assignments = await Tbl_Assignments.find({
+        Course_Id: { $in: courseIds }
+      }).sort({ Due_Date: -1 }).limit(100);
+
+      const assignmentsDetail = await Promise.all(
+        assignments.map(async (assignment) => {
+          const course = await Tbl_Courses.findOne({ Course_Id: assignment.Course_Id });
+          
+          return {
+            id: assignment.Assignment_Id,
+            title: assignment.Title,
+            course: course ? course.Title : 'Unknown Course',
+            dueDate: assignment.Due_Date,
+            marks: assignment.Marks,
+            fileUrl: assignment.Submission_Data?.file_url || null
+          };
+        })
+      );
+
+      detailedData = {
+        studentsDetail,
+        coursesDetail,
+        materialsDetail,
+        assignmentsDetail
+      };
+    }
+
     res.json({
       success: true,
       data: {
@@ -184,7 +277,8 @@ router.get("/:lecturerId", async (req, res) => {
         recentEnrollments,
         growthPercentage: growthPercentage > 0 ? `+${growthPercentage}%` : `${growthPercentage}%`,
         enrollmentsByMonth,
-        courseEnrollmentData
+        courseEnrollmentData,
+        ...detailedData
       }
     });
   } catch (error) {

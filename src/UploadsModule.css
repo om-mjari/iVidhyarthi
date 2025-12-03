@@ -370,3 +370,102 @@
     padding: 20px;
   }
 }
+
+/* ============================================
+   UPLOAD DISPLAY TABLES SECTION
+============================================ */
+.upload-display-section {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.upload-display-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #E6FFF5;
+}
+
+.upload-display-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1F2937;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-count {
+  background: linear-gradient(135deg, #E6FFF5 0%, #EAF4FF 100%);
+  color: #2E8BFF;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upload-empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #9CA3AF;
+}
+
+.upload-empty-state span {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.upload-empty-state p {
+  margin: 0;
+  font-size: 15px;
+}
+
+.upload-type-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #EAF4FF;
+  color: #2E8BFF;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.upload-marks-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #E6FFF5;
+  color: #00D896;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upload-display-section .table {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.upload-display-section .t-head {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .upload-display-section {
+    padding: 16px;
+  }
+  
+  .upload-display-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

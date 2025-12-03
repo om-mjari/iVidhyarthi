@@ -88,6 +88,54 @@ router.get('/topic/:topicId', async (req, res) => {
   }
 });
 
+// GET - Get all content for lecturer (by course IDs)
+router.get('/lecturer/:lecturerId', async (req, res) => {
+  try {
+    const Tbl_Courses = require('../models/Tbl_Courses');
+    const lecturerId = req.params.lecturerId;
+    
+    // Find all courses by this lecturer
+    const courses = await Tbl_Courses.find({ 
+      Lecturer_Id: lecturerId 
+    });
+    
+    const courseIds = courses.map(c => c.Course_Id);
+    
+    if (courseIds.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // Get all content for these courses
+    const content = await Tbl_CourseContent.find({
+      Course_Id: { $in: courseIds }
+    }).sort({ Uploaded_On: -1 });
+    
+    // Enrich with course names
+    const enrichedContent = content.map(item => {
+      const course = courses.find(c => c.Course_Id === item.Course_Id);
+      return {
+        ...item.toObject(),
+        CourseName: course ? course.Title : 'Unknown Course'
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedContent
+    });
+  } catch (error) {
+    console.error('Error fetching lecturer content:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch content',
+      error: error.message
+    });
+  }
+});
+
 // DELETE - Delete content
 router.delete('/:contentId', async (req, res) => {
   try {

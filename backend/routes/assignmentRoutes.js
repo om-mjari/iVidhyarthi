@@ -23,6 +23,55 @@ router.get("/course/:courseId", async (req, res) => {
   }
 });
 
+// Get all assignments for lecturer (by course IDs)
+router.get("/lecturer/:lecturerId", async (req, res) => {
+  try {
+    const Tbl_Courses = require('../models/Tbl_Courses');
+    const lecturerId = req.params.lecturerId;
+    
+    // Find all courses by this lecturer
+    const courses = await Tbl_Courses.find({ 
+      Lecturer_Id: lecturerId 
+    });
+    
+    const courseIds = courses.map(c => c.Course_Id);
+    
+    if (courseIds.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+    
+    // Get all assignments for these courses (exclude student submissions)
+    const assignments = await Assignment.find({
+      Course_Id: { $in: courseIds },
+      Assignment_Id: { $not: /_/ } // Exclude submissions with format "assignmentId_studentId"
+    }).sort({ Due_Date: -1 });
+    
+    // Enrich with course names
+    const enrichedAssignments = assignments.map(item => {
+      const course = courses.find(c => c.Course_Id === item.Course_Id);
+      return {
+        ...item.toObject(),
+        CourseName: course ? course.Title : 'Unknown Course'
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedAssignments,
+    });
+  } catch (error) {
+    console.error("Error fetching lecturer assignments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching assignments",
+      error: error.message,
+    });
+  }
+});
+
 // Create assignment (root route)
 router.post("/", async (req, res) => {
   try {

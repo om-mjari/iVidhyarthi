@@ -124,6 +124,7 @@ const videoProgressRoutes = require("./routes/videoProgressRoutes");
 const courseContentRoutes = require("./routes/courseContentRoutes");
 const lecturerProfileRoutes = require("./routes/lecturerProfile");
 const lecturerOverviewRoutes = require("./routes/lecturerOverview");
+const lecturerStudentsRoutes = require("./routes/lecturerStudents");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -147,6 +148,7 @@ app.use("/api/video-progress", videoProgressRoutes);
 app.use("/api/course-content", courseContentRoutes);
 app.use("/api/lecturer-profile", lecturerProfileRoutes);
 app.use("/api/lecturer-overview", lecturerOverviewRoutes);
+app.use("/api/lecturer-students", lecturerStudentsRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -166,6 +168,7 @@ console.log("   - /api/certifications");
 console.log("   - /api/quiz");
 console.log("   - /api/lecturer-profile");
 console.log("   - /api/lecturer-overview");
+console.log("   - /api/lecturer-students");
 
 /* ============================
    Health & readiness endpoints
@@ -430,23 +433,86 @@ app.use("*", (req, res) => {
 /* ============================
    Start server & graceful shutdown
    ============================ */
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server listening on http://localhost:${PORT}`);
-  console.log(`📡 API base: http://localhost:${PORT}/api`);
-});
 
-process.on("SIGINT", async () => {
-  console.log("🛑 SIGINT received. Closing server...");
-  server.close(async () => {
-    try {
-      await mongoose.disconnect();
-      console.log("✅ MongoDB disconnected.");
-      process.exit(0);
-    } catch (err) {
-      console.error("Error during shutdown:", err);
+// Port availability checker
+const net = require('net');
+
+function checkPortAvailability(port) {
+  return new Promise((resolve, reject) => {
+    const tester = net.createServer()
+      .once('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          resolve(false); // Port is in use
+        } else {
+          reject(err);
+        }
+      })
+      .once('listening', () => {
+        tester.once('close', () => {
+          resolve(true); // Port is available
+        }).close();
+      })
+      .listen(port);
+  });
+}
+
+// Start server with port check
+async function startServer() {
+  try {
+    const isPortAvailable = await checkPortAvailability(PORT);
+    
+    if (!isPortAvailable) {
+      console.error(`\n❌ ERROR: Port ${PORT} is already in use!`);
+      console.error(`\n💡 Solution:`);
+      console.error(`   1. Kill the existing process:`);
+      console.error(`      Windows: netstat -ano | findstr :${PORT}`);
+      console.error(`               taskkill /PID <PID> /F`);
+      console.error(`      Mac/Linux: lsof -ti:${PORT} | xargs kill -9`);
+      console.error(`   2. Or change PORT in your .env file\n`);
       process.exit(1);
     }
-  });
-});
+
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 Server listening on http://localhost:${PORT}`);
+      console.log(`📡 API base: http://localhost:${PORT}/api`);
+    });
+
+    // Graceful shutdown handler
+    process.on("SIGINT", async () => {
+      console.log("🛑 SIGINT received. Closing server...");
+      server.close(async () => {
+        try {
+          await mongoose.disconnect();
+          console.log("✅ MongoDB disconnected.");
+          process.exit(0);
+        } catch (err) {
+          console.error("Error during shutdown:", err);
+          process.exit(1);
+        }
+      });
+    });
+
+    process.on("SIGTERM", async () => {
+      console.log("🛑 SIGTERM received. Closing server...");
+      server.close(async () => {
+        try {
+          await mongoose.disconnect();
+          console.log("✅ MongoDB disconnected.");
+          process.exit(0);
+        } catch (err) {
+          console.error("Error during shutdown:", err);
+          process.exit(1);
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error("❌ Error starting server:", error.message);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
 
 module.exports = app;

@@ -202,9 +202,90 @@ function TopBar({ onLogout }) {
   );
 }
 
-function Stat({ label, value, trend, icon }) {
+// ============================================
+// DETAIL MODAL COMPONENT
+// ============================================
+function DetailModal({ isOpen, onClose, title, data, columns, type }) {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  if (!isOpen) return null;
+
+  // Filter data based on search term
+  const filteredData = data.filter(item => {
+    if (!searchTerm) return true;
+    return columns.some(col => {
+      const value = item[col.key]?.toString().toLowerCase() || '';
+      return value.includes(searchTerm.toLowerCase());
+    });
+  });
+
   return (
-    <div className="stat">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="modal-close" onClick={onClose}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="modal-body">
+          {/* Search Input */}
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              className="input"
+              type="text"
+              placeholder={`Search ${title.toLowerCase()}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Data Table */}
+          {filteredData.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+              {searchTerm ? 'No results found' : `No ${title.toLowerCase()} available`}
+            </div>
+          ) : (
+            <div className="table">
+              <div className="t-head">
+                {columns.map(col => (
+                  <div key={col.key}>{col.label}</div>
+                ))}
+              </div>
+              {filteredData.map((item, idx) => (
+                <div className="t-row" key={item.id || idx}>
+                  {columns.map(col => (
+                    <div key={col.key}>
+                      {col.render ? col.render(item[col.key], item) : item[col.key]}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div style={{ marginTop: '12px', fontSize: '13px', color: '#666', textAlign: 'center' }}>
+            Showing {filteredData.length} of {data.length} {title.toLowerCase()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, trend, icon, onClick }) {
+  return (
+    <div 
+      className="stat" 
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer', transition: 'transform 0.2s' } : {}}
+      onMouseEnter={(e) => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
+      onMouseLeave={(e) => onClick && (e.currentTarget.style.transform = 'scale(1)')}
+    >
       {icon && <div className="stat-icon">{icon}</div>}
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
@@ -218,6 +299,13 @@ function OverviewTab() {
   const [overviewData, setOverviewData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    title: '',
+    data: [],
+    columns: [],
+    type: ''
+  });
 
   const lecturer = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
@@ -251,6 +339,105 @@ function OverviewTab() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDetailData = async (type) => {
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      const response = await fetch(`${API_BASE_URL}/lecturer-overview/${encodeURIComponent(lecturerId)}?details=true`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        let modalData = {};
+        
+        switch(type) {
+          case 'students':
+            modalData = {
+              title: 'All Students',
+              data: result.data.studentsDetail || [],
+              columns: [
+                { key: 'studentName', label: 'Student Name' },
+                { key: 'email', label: 'Email' },
+                { key: 'course', label: 'Course' },
+                { 
+                  key: 'enrollDate', 
+                  label: 'Enrolled Date',
+                  render: (value) => new Date(value).toLocaleDateString()
+                },
+                { key: 'status', label: 'Status' }
+              ],
+              type: 'students'
+            };
+            break;
+          
+          case 'courses':
+            modalData = {
+              title: 'All Courses',
+              data: result.data.coursesDetail || [],
+              columns: [
+                { key: 'title', label: 'Course Title' },
+                { key: 'enrollments', label: 'Enrollments' },
+                { 
+                  key: 'status', 
+                  label: 'Status',
+                  render: (value) => value || 'Active'
+                },
+                { 
+                  key: 'isActive', 
+                  label: 'Active',
+                  render: (value) => value ? '✓' : '✗'
+                }
+              ],
+              type: 'courses'
+            };
+            break;
+          
+          case 'materials':
+            modalData = {
+              title: 'All Materials',
+              data: result.data.materialsDetail || [],
+              columns: [
+                { key: 'title', label: 'Material Title' },
+                { key: 'type', label: 'Type' },
+                { key: 'course', label: 'Course' },
+                { 
+                  key: 'uploadedDate', 
+                  label: 'Uploaded',
+                  render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
+                }
+              ],
+              type: 'materials'
+            };
+            break;
+          
+          case 'assignments':
+            modalData = {
+              title: 'All Assignments',
+              data: result.data.assignmentsDetail || [],
+              columns: [
+                { key: 'title', label: 'Assignment Title' },
+                { key: 'course', label: 'Course' },
+                { 
+                  key: 'dueDate', 
+                  label: 'Due Date',
+                  render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
+                },
+                { key: 'marks', label: 'Max Marks' }
+              ],
+              type: 'assignments'
+            };
+            break;
+        }
+        
+        setModalState({ isOpen: true, ...modalData });
+      }
+    } catch (err) {
+      console.error('Error fetching detail data:', err);
+    }
+  };
+
+  const closeModal = () => {
+    setModalState({ isOpen: false, title: '', data: [], columns: [], type: '' });
   };
 
   if (loading) {
@@ -293,26 +480,41 @@ function OverviewTab() {
           value={overviewData.totalStudents || 0} 
           trend={overviewData.growthPercentage || '0%'} 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
+          onClick={() => fetchDetailData('students')}
         />
         <Stat 
           label="Active Courses" 
           value={overviewData.activeCourses || 0} 
           trend={`${overviewData.totalCourses || 0} total`} 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
+          onClick={() => fetchDetailData('courses')}
         />
         <Stat 
           label="Course Materials" 
           value={overviewData.totalMaterials || 0} 
           trend="Uploaded" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>}
+          onClick={() => fetchDetailData('materials')}
         />
         <Stat 
           label="Assignments" 
           value={overviewData.totalAssignments || 0} 
           trend="Created" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
+          onClick={() => fetchDetailData('assignments')}
         />
       </div>
+      
+      {/* Detail Modal */}
+      <DetailModal 
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        title={modalState.title}
+        data={modalState.data}
+        columns={modalState.columns}
+        type={modalState.type}
+      />
+      
       <div className="charts" style={{ marginTop: '12px' }}>
         <div className="chart-card">
           <div className="chart-title">Student Enrollments</div>
@@ -710,6 +912,11 @@ function UploadsTab() {
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [uploadError, setUploadError] = useState('');
 
+  // NEW: State for displaying uploaded data
+  const [uploadedMaterials, setUploadedMaterials] = useState([]);
+  const [uploadedAssignments, setUploadedAssignments] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+
   // Material upload state
   const [materialForm, setMaterialForm] = useState({
     title: '',
@@ -734,7 +941,43 @@ function UploadsTab() {
   // Fetch courses on mount
   useEffect(() => {
     fetchCourses();
+    fetchUploadedData(); // NEW: Fetch uploaded materials and assignments
   }, []);
+
+  // Fetch all uploaded materials and assignments
+  // Using SAME logic as Overview section for consistency
+  const fetchUploadedData = async () => {
+    setLoadingData(true);
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      console.log('🔍 Fetching uploaded data for lecturer:', lecturerId);
+      
+      // Fetch detailed data using the same endpoint as Overview section
+      const response = await fetch(`${API_BASE_URL}/lecturer-overview/${encodeURIComponent(lecturerId)}?details=true`);
+      const result = await response.json();
+      console.log('📊 Overview response:', result);
+      
+      if (result.success && result.data) {
+        // Set materials from Overview data
+        if (result.data.materialsDetail) {
+          setUploadedMaterials(result.data.materialsDetail || []);
+          console.log('✅ Materials set:', result.data.materialsDetail?.length || 0, 'items');
+          console.log('📄 First material sample:', result.data.materialsDetail[0]);
+        }
+
+        // Set assignments from Overview data
+        if (result.data.assignmentsDetail) {
+          setUploadedAssignments(result.data.assignmentsDetail || []);
+          console.log('✅ Assignments set:', result.data.assignmentsDetail?.length || 0, 'items');
+          console.log('📝 First assignment sample:', result.data.assignmentsDetail[0]);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching uploaded data:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const fetchCourses = async () => {
     try {
@@ -850,6 +1093,9 @@ function UploadsTab() {
       setMaterialForm({ title: '', contentType: 'pdf', file: null });
       document.getElementById('material-file-input').value = '';
 
+      // NEW: Refresh the uploaded materials list
+      fetchUploadedData();
+
       setTimeout(() => setUploadSuccess(''), 3000);
     } catch (error) {
       console.error('Upload error:', error);
@@ -863,8 +1109,42 @@ function UploadsTab() {
   const uploadAssignment = async (e) => {
     e.preventDefault();
     
-    if (!selectedCourse || !selectedTopic || !assignmentForm.title || !assignmentForm.description || !assignmentForm.dueDate) {
-      setUploadError('Please fill all required fields');
+    // Validate required fields
+    if (!selectedCourse || !selectedTopic) {
+      setUploadError('Please select both course and topic');
+      return;
+    }
+
+    if (!assignmentForm.title || !assignmentForm.title.trim()) {
+      setUploadError('Assignment title is required');
+      return;
+    }
+
+    if (!assignmentForm.description || !assignmentForm.description.trim()) {
+      setUploadError('Assignment description is required');
+      return;
+    }
+
+    if (!assignmentForm.dueDate) {
+      setUploadError('Due date is required');
+      return;
+    }
+
+    // Validate due date is not in the past
+    const selectedDate = new Date(assignmentForm.dueDate);
+    const currentDate = new Date();
+    // Remove time component for comparison
+    currentDate.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate < currentDate) {
+      setUploadError('Due date cannot be in the past. Please select today or a future date.');
+      return;
+    }
+
+    // Validate marks
+    if (!assignmentForm.marks || assignmentForm.marks < 1) {
+      setUploadError('Total marks must be at least 1');
       return;
     }
 
@@ -930,6 +1210,9 @@ function UploadsTab() {
       if (document.getElementById('assignment-file-input')) {
         document.getElementById('assignment-file-input').value = '';
       }
+
+      // NEW: Refresh the uploaded assignments list
+      fetchUploadedData();
 
       setTimeout(() => setUploadSuccess(''), 3000);
     } catch (error) {
@@ -1229,6 +1512,138 @@ function UploadsTab() {
           )}
         </>
       )}
+
+      {/* NEW: Display Tables for Uploaded Materials and Assignments */}
+      <div style={{ marginTop: '40px' }}>
+        {/* Uploaded Materials Table */}
+        <div className="upload-display-section">
+          <div className="upload-display-header">
+            <h3>📚 Uploaded Materials</h3>
+            <span className="upload-count">{uploadedMaterials.length} items</span>
+          </div>
+          
+          {loadingData ? (
+            <div className="lec-profile-loading">
+              <div className="loading-spinner"></div>
+              <p>Loading materials...</p>
+            </div>
+          ) : uploadedMaterials.length === 0 ? (
+            <div className="upload-empty-state">
+              <span>📭</span>
+              <p>No materials uploaded yet</p>
+            </div>
+          ) : (
+            <div className="table">
+              <div className="t-head">
+                <div>Title</div>
+                <div>Type</div>
+                <div>Course</div>
+                <div>Uploaded Date</div>
+                <div>Action</div>
+              </div>
+              {uploadedMaterials.map((material, idx) => (
+                <div className="t-row" key={material.id || idx}>
+                  <div>
+                    <div style={{ fontWeight: '500' }}>{material.title}</div>
+                  </div>
+                  <div>
+                    <span className="upload-type-badge">
+                      {material.type === 'pdf' && '📄 PDF'}
+                      {material.type === 'video' && '🎥 Video'}
+                      {material.type === 'notes' && '📝 Notes'}
+                      {!material.type && '📄 Document'}
+                    </span>
+                  </div>
+                  <div>{material.course || 'N/A'}</div>
+                  <div>
+                    {material.uploadedDate 
+                      ? new Date(material.uploadedDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+                      : 'N/A'}
+                  </div>
+                  <div>
+                    {material.fileUrl && (
+                      <a 
+                        href={material.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="button ghost sm"
+                      >
+                        📥 View
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Uploaded Assignments Table */}
+        <div className="upload-display-section" style={{ marginTop: '32px' }}>
+          <div className="upload-display-header">
+            <h3>📝 Created Assignments</h3>
+            <span className="upload-count">{uploadedAssignments.length} items</span>
+          </div>
+          
+          {loadingData ? (
+            <div className="lec-profile-loading">
+              <div className="loading-spinner"></div>
+              <p>Loading assignments...</p>
+            </div>
+          ) : uploadedAssignments.length === 0 ? (
+            <div className="upload-empty-state">
+              <span>📭</span>
+              <p>No assignments created yet</p>
+            </div>
+          ) : (
+            <div className="table">
+              <div className="t-head">
+                <div>Title</div>
+                <div>Course</div>
+                <div>Due Date</div>
+                <div>Marks</div>
+                <div>Action</div>
+              </div>
+              {uploadedAssignments.map((assignment, idx) => (
+                <div className="t-row" key={assignment.id || idx}>
+                  <div>
+                    <div style={{ fontWeight: '500' }}>{assignment.title}</div>
+                  </div>
+                  <div>{assignment.course || 'N/A'}</div>
+                  <div>
+                    {assignment.dueDate 
+                      ? new Date(assignment.dueDate).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })
+                      : 'N/A'}
+                  </div>
+                  <div>
+                    <span className="upload-marks-badge">{assignment.marks || 0}</span>
+                  </div>
+                  <div>
+                    {assignment.fileUrl && (
+                      <a 
+                        href={assignment.fileUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="button ghost sm"
+                      >
+                        📥 View
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1287,28 +1702,46 @@ function SessionsTab() {
 }
 
 function StudentsTab() {
+  const API_BASE_URL = 'http://localhost:5000/api';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('all');
+  const [enrollments, setEnrollments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock student enrollment data
-  const [enrollments] = useState(() => {
+  const lecturer = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
+  }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    setError('');
     try {
-      return JSON.parse(localStorage.getItem('lecturer_enrollments')) || [
-        { id: 1, studentName: 'Aarav Sharma', email: 'aarav@example.com', course: 'React Development', enrollDate: '2025-08-15', progress: 85, status: 'Active' },
-        { id: 2, studentName: 'Diya Patel', email: 'diya@example.com', course: 'JavaScript Fundamentals', enrollDate: '2025-08-20', progress: 92, status: 'Active' },
-        { id: 3, studentName: 'Arjun Kumar', email: 'arjun@example.com', course: 'React Development', enrollDate: '2025-08-18', progress: 67, status: 'Active' },
-        { id: 4, studentName: 'Priya Singh', email: 'priya@example.com', course: 'Data Structures & Algorithms', enrollDate: '2025-08-10', progress: 78, status: 'Active' },
-        { id: 5, studentName: 'Rohit Gupta', email: 'rohit@example.com', course: 'JavaScript Fundamentals', enrollDate: '2025-08-25', progress: 45, status: 'Active' },
-        { id: 6, studentName: 'Sneha Reddy', email: 'sneha@example.com', course: 'Python Programming', enrollDate: '2025-08-12', progress: 89, status: 'Active' },
-        { id: 7, studentName: 'Vikram Joshi', email: 'vikram@example.com', course: 'Data Structures & Algorithms', enrollDate: '2025-08-22', progress: 56, status: 'Active' },
-        { id: 8, studentName: 'Ananya Das', email: 'ananya@example.com', course: 'React Development', enrollDate: '2025-08-28', progress: 34, status: 'Active' },
-        { id: 9, studentName: 'Karan Mehta', email: 'karan@example.com', course: 'Python Programming', enrollDate: '2025-08-14', progress: 91, status: 'Active' },
-        { id: 10, studentName: 'Riya Agarwal', email: 'riya@example.com', course: 'JavaScript Fundamentals', enrollDate: '2025-08-30', progress: 23, status: 'Active' }
-      ];
-    } catch {
-      return [];
+      const lecturerId = lecturer?.email || lecturer?.id;
+      
+      if (!lecturerId) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/lecturer-students/${encodeURIComponent(lecturerId)}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setEnrollments(result.data);
+      } else {
+        throw new Error(result.message || 'Failed to fetch students data');
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err);
+      setError(err.message || 'Failed to load students data');
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
   // Get unique courses for filter dropdown
   const courses = [...new Set(enrollments.map(e => e.course))];
@@ -1333,6 +1766,27 @@ function StudentsTab() {
     return '#f44336';
   };
 
+  if (loading) {
+    return (
+      <div className="panel">
+        <div className="lec-profile-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading students data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <div className="alert-error">
+          ⚠️ {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="panel">
       <h3>Student Enrollments</h3>
@@ -1353,7 +1807,7 @@ function StudentsTab() {
         />
         <Stat 
           label="Avg Progress" 
-          value={`${Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)}%`} 
+          value={enrollments.length > 0 ? `${Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)}%` : '0%'} 
           trend="Overall completion" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>}
         />

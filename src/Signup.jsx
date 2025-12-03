@@ -508,6 +508,12 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
           phone: activeTab === 'Student' ? formData.contactNumber : (activeTab === 'Lecturer' ? formData.mobileNo : formData.contactNo),
           dateOfBirth: formData.dob,
           gender: formData.gender?.toLowerCase(),
+          // Top-level fields for lecturer
+          specialization: formData.specialization || '',
+          designation: formData.designation || '',
+          experienceYears: formData.experienceYears || '',
+          highestQualification: formData.highestQualification || '',
+          // Education object for backward compatibility
           education: {
             institution: formData.institute || '',
             university: formData.university || '',

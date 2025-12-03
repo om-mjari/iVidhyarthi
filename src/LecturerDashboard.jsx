@@ -213,6 +213,159 @@ function Stat({ label, value, trend, icon }) {
   );
 }
 
+function OverviewTab() {
+  const API_BASE_URL = 'http://localhost:5000/api';
+  const [overviewData, setOverviewData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const lecturer = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
+  }, []);
+
+  useEffect(() => {
+    fetchOverviewData();
+  }, []);
+
+  const fetchOverviewData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      
+      if (!lecturerId) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/lecturer-overview/${encodeURIComponent(lecturerId)}`);
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setOverviewData(result.data);
+      } else {
+        throw new Error(result.message || 'Failed to fetch overview data');
+      }
+    } catch (err) {
+      console.error('Error fetching overview:', err);
+      setError(err.message || 'Failed to load overview data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <div className="lec-profile-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading overview data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <div className="alert-error">
+          ⚠️ {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!overviewData) {
+    return (
+      <div className="panel">
+        <div className="alert-error">
+          No overview data available
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel">
+      <h3>Welcome back, {lecturer?.name || 'Lecturer'}!</h3>
+      <div className="stats">
+        <Stat 
+          label="Total Students" 
+          value={overviewData.totalStudents || 0} 
+          trend={overviewData.growthPercentage || '0%'} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
+        />
+        <Stat 
+          label="Active Courses" 
+          value={overviewData.activeCourses || 0} 
+          trend={`${overviewData.totalCourses || 0} total`} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
+        />
+        <Stat 
+          label="Course Materials" 
+          value={overviewData.totalMaterials || 0} 
+          trend="Uploaded" 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>}
+        />
+        <Stat 
+          label="Assignments" 
+          value={overviewData.totalAssignments || 0} 
+          trend="Created" 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
+        />
+      </div>
+      <div className="charts" style={{ marginTop: '12px' }}>
+        <div className="chart-card">
+          <div className="chart-title">Student Enrollments</div>
+          <div style={{ padding: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '48px', fontWeight: '700', color: '#2e8bff', marginBottom: '8px' }}>
+              {overviewData.totalEnrollments || 0}
+            </div>
+            <div style={{ fontSize: '14px', color: '#6B7280' }}>
+              Total enrollments across all courses
+            </div>
+            {overviewData.recentEnrollments > 0 && (
+              <div style={{ marginTop: '12px', padding: '8px', background: '#E6FFF5', borderRadius: '8px', fontSize: '13px', color: '#00875A' }}>
+                +{overviewData.recentEnrollments} new in last 30 days
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="chart-card">
+          <div className="chart-title">Enrollments by Course</div>
+          {overviewData.courseEnrollmentData && overviewData.courseEnrollmentData.length > 0 ? (
+            <svg className="chart" viewBox="0 0 300 180">
+              {overviewData.courseEnrollmentData.map((course, index) => {
+                const maxEnrollments = Math.max(...overviewData.courseEnrollmentData.map(c => c.enrollments));
+                const barHeight = (course.enrollments / maxEnrollments) * 100;
+                const x = 30 + (index * 45);
+                const y = 150 - barHeight;
+                const colors = ['#b7dcff', '#4da3ff', '#89c3ff', '#2e8bff', '#1a75d9', '#0f5ca8'];
+                return (
+                  <g key={course.courseId}>
+                    <rect 
+                      x={x} 
+                      y={y} 
+                      width="24" 
+                      height={barHeight} 
+                      fill={colors[index % colors.length]} 
+                    />
+                    <title>{course.courseName}: {course.enrollments} students</title>
+                  </g>
+                );
+              })}
+              <line x1="20" y1="150" x2="280" y2="150" stroke="#e6f0fb" strokeWidth="2" />
+            </svg>
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>
+              No enrollment data available
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileSlideOver({ open, onClose }) {
   const API_BASE_URL = 'http://localhost:5000/api';
   const [form, setForm] = useState({
@@ -325,14 +478,9 @@ function ProfileSlideOver({ open, onClose }) {
         throw new Error('Lecturer identification not found');
       }
 
-      // Prepare update data
+      // Prepare update data (only editable fields)
       const updateData = {
-        Full_Name: form.Full_Name.trim(),
-        email: form.email.trim(),
         Mobile_No: form.Mobile_No.trim(),
-        DOB: form.DOB || null,
-        Gender: form.Gender,
-        Specialization: form.Specialization.trim(),
         Highest_Qualification: form.Highest_Qualification.trim(),
         Designation: form.Designation.trim(),
         Experience_Years: form.Experience_Years ? Number(form.Experience_Years) : null
@@ -406,35 +554,70 @@ function ProfileSlideOver({ open, onClose }) {
             )}
 
             <div className="profile-section">
-              <h4 className="section-title">Personal Information</h4>
+              <h4 className="section-title">Personal Information (Read-Only)</h4>
               
               <label className="lec-form-field">
-                <span>Full Name *</span>
+                <span>Full Name</span>
                 <input 
                   className="input" 
                   type="text" 
-                  name="Full_Name" 
                   value={form.Full_Name} 
-                  onChange={handleChange} 
-                  placeholder="Enter your full name"
-                  required
-                  disabled={saving}
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
               
               <label className="lec-form-field">
-                <span>Email *</span>
+                <span>Email</span>
                 <input 
                   className="input" 
                   type="email" 
-                  name="email" 
                   value={form.email} 
-                  onChange={handleChange} 
-                  placeholder="your.email@example.com"
-                  required
-                  disabled={saving}
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
+              
+              <label className="lec-form-field">
+                <span>Date of Birth</span>
+                <input 
+                  className="input" 
+                  type="date" 
+                  value={form.DOB} 
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
+                />
+              </label>
+              
+              <div className="lec-form-field">
+                <span>Gender</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  value={form.Gender === 'male' ? 'Male' : form.Gender === 'female' ? 'Female' : form.Gender === 'other' ? 'Other' : 'Not Specified'} 
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
+                />
+              </div>
+              
+              <label className="lec-form-field">
+                <span>Specialization</span>
+                <input 
+                  className="input" 
+                  type="text" 
+                  value={form.Specialization} 
+                  disabled
+                  style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
+                />
+              </label>
+              
+              <small style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '8px', display: 'block' }}>
+                💡 These fields are managed by the system and cannot be edited.
+              </small>
+            </div>
+
+            <div className="profile-section">
+              <h4 className="section-title">Professional Information (Editable)</h4>
               
               <label className="lec-form-field">
                 <span>Mobile Number</span>
@@ -450,61 +633,6 @@ function ProfileSlideOver({ open, onClose }) {
               </label>
               
               <label className="lec-form-field">
-                <span>Date of Birth</span>
-                <input 
-                  className="input" 
-                  type="date" 
-                  name="DOB" 
-                  value={form.DOB} 
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-              </label>
-              
-              <div className="lec-form-field">
-                <span>Gender</span>
-                <div className="radio-group">
-                  <label>
-                    <input 
-                      type="radio" 
-                      name="Gender" 
-                      value="male" 
-                      checked={form.Gender === 'male'} 
-                      onChange={handleChange}
-                      disabled={saving}
-                    /> 
-                    Male
-                  </label>
-                  <label>
-                    <input 
-                      type="radio" 
-                      name="Gender" 
-                      value="female" 
-                      checked={form.Gender === 'female'} 
-                      onChange={handleChange}
-                      disabled={saving}
-                    /> 
-                    Female
-                  </label>
-                  <label>
-                    <input 
-                      type="radio" 
-                      name="Gender" 
-                      value="other" 
-                      checked={form.Gender === 'other'} 
-                      onChange={handleChange}
-                      disabled={saving}
-                    /> 
-                    Other
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div className="profile-section">
-              <h4 className="section-title">Professional Information</h4>
-              
-              <label className="lec-form-field">
                 <span>Institute</span>
                 <input 
                   className="input" 
@@ -514,19 +642,6 @@ function ProfileSlideOver({ open, onClose }) {
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
                 <small style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '4px' }}>Institute cannot be changed</small>
-              </label>
-              
-              <label className="lec-form-field">
-                <span>Specialization</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  name="Specialization" 
-                  value={form.Specialization} 
-                  onChange={handleChange} 
-                  placeholder="e.g., Computer Science, Data Science, Web Development"
-                  disabled={saving}
-                />
               </label>
               
               <label className="lec-form-field">
@@ -2551,54 +2666,7 @@ function LecturerDashboard({ onLogout }) {
         </div>
 
         <div className="main">
-          {activeTab === 'overview' && (
-            <div className="panel">
-              <h3>Welcome back!</h3>
-              <div className="stats">
-                <Stat 
-                  label="Students" 
-                  value="1,284" 
-                  trend="+4.1%" 
-                  icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
-                />
-                <Stat 
-                  label="Sessions This Month" 
-                  value="6" 
-                  trend="Next in 2 days" 
-                  icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
-                />
-                <Stat 
-                  label="Materials" 
-                  value={(JSON.parse(localStorage.getItem('lecturer_materials') || '[]')).length} 
-                  trend="Stored" 
-                  icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>}
-                />
-              </div>
-              <div className="charts" style={{ marginTop: '12px' }}>
-                <div className="chart-card">
-                  <div className="chart-title">Earnings Trend (₹)</div>
-                  <svg className="chart" viewBox="0 0 300 180">
-                    <polyline fill="none" stroke="#2e8bff" strokeWidth="3" points="10,150 40,140 70,135 100,120 130,110 160,90 190,80 220,75 250,68 280,60" />
-                    <line x1="10" y1="150" x2="280" y2="150" stroke="#e6f0fb" />
-                    <line x1="10" y1="120" x2="280" y2="120" stroke="#e6f0fb" />
-                    <line x1="10" y1="90" x2="280" y2="90" stroke="#e6f0fb" />
-                  </svg>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-title">Enrollments by Course (This Month)</div>
-                  <svg className="chart" viewBox="0 0 300 180">
-                    <rect x="30" y="80" width="24" height="70" fill="#b7dcff" />
-                    <rect x="70" y="60" width="24" height="90" fill="#4da3ff" />
-                    <rect x="110" y="100" width="24" height="50" fill="#89c3ff" />
-                    <rect x="150" y="40" width="24" height="110" fill="#2e8bff" />
-                    <rect x="190" y="90" width="24" height="60" fill="#89c3ff" />
-                    <rect x="230" y="70" width="24" height="80" fill="#4da3ff" />
-                    <line x1="20" y1="150" x2="280" y2="150" stroke="#e6f0fb" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          )}
+          {activeTab === 'overview' && <OverviewTab />}
 
           {activeTab === 'courses' && <CoursesTab />}
           {activeTab === 'students' && <StudentsTab />}

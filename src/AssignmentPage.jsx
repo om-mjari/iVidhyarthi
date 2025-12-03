@@ -461,14 +461,14 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
     const courseName = assignment?.Course_Name || assignment?.course_name || '';
     const title = assignment?.Title || assignment?.title || '';
     const searchText = `${courseName} ${title}`.toLowerCase();
-    
+
     for (const [key, config] of Object.entries(subjectConfigurations)) {
-      if (searchText.includes(key.toLowerCase()) || 
-          searchText.includes(key.split(' ')[0].toLowerCase())) {
+      if (searchText.includes(key.toLowerCase()) ||
+        searchText.includes(key.split(' ')[0].toLowerCase())) {
         return { subjectName: key, ...config };
       }
     }
-    
+
     // Enhanced default configuration
     return {
       subjectName: 'General Studies',
@@ -518,7 +518,28 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
 
   const questions = subjectConfig.questions;
 
-  // Auto-grading function
+  // Function to calculate marks based on word count
+  const calculateMarksFromWordCount = (wordCount, maxMarks) => {
+    if (wordCount >= 60) return 25;
+    if (wordCount >= 50) return 23;
+    if (wordCount >= 40) return 20;
+    if (wordCount >= 30) return 17;
+    if (wordCount >= 20) return 15;
+    if (wordCount >= 10) return 10;
+    if (wordCount >= 5) return 5;
+    return 0;
+  };
+
+  // Function to calculate letter grade from percentage
+  const calculateLetterGrade = (percentage) => {
+    if (percentage >= 80) return 'A';
+    if (percentage >= 70) return 'B';
+    if (percentage >= 60) return 'C';
+    if (percentage >= 50) return 'D';
+    return 'F';
+  };
+
+  // Auto-grading function with word count-based scoring
   const calculateScore = () => {
     let totalScore = 0;
     let maxScore = 0;
@@ -526,7 +547,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
     questions.forEach(q => {
       maxScore += q.marks;
       const userAnswer = answers[q.id];
-      
+
       if (!userAnswer) return;
 
       if (q.type === 'mcq') {
@@ -534,20 +555,26 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
           totalScore += q.marks;
         }
       } else if (q.type === 'text') {
-        const userText = userAnswer.toLowerCase();
-        const keywords = Array.isArray(q.correctAnswer) ? q.correctAnswer : [q.correctAnswer.toLowerCase()];
-        const matchCount = keywords.filter(keyword => 
-          userText.includes(keyword.toLowerCase())
-        ).length;
-        
-        // Award partial marks based on keyword matches
-        if (matchCount > 0) {
-          totalScore += Math.round((matchCount / keywords.length) * q.marks);
-        }
+        // Count words in the answer
+        const wordCount = userAnswer.trim().split(/\s+/).filter(word => word.length > 0).length;
+
+        // Calculate marks based on word count
+        const marksForAnswer = calculateMarksFromWordCount(wordCount, q.marks);
+        totalScore += marksForAnswer;
+
+        console.log(`📝 Question ${q.id}: ${wordCount} words = ${marksForAnswer} marks`);
       }
     });
 
-    return { totalScore, maxScore, percentage: Math.round((totalScore / maxScore) * 100) };
+    const percentage = Math.round((totalScore / maxScore) * 100);
+    const letterGrade = calculateLetterGrade(percentage);
+
+    return {
+      totalScore,
+      maxScore,
+      percentage,
+      letterGrade
+    };
   };
 
   useEffect(() => {
@@ -596,7 +623,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
       ...prev,
       [questionId]: value
     }));
-    
+
     // Clear validation error for this question
     if (validationErrors[questionId]) {
       setValidationErrors(prev => {
@@ -648,8 +675,8 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
     try {
       const scoreData = calculateScore();
       setScore(scoreData.totalScore);
-      
-      const courseId = assignment.Course_Id || assignment.courseId || 'UNKNOWN';
+
+      const courseId = assignment.Course_Id || assignment.courseId;
       const assignmentId = assignment.Assignment_Id || assignment.id;
 
       const submissionData = {
@@ -660,7 +687,8 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
         Submitted_On: new Date(),
         Status: 'Submitted',
         Score: scoreData.totalScore,
-        Feedback: isAutoSubmit ? `Auto-submitted after 5 minutes: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)` : `Submitted: ${scoreData.totalScore}/${scoreData.maxScore} (${scoreData.percentage}%)`,
+        Grade: scoreData.percentage, // Store percentage as Grade
+        LetterGrade: scoreData.letterGrade, // Store letter grade (A, B, C, D, F)
         Time_Spent: timeSpent,
         Answers: answers,
         Questions: questions,
@@ -672,13 +700,15 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
         Student_Id: studentId,
         Course_Id: courseId,
         Score: scoreData.totalScore,
-        Percentage: scoreData.percentage,
+        MaxScore: scoreData.maxScore,
+        Grade: scoreData.percentage,
+        LetterGrade: scoreData.letterGrade,
         Time_Spent: formatTime(timeSpent),
         Status: 'Submitted'
       });
 
       // Submit to backend - Save to BOTH Tbl_Submissions AND Tbl_Assignments
-      
+
       // 1. Save to Tbl_Submissions
       const submissionsResponse = await fetch('http://localhost:5000/api/submissions/create', {
         method: 'POST',
@@ -701,20 +731,20 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
 
       // Use submissions result as primary
       const result = submissionsResult;
-      
+
       if (result.success) {
         setShowResults(true);
         setScore(scoreData.totalScore);
         setIsSubmitted(true);
-        
+
         // Animate for 2 seconds then show results
         setTimeout(() => {
           setSubmissionAnimation(false);
         }, 2000);
-        
+
         console.log('✅ Assignment submitted successfully to Tbl_Submissions & Tbl_Assignments!');
         console.log('📊 Score:', scoreData.totalScore + '/' + scoreData.maxScore);
-        
+
         if (onComplete) onComplete(scoreData.totalScore);
       } else {
         console.error('❌ Submission failed:', result.message);
@@ -782,7 +812,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                 onEnded={handleVideoEnd}
               ></iframe>
             </div>
-            <button 
+            <button
               className="start-assignment-btn"
               onClick={handleVideoEnd}
               style={{ background: subjectConfig.color }}
@@ -926,10 +956,24 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
                     <span className="stat-value">{progress}%</span>
                   </div>
                   {isSubmitted && (
-                    <div className="stat-item">
-                      <span className="stat-label">Score:</span>
-                      <span className="stat-value">{score} / {questions.reduce((sum, q) => sum + q.marks, 0)}</span>
-                    </div>
+                    <>
+                      <div className="stat-item">
+                        <span className="stat-label">Score:</span>
+                        <span className="stat-value">{score} / {questions.reduce((sum, q) => sum + q.marks, 0)}</span>
+                      </div>
+                      <div className="stat-item">
+                        <span className="stat-label">Grade:</span>
+                        <span className="stat-value" style={{
+                          fontSize: '1.5rem',
+                          fontWeight: 'bold',
+                          color: calculateLetterGrade(Math.round((score / questions.reduce((sum, q) => sum + q.marks, 0)) * 100)) === 'A' ? '#28a745' :
+                            calculateLetterGrade(Math.round((score / questions.reduce((sum, q) => sum + q.marks, 0)) * 100)) === 'B' ? '#17a2b8' :
+                              calculateLetterGrade(Math.round((score / questions.reduce((sum, q) => sum + q.marks, 0)) * 100)) === 'C' ? '#ffc107' : '#dc3545'
+                        }}>
+                          {calculateLetterGrade(Math.round((score / questions.reduce((sum, q) => sum + q.marks, 0)) * 100))}
+                        </span>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>

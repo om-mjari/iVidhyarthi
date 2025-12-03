@@ -47,6 +47,12 @@ const submissionSchema = new mongoose.Schema(
       type: Number,
       default: null,
       min: 0,
+      max: 100,
+    },
+    LetterGrade: {
+      type: String,
+      enum: ["A", "B", "C", "D", "F", ""],
+      default: "",
     },
     Feedback: {
       type: String,

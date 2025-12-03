@@ -7,7 +7,7 @@ import './CourseLearningPage.css';
 const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentVideo, setCurrentVideo] = useState(0);
-  const [completedVideos, setCompletedVideos] = useState([0]);
+  const [completedVideos, setCompletedVideos] = useState([]);
   const [completedAssignments, setCompletedAssignments] = useState([]);
   const [completedQuizzes, setCompletedQuizzes] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
@@ -29,7 +29,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
-  
+
   // Dynamic video progress state
   const [videoProgress, setVideoProgress] = useState({
     totalVideos: 0,
@@ -37,11 +37,77 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     completionPercentage: 0
   });
 
+  // Track which videos have been watched (to enable Mark as Complete button)
+  const [watchedVideos, setWatchedVideos] = useState([]);
+
+  // Track videos currently being watched with timer
+  const [watchingVideos, setWatchingVideos] = useState({});
+
+  // Store interval IDs to clear them later
+  const intervalRefs = React.useRef({});
+
+  // Handle video watching with duration tracking
+  const handleWatchVideo = (videoId, durationMinutes) => {
+    // Mark as currently watching
+    setWatchingVideos(prev => ({
+      ...prev,
+      [videoId]: { progress: 0, duration: durationMinutes, startTime: Date.now() }
+    }));
+
+    // Convert duration from "MM:SS" format to seconds
+    const [minutes, seconds] = durationMinutes.split(':').map(Number);
+    const totalSeconds = (minutes * 60) + (seconds || 0);
+
+    // Simulate video watching with a timer matching real-time
+    const interval = setInterval(() => {
+      setWatchingVideos(prev => {
+        const current = prev[videoId];
+        if (!current) {
+          clearInterval(interval);
+          delete intervalRefs.current[videoId];
+          return prev;
+        }
+
+        // Calculate actual elapsed time in seconds
+        const elapsedSeconds = Math.floor((Date.now() - current.startTime) / 1000);
+        const progressPercentage = (elapsedSeconds / totalSeconds) * 100;
+
+        // If video is 15% watched, enable Mark as Complete button
+        if (progressPercentage >= 15 && !watchedVideos.includes(videoId)) {
+          setWatchedVideos(prevWatched => [...prevWatched, videoId]);
+        }
+
+        // If video is fully watched (100%), stop tracking
+        if (progressPercentage >= 100) {
+          clearInterval(interval);
+          delete intervalRefs.current[videoId];
+          const newState = { ...prev };
+          delete newState[videoId];
+          return newState;
+        }
+
+        return {
+          ...prev,
+          [videoId]: { ...current, progress: elapsedSeconds }
+        };
+      });
+    }, 1000); // Update every second
+
+    intervalRefs.current[videoId] = interval;
+  };
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(intervalRefs.current).forEach(interval => clearInterval(interval));
+    };
+  }, []);
+
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
     const paymentSuccess = localStorage.getItem('payment_success');
     const authToken = localStorage.getItem('auth_token');
-    
+
     // Get student ID from token
     let userId = '';
     if (authToken) {
@@ -60,7 +126,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     // Fetch enrolled course data from backend
     const fetchEnrolledCourseData = async () => {
       if (!savedCourse || !userId) return;
-      
+
       try {
         const courseData = JSON.parse(savedCourse);
         const response = await fetch(`http://localhost:5000/api/courses/${courseData.id || courseData.Course_Id}`, {
@@ -68,11 +134,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             'Authorization': `Bearer ${authToken}`
           }
         });
-        
+
         if (response.ok) {
           const enrolledCourse = await response.json();
           setCourseInfo(enrolledCourse);
-          
+
           // Fetch video progress after getting course info
           fetchVideoProgress(userId, courseData.id || courseData.Course_Id, authToken);
         }
@@ -99,9 +165,24 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             setVideoProgress(result.data);
             setProgress(result.data.completionPercentage);
           }
+        } else {
+          // No progress yet, set defaults
+          setVideoProgress({
+            totalVideos: 4,
+            completedVideos: 0,
+            completionPercentage: 0
+          });
+          setProgress(0);
         }
       } catch (error) {
         console.error('Error fetching video progress:', error);
+        // On error, set defaults
+        setVideoProgress({
+          totalVideos: 4,
+          completedVideos: 0,
+          completionPercentage: 0
+        });
+        setProgress(0);
       }
     };
 
@@ -111,7 +192,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       try {
         const parsedCourse = JSON.parse(savedCourse);
         setSelectedCourse(parsedCourse);
-        
+
         // Fetch course details and create enrollment
         initializeCourseData(parsedCourse, userId, paymentSuccess);
       } catch (error) {
@@ -151,22 +232,22 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       const submissionsResult = await submissionsResponse.json();
 
       const submissions = {};
-      
+
       // Map submissions from Tbl_Submissions (get latest for each assignment)
       if (submissionsResult.success && submissionsResult.data) {
         // Group submissions by Assignment_Id and get the latest one
         const submissionsByAssignment = {};
-        
+
         submissionsResult.data.forEach(submission => {
           const assignmentId = submission.Assignment_Id;
-          
+
           // If we don't have this assignment yet, or this submission is newer
-          if (!submissionsByAssignment[assignmentId] || 
-              new Date(submission.Submitted_On) > new Date(submissionsByAssignment[assignmentId].Submitted_On)) {
+          if (!submissionsByAssignment[assignmentId] ||
+            new Date(submission.Submitted_On) > new Date(submissionsByAssignment[assignmentId].Submitted_On)) {
             submissionsByAssignment[assignmentId] = submission;
           }
         });
-        
+
         // Use the latest submission for each assignment
         Object.keys(submissionsByAssignment).forEach(assignmentId => {
           submissions[assignmentId] = submissionsByAssignment[assignmentId];
@@ -185,7 +266,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           }
         }
       }
-      
+
       setSubmittedAssignments(submissions);
       console.log('✅ Fetched latest submissions for each assignment:', submissions);
     } catch (error) {
@@ -197,7 +278,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const initializeCourseData = async (course, userId, paymentData) => {
     try {
       const paymentInfo = paymentData ? JSON.parse(paymentData) : null;
-      
+
       // Create enrollment record
       if (paymentInfo && userId) {
         const enrollmentResponse = await fetch('http://localhost:5000/api/enrollments/create', {
@@ -213,7 +294,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         const enrollmentResult = await enrollmentResponse.json();
         if (enrollmentResult.success) {
           setEnrollmentId(enrollmentResult.data.Enrollment_Id);
-          
+
           // Create earnings record for lecturer
           if (course.Lecturer_Id && paymentInfo.amount) {
             await fetch('http://localhost:5000/api/earnings/create', {
@@ -233,10 +314,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
       // Fetch assignments for this course
       fetchAssignments(course.id || course.Course_Id || 'COURSE_001');
-      
+
       // Fetch progress
       fetchProgress(course.id || course.Course_Id || 'COURSE_001', userId);
-      
+
     } catch (error) {
       console.error('Error initializing course data:', error);
     }
@@ -262,7 +343,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       const result = await response.json();
       if (result.success && result.data) {
         setProgress(result.data.Progress_Percent);
-        setCompletedVideos(result.data.Completed_Topics || [0]);
+        setCompletedVideos(result.data.Completed_Topics || []);
       }
     } catch (error) {
       console.error('Error fetching progress:', error);
@@ -519,7 +600,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const totalVideos = courseContent.videos.length;
   const totalAssignments = courseContent.assignments.length;
   const completionPercentage = progress || Math.round((completedVideos.length / totalVideos) * 100);
-  
+
   // Calculate assignment progress (out of 7 weeks)
   const completedAssignmentsCount = completedAssignments.length;
   const totalWeeks = 7;
@@ -529,10 +610,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     if (!completedVideos.includes(videoId)) {
       const newCompleted = [...completedVideos, videoId];
       setCompletedVideos(newCompleted);
-      
+
       // Update video progress in database
       await updateVideoProgressInDB(videoId, true);
-      
+
       // Update progress after state update
       setTimeout(updateProgress, 100);
     }
@@ -543,13 +624,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     try {
       const authToken = localStorage.getItem('auth_token');
       const courseData = JSON.parse(localStorage.getItem('selected_course'));
-      
+
       if (!authToken || !studentId || !courseData) return;
 
       const video = courseContent.videos.find(v => v.id === videoId);
       if (!video) return;
 
-      const endpoint = isCompleted 
+      const endpoint = isCompleted
         ? 'http://localhost:5000/api/video-progress/mark-complete'
         : 'http://localhost:5000/api/video-progress/update';
 
@@ -598,7 +679,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const handleAssignmentStart = (assignmentId) => {
     const assignment = courseContent.assignments.find(a => a.id === assignmentId);
     if (assignment) {
-      setSelectedAssignment(assignment);
+      // Add Course_Id to assignment object
+      const assignmentWithCourseId = {
+        ...assignment,
+        Course_Id: selectedCourse?.Course_Id || selectedCourse?.id || selectedCourse?.courseId || courseInfo?.Course_Id
+      };
+      setSelectedAssignment(assignmentWithCourseId);
       setShowAssignment(true);
     }
   };
@@ -637,20 +723,20 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         `http://localhost:5000/api/submissions/student/${studentId}`
       );
       const submissionsResult = await submissionsResponse.json();
-      
+
       if (submissionsResult.success && submissionsResult.data) {
         // Get all submissions for this assignment and find the latest one
         const assignmentSubmissions = submissionsResult.data.filter(s => s.Assignment_Id === assignmentId);
-        
+
         if (assignmentSubmissions.length > 0) {
           // Sort by Submitted_On date descending and get the most recent
-          const latestSubmission = assignmentSubmissions.sort((a, b) => 
+          const latestSubmission = assignmentSubmissions.sort((a, b) =>
             new Date(b.Submitted_On) - new Date(a.Submitted_On)
           )[0];
-          
+
           // Get the original assignment to fetch questions
           const assignment = courseContent.assignments.find(a => a.id === assignmentId);
-          
+
           // Convert Tbl_Submissions format to expected format
           const convertedData = {
             Assignment_Id: latestSubmission.Assignment_Id,
@@ -678,7 +764,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         `http://localhost:5000/api/assignments/submission/${assignmentId}/${studentId}`
       );
       const assignmentsResult = await assignmentsResponse.json();
-      
+
       if (assignmentsResult.success && assignmentsResult.data) {
         setSelectedSubmission(assignmentsResult.data);
         setViewingSubmission(true);
@@ -696,7 +782,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     try {
       setLoadingQuiz(true);
       const authToken = localStorage.getItem('auth_token');
-      
+
       if (!authToken) {
         alert('Please login to start quiz');
         return;
@@ -851,11 +937,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   <span className="question-marks">{q.marks} Marks</span>
                 </div>
                 <p className="question-text">{q.question}</p>
-                
+
                 <div className="submitted-answer">
                   <strong>Your Answer:</strong>
                   <div className="answer-content">
-                    {q.type === 'text' 
+                    {q.type === 'text'
                       ? selectedSubmission.Submission_Data?.Answers[q.id] || 'Not answered'
                       : q.options?.[parseInt(selectedSubmission.Submission_Data?.Answers[q.id])] || 'Not answered'
                     }
@@ -907,8 +993,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           <h2 className="nptel-section-title">📚 Course Information</h2>
           <div className="course-info-card">
             <div className="course-info-header">
-              <img 
-                src={selectedCourse.image} 
+              <img
+                src={selectedCourse.image}
                 alt={courseContent.info.title}
                 className="course-info-image"
               />
@@ -929,7 +1015,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <div className="course-info-body">
               <h4>Course Description</h4>
               <p>{courseContent.info.description}</p>
-              
+
               <h4>Learning Objectives</h4>
               <ul className="objectives-list">
                 {courseContent.info.objectives.map((obj, idx) => (
@@ -945,7 +1031,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           <div className="progress-card-header">
             <span className="progress-icon">📊</span>
             <h2>Course Progress</h2>
-            <button 
+            <button
               className="view-detailed-progress-btn"
               onClick={() => onNavigate && onNavigate('course-progress')}
               style={{
@@ -983,20 +1069,20 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               <div className="stat-label">ASSIGNMENTS</div>
             </div>
             <div className="progress-stat-box">
-              <div className="stat-number">{videoProgress.completionPercentage || completionPercentage}%</div>
+              <div className="stat-number">{videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : completionPercentage}%</div>
               <div className="stat-label">COMPLETE</div>
             </div>
           </div>
           <div className="video-progress-section">
             <h3 className="progress-subtitle">Video Progress</h3>
             <div className="progress-bar-container">
-              <div 
-                className="progress-bar-fill" 
+              <div
+                className="progress-bar-fill"
                 style={{ width: `${videoProgress.completionPercentage || 0}%` }}
               ></div>
             </div>
             <p className="progress-text">
-              {videoProgress.completedVideos || completedVideos.length} of {videoProgress.totalVideos || totalVideos} videos completed
+              {videoProgress.completedVideos !== undefined ? videoProgress.completedVideos : completedVideos.length} of {videoProgress.totalVideos || totalVideos} videos completed
             </p>
           </div>
         </div>
@@ -1007,8 +1093,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <h2 className="nptel-section-title">📹 Video Lectures</h2>
             <div className="language-selector">
               <label>Language: </label>
-              <select 
-                value={selectedLanguage} 
+              <select
+                value={selectedLanguage}
                 onChange={(e) => setSelectedLanguage(e.target.value)}
                 className="language-dropdown"
               >
@@ -1038,7 +1124,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div className="video-card-footer">
                   <h4 className="video-title">{video.title}</h4>
                   <p className="video-description">{video.description}</p>
-                  
+
                   {/* Video Content/Transcript */}
                   <div className="video-content-section">
                     <h5>Video Content ({selectedLanguage})</h5>
@@ -1046,10 +1132,74 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                       {video.transcripts[selectedLanguage]}
                     </p>
                   </div>
-                  
-                  <button 
+
+                  {/* Video watching progress */}
+                  {watchingVideos[video.id] && !watchedVideos.includes(video.id) && (
+                    <div style={{
+                      marginBottom: '0.75rem',
+                      padding: '0.75rem',
+                      background: '#f0f8ff',
+                      borderRadius: '8px',
+                      border: '2px solid #667eea'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#667eea' }}>
+                          🎬 Watching video...
+                        </span>
+                        <span style={{ fontSize: '0.85rem', color: '#666' }}>
+                          {Math.round((watchingVideos[video.id].progress / (parseInt(video.duration.split(':')[0]) * 60 + parseInt(video.duration.split(':')[1]))) * 100)}%
+                        </span>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: '8px',
+                        background: '#e0e0e0',
+                        borderRadius: '4px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${(watchingVideos[video.id].progress / (parseInt(video.duration.split(':')[0]) * 60 + parseInt(video.duration.split(':')[1]))) * 100}%`,
+                          height: '100%',
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          transition: 'width 0.3s ease'
+                        }}></div>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem', marginBottom: 0 }}>
+                        Please watch the entire video to enable Mark as Complete
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Watch Video Button */}
+                  {!watchingVideos[video.id] && !watchedVideos.includes(video.id) && !completedVideos.includes(video.id) && (
+                    <button
+                      className="watch-video-btn"
+                      onClick={() => handleWatchVideo(video.id, video.duration)}
+                      style={{
+                        marginBottom: '0.5rem',
+                        padding: '0.75rem 1.5rem',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        width: '100%'
+                      }}
+                    >
+                      ▶ Watch Video
+                    </button>
+                  )}
+
+                  {/* Mark as Complete Button */}
+                  <button
                     className={`mark-complete-btn ${completedVideos.includes(video.id) ? 'completed' : ''}`}
                     onClick={() => handleVideoComplete(video.id)}
+                    disabled={!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)}
+                    style={{
+                      opacity: (!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)) ? 0.5 : 1,
+                      cursor: (!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)) ? 'not-allowed' : 'pointer'
+                    }}
                   >
                     {completedVideos.includes(video.id) ? '✓ Completed' : 'Mark as Complete'}
                   </button>
@@ -1079,11 +1229,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   </span>
                 </div>
                 <div className="assignment-actions">
-                  <button 
+                  <button
                     className="nptel-btn nptel-btn-primary"
                     onClick={() => handleAssignmentStart(assignment.id)}
                     disabled={submittedAssignments[assignment.id]}
-                    style={{ 
+                    style={{
                       opacity: submittedAssignments[assignment.id] ? 0.5 : 1,
                       cursor: submittedAssignments[assignment.id] ? 'not-allowed' : 'pointer'
                     }}
@@ -1091,7 +1241,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     {submittedAssignments[assignment.id] ? '✓ Submitted' : 'Start Assignment'}
                   </button>
                   {submittedAssignments[assignment.id] && (
-                    <button 
+                    <button
                       className="nptel-btn nptel-btn-secondary"
                       onClick={() => handleViewSubmission(assignment.id)}
                     >
@@ -1126,7 +1276,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             </div>
             <div className="progress-bar-container">
               <div className="progress-bar-track">
-                <div 
+                <div
                   className="progress-bar-fill"
                   style={{ width: `${assignmentProgressPercentage}%` }}
                 >
@@ -1147,37 +1297,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           </div>
         </div>
 
-        {/* Quizzes Section */}
-        <div className="nptel-section">
-          <h2 className="nptel-section-title">✍️ Weekly Quizzes</h2>
-          <div className="nptel-quizzes-grid">
-            {courseContent.quizzes.map((quiz) => (
-              <div key={quiz.id} className="nptel-quiz-card">
-                <div className="quiz-card-header">
-                  <h3 className="quiz-title">{quiz.title}</h3>
-                  <span className="quiz-marks">{quiz.marks} Marks</span>
-                </div>
-                <div className="quiz-meta">
-                  <span className="quiz-time">⏱️ Time: {quiz.timeLimit}</span>
-                  <span className="quiz-questions">❓ Questions: {quiz.questions}</span>
-                </div>
-                <div className="quiz-actions">
-                  <button 
-                    className="nptel-btn nptel-btn-quiz"
-                    onClick={() => handleQuizStart(quiz.week)}
-                    disabled={loadingQuiz}
-                  >
-                    {loadingQuiz ? 'Loading...' : 'Start Quiz'}
-                  </button>
-                  {completedQuizzes.includes(quiz.id) && (
-                    <span className="quiz-score">Score: 45/{quiz.marks}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Feedback Section */}
         <div className="nptel-section feedback-section">
           <h2 className="nptel-section-title">💬 Course Feedback</h2>
@@ -1185,7 +1304,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <p className="feedback-intro">
               Help us improve! Share your experience with this course.
             </p>
-            
+
             <div className="feedback-form">
               <div className="form-group">
                 <label className="form-label">
@@ -1222,7 +1341,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 </span>
               </div>
 
-              <button 
+              <button
                 className="nptel-btn nptel-btn-primary submit-feedback-btn"
                 onClick={submitFeedback}
                 disabled={!feedbackData.comment.trim()}

@@ -12,25 +12,31 @@ const router = express.Router();
 const authenticateRegistrar = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'No token provided' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token provided" });
     }
 
     const token = authHeader.substring(7);
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-    
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
+
     // Find registrar by user_id
-    const registrar = await Registrars.findOne({ User_Id: decoded.userId }).populate('User_Id');
+    const registrar = await Registrars.findOne({
+      User_Id: decoded.userId,
+    }).populate("User_Id");
     if (!registrar) {
-      return res.status(401).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(401)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     req.registrar = registrar;
     req.user = registrar.User_Id;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid token' });
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 
@@ -38,32 +44,37 @@ const authenticateRegistrar = async (req, res, next) => {
 router.get("/profile", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id })
-      .populate('User_Id')
-      .populate('University_Id');
+      .populate("User_Id")
+      .populate("University_Id");
 
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar profile not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar profile not found" });
     }
 
     // Check if university is approved
-    const isUniversityApproved = registrar.University_Id?.Verification_Status === 'verified';
+    const isUniversityApproved =
+      registrar.University_Id?.Verification_Status === "verified";
 
     res.json({
       success: true,
       data: {
-        name: registrar.User_Id.email.split('@')[0],
+        name: registrar.User_Id.email.split("@")[0],
         email: registrar.User_Id.email,
         contact: registrar.Contact_No,
-        university: registrar.University_Id?.University_Name || 'Unknown University',
+        university:
+          registrar.University_Id?.University_Name || "Unknown University",
         universityId: registrar.University_Id?._id,
-        role: 'registrar',
+        role: "registrar",
         universityApproved: isUniversityApproved,
-        universityStatus: registrar.University_Id?.Verification_Status || 'pending'
-      }
+        universityStatus:
+          registrar.University_Id?.Verification_Status || "pending",
+      },
     });
   } catch (error) {
-    console.error('Error fetching registrar profile:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching registrar profile:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -71,10 +82,12 @@ router.get("/profile", authenticateRegistrar, async (req, res) => {
 router.put("/profile", authenticateRegistrar, async (req, res) => {
   try {
     const { contact } = req.body;
-    
+
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Update contact if provided
@@ -85,14 +98,14 @@ router.put("/profile", authenticateRegistrar, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       data: {
-        contact: registrar.Contact_No
-      }
+        contact: registrar.Contact_No,
+      },
     });
   } catch (error) {
-    console.error('Error updating registrar profile:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error updating registrar profile:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -100,25 +113,27 @@ router.put("/profile", authenticateRegistrar, async (req, res) => {
 router.put("/change-password", authenticateRegistrar, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    
+
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Current password and new password are required' 
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
       });
     }
 
     const user = await Users.findById(req.user._id);
     if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     // Verify current password
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);
     if (!isCurrentPasswordValid) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Current password is incorrect' 
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
       });
     }
 
@@ -128,11 +143,11 @@ router.put("/change-password", authenticateRegistrar, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password changed successfully'
+      message: "Password changed successfully",
     });
   } catch (error) {
-    console.error('Error changing password:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error changing password:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -140,16 +155,16 @@ router.put("/change-password", authenticateRegistrar, async (req, res) => {
 router.get("/get-registrars", async (req, res) => {
   try {
     const registrars = await Registrars.find()
-      .select('University_Id Contact_No')
+      .select("University_Id Contact_No")
       .lean();
 
     res.json({
       success: true,
-      data: registrars
+      data: registrars,
     });
   } catch (error) {
-    console.error('Error fetching registrars:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching registrars:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -158,24 +173,35 @@ router.get("/stats", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Get institutes under this registrar's university
-    const institutes = await Institutes.find({ University_Id: registrar.University_Id });
-    
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    });
+
     // Get students from these institutes
-    const instituteIds = institutes.map(inst => inst._id);
-    const students = await Students.find({ Institution_Id: { $in: instituteIds } });
-    
+    const instituteIds = institutes.map((inst) => inst._id);
+    const students = await Students.find({
+      Institution_Id: { $in: instituteIds },
+    });
+
     // Get lecturers from these institutes
-    const lecturers = await Lecturers.find({ Institute_Id: { $in: instituteIds } });
+    const lecturers = await Lecturers.find({
+      Institute_Id: { $in: instituteIds },
+    });
 
     // Calculate stats
     const totalInstitutes = institutes.length;
     const totalStudents = students.length;
     const totalLecturers = lecturers.length;
-    const activeCourses = institutes.reduce((sum, inst) => sum + (inst.Courses_Offered?.length || 0), 0);
+    const activeCourses = institutes.reduce(
+      (sum, inst) => sum + (inst.Courses_Offered?.length || 0),
+      0
+    );
 
     res.json({
       success: true,
@@ -184,12 +210,12 @@ router.get("/stats", authenticateRegistrar, async (req, res) => {
         totalStudents,
         totalLecturers,
         activeCourses,
-        pendingApprovals: 0 // You can implement approval logic
-      }
+        pendingApprovals: 0, // You can implement approval logic
+      },
     });
   } catch (error) {
-    console.error('Error fetching registrar stats:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching registrar stats:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -198,26 +224,29 @@ router.get("/institutes", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
-    const institutes = await Institutes.find({ University_Id: registrar.University_Id })
-      .populate('University_Id', 'University_Name');
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    }).populate("University_Id", "University_Name");
 
     res.json({
       success: true,
-      data: institutes.map(inst => ({
+      data: institutes.map((inst) => ({
         id: inst._id,
         name: inst.Institute_Name,
-        contact: inst.Contact_No || '',
+        contact: inst.Contact_No || "",
         courses: inst.Courses_Offered || [],
-        status: inst.Verification_Status || 'Active',
-        university: inst.University_Id?.University_Name || 'Unknown'
-      }))
+        status: inst.Verification_Status || "Active",
+        university: inst.University_Id?.University_Name || "Unknown",
+      })),
     });
   } catch (error) {
-    console.error('Error fetching institutes:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching institutes:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -225,46 +254,58 @@ router.get("/institutes", authenticateRegistrar, async (req, res) => {
 router.post("/institutes", authenticateRegistrar, async (req, res) => {
   try {
     const { name, contact, courses } = req.body;
-    
+
     if (!name) {
-      return res.status(400).json({ success: false, message: 'Institute name is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Institute name is required" });
     }
 
-    const registrar = await Registrars.findOne({ User_Id: req.user._id }).populate('University_Id');
+    const registrar = await Registrars.findOne({
+      User_Id: req.user._id,
+    }).populate("University_Id");
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Check if university is approved
-    if (registrar.University_Id?.Verification_Status !== 'verified') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Your university is not approved yet. You cannot add institutes until your university is verified by admin.' 
+    if (registrar.University_Id?.Verification_Status !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your university is not approved yet. You cannot add institutes until your university is verified by admin.",
       });
     }
 
     const institute = await Institutes.create({
       Institute_Name: name,
       Contact_No: contact,
-      Courses_Offered: courses ? courses.split(',').map(c => c.trim()).filter(Boolean) : [],
+      Courses_Offered: courses
+        ? courses
+            .split(",")
+            .map((c) => c.trim())
+            .filter(Boolean)
+        : [],
       University_Id: registrar.University_Id._id,
-      Verification_Status: 'Active'
+      Verification_Status: "Active",
     });
 
     res.json({
       success: true,
-      message: 'Institute added successfully',
+      message: "Institute added successfully",
       data: {
         id: institute._id,
         name: institute.Institute_Name,
         contact: institute.Contact_No,
         courses: institute.Courses_Offered,
-        status: institute.Verification_Status
-      }
+        status: institute.Verification_Status,
+      },
     });
   } catch (error) {
-    console.error('Error adding institute:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error adding institute:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -274,49 +315,60 @@ router.put("/institutes/:id", authenticateRegistrar, async (req, res) => {
     const { id } = req.params;
     const { name, contact, courses, status } = req.body;
 
-    const registrar = await Registrars.findOne({ User_Id: req.user._id }).populate('University_Id');
+    const registrar = await Registrars.findOne({
+      User_Id: req.user._id,
+    }).populate("University_Id");
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Check if university is approved
-    if (registrar.University_Id?.Verification_Status !== 'verified') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Your university is not approved yet. You cannot update institutes until your university is verified by admin.' 
+    if (registrar.University_Id?.Verification_Status !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your university is not approved yet. You cannot update institutes until your university is verified by admin.",
       });
     }
 
-    const institute = await Institutes.findOne({ 
-      _id: id, 
-      University_Id: registrar.University_Id 
+    const institute = await Institutes.findOne({
+      _id: id,
+      University_Id: registrar.University_Id,
     });
 
     if (!institute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Institute not found" });
     }
 
     if (name) institute.Institute_Name = name;
     if (contact !== undefined) institute.Contact_No = contact;
-    if (courses) institute.Courses_Offered = courses.split(',').map(c => c.trim()).filter(Boolean);
+    if (courses)
+      institute.Courses_Offered = courses
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
     if (status) institute.Verification_Status = status;
 
     await institute.save();
 
     res.json({
       success: true,
-      message: 'Institute updated successfully',
+      message: "Institute updated successfully",
       data: {
         id: institute._id,
         name: institute.Institute_Name,
         contact: institute.Contact_No,
         courses: institute.Courses_Offered,
-        status: institute.Verification_Status
-      }
+        status: institute.Verification_Status,
+      },
     });
   } catch (error) {
-    console.error('Error updating institute:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error updating institute:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -325,35 +377,42 @@ router.delete("/institutes/:id", authenticateRegistrar, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const registrar = await Registrars.findOne({ User_Id: req.user._id }).populate('University_Id');
+    const registrar = await Registrars.findOne({
+      User_Id: req.user._id,
+    }).populate("University_Id");
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Check if university is approved
-    if (registrar.University_Id?.Verification_Status !== 'verified') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Your university is not approved yet. You cannot delete institutes until your university is verified by admin.' 
+    if (registrar.University_Id?.Verification_Status !== "verified") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your university is not approved yet. You cannot delete institutes until your university is verified by admin.",
       });
     }
 
-    const institute = await Institutes.findOneAndDelete({ 
-      _id: id, 
-      University_Id: registrar.University_Id 
+    const institute = await Institutes.findOneAndDelete({
+      _id: id,
+      University_Id: registrar.University_Id,
     });
 
     if (!institute) {
-      return res.status(404).json({ success: false, message: 'Institute not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Institute not found" });
     }
 
     res.json({
       success: true,
-      message: 'Institute deleted successfully'
+      message: "Institute deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting institute:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error deleting institute:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -362,18 +421,26 @@ router.get("/analytics", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
-    const institutes = await Institutes.find({ University_Id: registrar.University_Id });
-    const instituteIds = institutes.map(inst => inst._id);
-    
-    const students = await Students.find({ Institution_Id: { $in: instituteIds } });
-    const lecturers = await Lecturers.find({ Institute_Id: { $in: instituteIds } });
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    });
+    const instituteIds = institutes.map((inst) => inst._id);
+
+    const students = await Students.find({
+      Institution_Id: { $in: instituteIds },
+    });
+    const lecturers = await Lecturers.find({
+      Institute_Id: { $in: instituteIds },
+    });
 
     // Group students by institute
     const studentsByInstitute = {};
-    students.forEach(student => {
+    students.forEach((student) => {
       const instituteId = student.Institution_Id.toString();
       if (!studentsByInstitute[instituteId]) {
         studentsByInstitute[instituteId] = [];
@@ -382,31 +449,33 @@ router.get("/analytics", authenticateRegistrar, async (req, res) => {
     });
 
     // Create analytics data
-    const analytics = institutes.map(inst => {
+    const analytics = institutes.map((inst) => {
       const instituteStudents = studentsByInstitute[inst._id.toString()] || [];
-      const instituteLecturers = lecturers.filter(lec => lec.Institute_Id.toString() === inst._id.toString());
-      
+      const instituteLecturers = lecturers.filter(
+        (lec) => lec.Institute_Id.toString() === inst._id.toString()
+      );
+
       return {
         instituteId: inst._id,
         instituteName: inst.Institute_Name,
         totalStudents: instituteStudents.length,
         totalLecturers: instituteLecturers.length,
         courses: inst.Courses_Offered || [],
-        students: instituteStudents.map(s => ({
+        students: instituteStudents.map((s) => ({
           name: s.Full_Name,
           course: s.Course,
-          enrollmentYear: s.Enrollment_Year
-        }))
+          enrollmentYear: s.Enrollment_Year,
+        })),
       };
     });
 
     res.json({
       success: true,
-      data: analytics
+      data: analytics,
     });
   } catch (error) {
-    console.error('Error fetching analytics:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching analytics:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -414,27 +483,29 @@ router.get("/analytics", authenticateRegistrar, async (req, res) => {
 router.get("/login-history", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
-    
+
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Get login history from registrar document
     const loginHistory = registrar.LoginHistory || [];
-    
+
     // Sort by most recent first
-    const sortedHistory = loginHistory.sort((a, b) => 
-      new Date(b.timestamp) - new Date(a.timestamp)
+    const sortedHistory = loginHistory.sort(
+      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
     );
 
     // Return last 10 logins
     res.json({
       success: true,
-      data: sortedHistory.slice(0, 10)
+      data: sortedHistory.slice(0, 10),
     });
   } catch (error) {
-    console.error('Error fetching login history:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching login history:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -442,9 +513,11 @@ router.get("/login-history", authenticateRegistrar, async (req, res) => {
 router.post("/seed-login-history", authenticateRegistrar, async (req, res) => {
   try {
     const registrar = await Registrars.findOne({ User_Id: req.user._id });
-    
+
     if (!registrar) {
-      return res.status(404).json({ success: false, message: 'Registrar not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
     }
 
     // Generate sample login history
@@ -452,34 +525,34 @@ router.post("/seed-login-history", authenticateRegistrar, async (req, res) => {
     const sampleHistory = [
       {
         timestamp: new Date(now - 2 * 60 * 60 * 1000), // 2 hours ago
-        ip: '192.168.1.100',
-        device: 'Desktop',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+        ip: "192.168.1.100",
+        device: "Desktop",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
       },
       {
         timestamp: new Date(now - 24 * 60 * 60 * 1000), // 1 day ago
-        ip: '192.168.1.105',
-        device: 'Mobile',
-        userAgent: 'Mozilla/5.0 (Android 14; Mobile) Chrome/120.0.0.0'
+        ip: "192.168.1.105",
+        device: "Mobile",
+        userAgent: "Mozilla/5.0 (Android 14; Mobile) Chrome/120.0.0.0",
       },
       {
         timestamp: new Date(now - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-        ip: '192.168.1.100',
-        device: 'Desktop',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+        ip: "192.168.1.100",
+        device: "Desktop",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
       },
       {
         timestamp: new Date(now - 3 * 24 * 60 * 60 * 1000), // 3 days ago
-        ip: '192.168.1.110',
-        device: 'Tablet',
-        userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0) Safari/605.1.15'
+        ip: "192.168.1.110",
+        device: "Tablet",
+        userAgent: "Mozilla/5.0 (iPad; CPU OS 17_0) Safari/605.1.15",
       },
       {
         timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-        ip: '192.168.1.100',
-        device: 'Desktop',
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
-      }
+        ip: "192.168.1.100",
+        device: "Desktop",
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
+      },
     ];
 
     registrar.LoginHistory = sampleHistory;
@@ -487,12 +560,12 @@ router.post("/seed-login-history", authenticateRegistrar, async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Sample login history added successfully',
-      count: sampleHistory.length
+      message: "Sample login history added successfully",
+      count: sampleHistory.length,
     });
   } catch (error) {
-    console.error('Error seeding login history:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error seeding login history:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

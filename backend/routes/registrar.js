@@ -410,4 +410,90 @@ router.get("/analytics", authenticateRegistrar, async (req, res) => {
   }
 });
 
+// Get registrar login history
+router.get("/login-history", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    
+    if (!registrar) {
+      return res.status(404).json({ success: false, message: 'Registrar not found' });
+    }
+
+    // Get login history from registrar document
+    const loginHistory = registrar.LoginHistory || [];
+    
+    // Sort by most recent first
+    const sortedHistory = loginHistory.sort((a, b) => 
+      new Date(b.timestamp) - new Date(a.timestamp)
+    );
+
+    // Return last 10 logins
+    res.json({
+      success: true,
+      data: sortedHistory.slice(0, 10)
+    });
+  } catch (error) {
+    console.error('Error fetching login history:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Seed initial login history (for testing/demo - remove in production)
+router.post("/seed-login-history", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    
+    if (!registrar) {
+      return res.status(404).json({ success: false, message: 'Registrar not found' });
+    }
+
+    // Generate sample login history
+    const now = new Date();
+    const sampleHistory = [
+      {
+        timestamp: new Date(now - 2 * 60 * 60 * 1000), // 2 hours ago
+        ip: '192.168.1.100',
+        device: 'Desktop',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+      },
+      {
+        timestamp: new Date(now - 24 * 60 * 60 * 1000), // 1 day ago
+        ip: '192.168.1.105',
+        device: 'Mobile',
+        userAgent: 'Mozilla/5.0 (Android 14; Mobile) Chrome/120.0.0.0'
+      },
+      {
+        timestamp: new Date(now - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        ip: '192.168.1.100',
+        device: 'Desktop',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+      },
+      {
+        timestamp: new Date(now - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+        ip: '192.168.1.110',
+        device: 'Tablet',
+        userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0) Safari/605.1.15'
+      },
+      {
+        timestamp: new Date(now - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        ip: '192.168.1.100',
+        device: 'Desktop',
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+      }
+    ];
+
+    registrar.LoginHistory = sampleHistory;
+    await registrar.save();
+
+    res.json({
+      success: true,
+      message: 'Sample login history added successfully',
+      count: sampleHistory.length
+    });
+  } catch (error) {
+    console.error('Error seeding login history:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

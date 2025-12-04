@@ -6,6 +6,15 @@ const registrarsSchema = new mongoose.Schema(
     User_Id: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     Contact_No: { type: String, trim: true },
     University_Id: { type: mongoose.Schema.Types.ObjectId, ref: "Tbl_University", required: true },
+    LoginHistory: [
+      {
+        timestamp: { type: Date, default: Date.now },
+        ip: { type: String },
+        device: { type: String },
+        location: { type: String },
+        userAgent: { type: String }
+      }
+    ]
   },
   { timestamps: true }
 );

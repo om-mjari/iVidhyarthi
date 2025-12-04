@@ -6,6 +6,26 @@ import Logo from './Logo';
 // API configuration
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Toast Notification Component
+function Toast({ message, type, onClose }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className={`toast-notification ${type}`}>
+      <div className="toast-icon">
+        {type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}
+      </div>
+      <span className="toast-message">{message}</span>
+      <button className="toast-close" onClick={onClose}>×</button>
+    </div>
+  );
+}
+
 // Removed TopBar component - will be replaced with AdminDashboard structure
 
 // Stat component will be replaced with AdminDashboard structure
@@ -19,6 +39,21 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
   });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'password'
+  const [toast, setToast] = useState(null);
+
+  // Update form when profileData changes
+  useEffect(() => {
+    if (profileData && open) {
+      setForm(prev => ({
+        ...prev,
+        contact: profileData.contact || ''
+      }));
+    }
+  }, [profileData, open]);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+  };
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -35,7 +70,7 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        alert('Please login again');
+        showToast('Please login again', 'error');
         return;
       }
 
@@ -53,17 +88,19 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Profile updated successfully!');
+        showToast('Profile updated successfully!', 'success');
         if (onProfileUpdate) {
           onProfileUpdate();
         }
-        if (onClose) onClose();
+        setTimeout(() => {
+          if (onClose) onClose();
+        }, 1500);
       } else {
-        alert(result.message || 'Failed to update profile');
+        showToast(result.message || 'Failed to update profile', 'error');
       }
     } catch (error) {
       console.error('Error saving registrar profile:', error);
-      alert('Failed to save profile. Please try again.');
+      showToast('Failed to save profile. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -73,12 +110,12 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
     e?.preventDefault();
 
     if (form.newPassword !== form.confirmPassword) {
-      alert('New passwords do not match');
+      showToast('New passwords do not match', 'error');
       return;
     }
 
     if (form.newPassword.length < 6) {
-      alert('New password must be at least 6 characters long');
+      showToast('New password must be at least 6 characters long', 'error');
       return;
     }
 
@@ -87,7 +124,7 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
     try {
       const token = localStorage.getItem('auth_token');
       if (!token) {
-        alert('Please login again');
+        showToast('Please login again', 'error');
         return;
       }
 
@@ -106,14 +143,14 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Password changed successfully!');
+        showToast('Password changed successfully!', 'success');
         setForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
       } else {
-        alert(result.message || 'Failed to change password');
+        showToast(result.message || 'Failed to change password', 'error');
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('Failed to change password. Please try again.');
+      showToast('Failed to change password. Please try again.', 'error');
     } finally {
       setLoading(false);
     }
@@ -133,143 +170,287 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
 
   return (
     <>
-      <div className="modal-overlay" onClick={onClose} style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
-        zIndex: 1000
-      }} />
-      <div className="modal-content" style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        background: 'rgba(255, 255, 255, 0.15)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: '20px',
-        padding: '2rem',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        zIndex: 1001,
-        minWidth: '400px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3 style={{ margin: 0, color: 'white', fontSize: '1.3rem', fontWeight: '700' }}>Registrar Profile</h3>
-          <button className="btn-secondary" onClick={onClose} style={{ fontSize: '1.5rem', lineHeight: '1', padding: '0.25rem 0.5rem' }}>×</button>
+      {/* Modal Overlay */}
+      <div className="profile-modal-overlay" onClick={onClose} />
+      
+      {/* Modal Container */}
+      <div className="profile-modal-container">
+        {/* Modal Header */}
+        <div className="profile-modal-header">
+          <div className="modal-title-section">
+            <div className="modal-icon">
+              <span>{activeTab === 'profile' ? '👤' : '🔐'}</span>
+            </div>
+            <div>
+              <h3 className="modal-title">Account Settings</h3>
+              <p className="modal-subtitle">Manage your registrar profile</p>
+            </div>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>
+            <span>✕</span>
+          </button>
         </div>
 
         {/* Tab Navigation */}
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="profile-tabs">
           <button
-            type="button"
-            className={`btn-${activeTab === 'profile' ? 'primary' : 'secondary'}`}
+            className={`profile-tab ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
           >
-            Profile Info
+            <span className="tab-icon">📋</span>
+            <span className="tab-label">Profile Info</span>
           </button>
           <button
-            type="button"
-            className={`btn-${activeTab === 'password' ? 'primary' : 'secondary'}`}
+            className={`profile-tab ${activeTab === 'password' ? 'active' : ''}`}
             onClick={() => setActiveTab('password')}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
           >
-            Change Password
+            <span className="tab-icon">🔑</span>
+            <span className="tab-label">Change Password</span>
           </button>
         </div>
 
-        {activeTab === 'profile' ? (
-          <form onSubmit={saveProfile}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Email (Read-only)</label>
-              <input
-                className="search-input"
-                value={profileData?.email || ''}
-                style={{ width: '100%', opacity: 0.6 }}
-                disabled
-              />
-            </div>
+        {/* Modal Body */}
+        <div className="profile-modal-body">{activeTab === 'profile' ? (
+            <form onSubmit={saveProfile} className="profile-form">
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">✉️</span>
+                  Email Address
+                </label>
+                <input
+                  className="form-input-modern disabled"
+                  value={profileData?.email || ''}
+                  disabled
+                />
+                <span className="input-hint">This field cannot be changed</span>
+              </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>University (Read-only)</label>
-              <input
-                className="search-input"
-                value={profileData?.university || ''}
-                style={{ width: '100%', opacity: 0.6 }}
-                disabled
-              />
-            </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">🏛️</span>
+                  University
+                </label>
+                <input
+                  className="form-input-modern disabled"
+                  value={profileData?.university || ''}
+                  disabled
+                />
+                <span className="input-hint">Assigned by system administrator</span>
+              </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Contact Number</label>
-              <input
-                type="tel"
-                className="search-input"
-                name="contact"
-                value={form.contact || ''}
-                onChange={handleChange}
-                style={{ width: '100%' }}
-                placeholder="Enter your contact number"
-              />
-            </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">📱</span>
+                  Contact Number
+                </label>
+                <input
+                  type="tel"
+                  className="form-input-modern"
+                  name="contact"
+                  value={form.contact || ''}
+                  onChange={handleChange}
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary">Save Changes</button>
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={changePassword}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Current Password</label>
-              <input
-                type="password"
-                className="search-input"
-                name="currentPassword"
-                value={form.currentPassword || ''}
-                onChange={handleChange}
-                style={{ width: '100%' }}
-                placeholder="Enter your current password"
-                required
-              />
-            </div>
+              <div className="modal-actions">
+                <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
+                  <span>✕</span> Cancel
+                </button>
+                <button type="submit" className="modal-btn save-btn">
+                  <span>✓</span> Save Changes
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={changePassword} className="profile-form">
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">🔒</span>
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  className="form-input-modern"
+                  name="currentPassword"
+                  value={form.currentPassword || ''}
+                  onChange={handleChange}
+                  placeholder="Enter current password"
+                  required
+                />
+              </div>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>New Password</label>
-              <input
-                type="password"
-                className="search-input"
-                name="newPassword"
-                value={form.newPassword || ''}
-                onChange={handleChange}
-                style={{ width: '100%' }}
-                placeholder="Enter new password (min 6 characters)"
-                required
-              />
-            </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">🔑</span>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  className="form-input-modern"
+                  name="newPassword"
+                  value={form.newPassword || ''}
+                  onChange={handleChange}
+                  placeholder="Minimum 6 characters"
+                  required
+                />
+              </div>
 
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Confirm New Password</label>
-              <input
-                type="password"
-                className="search-input"
-                name="confirmPassword"
-                value={form.confirmPassword || ''}
-                onChange={handleChange}
-                style={{ width: '100%' }}
-                placeholder="Confirm new password"
-                required
-              />
-            </div>
+              <div className="form-group-modern">
+                <label className="form-label-modern">
+                  <span className="label-icon">✓</span>
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  className="form-input-modern"
+                  name="confirmPassword"
+                  value={form.confirmPassword || ''}
+                  onChange={handleChange}
+                  placeholder="Re-enter new password"
+                  required
+                />
+              </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary">Change Password</button>
-            </div>
-          </form>
+              <div className="modal-actions">
+                <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
+                  <span>✕</span> Cancel
+                </button>
+                <button type="submit" className="modal-btn save-btn">
+                  <span>🔐</span> Change Password
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+        
+        {/* Toast Notification */}
+        {toast && (
+          <Toast 
+            message={toast.message} 
+            type={toast.type} 
+            onClose={() => setToast(null)} 
+          />
         )}
+      </div>
+    </>
+  );
+}
+
+// Login Activity Modal Component
+function LoginActivityModal({ open, onClose, loginHistory, onSeedData }) {
+  if (!open) return null;
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-IN', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getDeviceIcon = (device) => {
+    if (!device) return '💻';
+    const lower = device.toLowerCase();
+    if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone')) return '📱';
+    if (lower.includes('tablet') || lower.includes('ipad')) return '📱';
+    return '💻';
+  };
+
+  return (
+    <>
+      <div className="profile-modal-overlay" onClick={onClose} />
+      <div className="login-activity-modal">
+        <div className="activity-modal-header">
+          <div className="modal-title-section">
+            <div className="modal-icon">
+              <span>📊</span>
+            </div>
+            <div>
+              <h3 className="modal-title">Login Activity Report</h3>
+              <p className="modal-subtitle">Your recent login history</p>
+            </div>
+          </div>
+          <button className="modal-close-btn" onClick={onClose}>
+            <span>✕</span>
+          </button>
+        </div>
+
+        <div className="activity-modal-body">
+          <div className="activity-stats-summary">
+            <div className="stat-card">
+              <div className="stat-icon">🔢</div>
+              <div className="stat-info">
+                <div className="stat-number">{loginHistory.length}</div>
+                <div className="stat-label">Total Logins</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon">📅</div>
+              <div className="stat-info">
+                <div className="stat-number">
+                  {loginHistory.length > 0 ? formatDate(loginHistory[0].timestamp).split(',')[0] : 'N/A'}
+                </div>
+                <div className="stat-label">Last Login</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="activity-timeline">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h4 className="timeline-title" style={{ margin: 0 }}>Recent Activity</h4>
+              {loginHistory.length === 0 && onSeedData && (
+                <button 
+                  onClick={onSeedData}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  🎲 Add Demo Data
+                </button>
+              )}
+            </div>
+            {loginHistory.length === 0 ? (
+              <div className="no-activity">
+                <div className="no-activity-icon">📭</div>
+                <p>No login history available</p>
+                <p style={{ fontSize: '0.85rem', color: '#9CA3AF', marginTop: '0.5rem' }}>
+                  Click "Add Demo Data" to see sample login records
+                </p>
+              </div>
+            ) : (
+              <div className="activity-list">
+                {loginHistory.map((login, index) => (
+                  <div key={index} className="activity-item">
+                    <div className="activity-icon">{getDeviceIcon(login.device)}</div>
+                    <div className="activity-details">
+                      <div className="activity-time">{formatDate(login.timestamp)}</div>
+                      <div className="activity-info">
+                        <span className="activity-device">{login.device || 'Unknown Device'}</span>
+                        {login.ip && <span className="activity-ip">IP: {login.ip}</span>}
+                        {login.location && <span className="activity-location">📍 {login.location}</span>}
+                      </div>
+                    </div>
+                    <div className="activity-status">
+                      <span className="status-badge success">✓ Success</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );
@@ -621,8 +802,10 @@ function ApprovalGate({ children }) {
 function RegistrarDashboard({ onLogout }) {
   const [activePanel, setActivePanel] = useState('overview');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [loginActivityOpen, setLoginActivityOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState(null);
+  const [loginHistory, setLoginHistory] = useState([]);
   const [stats, setStats] = useState({
     totalInstitutes: 0,
     totalStudents: 0,
@@ -651,12 +834,123 @@ function RegistrarDashboard({ onLogout }) {
         const isApproved = profileResult.data.universityApproved;
         setUniversityApproved(isApproved);
         localStorage.setItem('registrar_approved', String(!!isApproved));
+        
+        // Update profile data with actual values from backend
+        setProfileData({
+          email: profileResult.data.email,
+          contact: profileResult.data.contact || '',
+          university: profileResult.data.university || 'University Name',
+          universityApproved: isApproved,
+          universityStatus: isApproved ? 'Verified' : 'Pending Approval'
+        });
+        
         return isApproved;
       }
     } catch (error) {
       console.error('Error checking university approval:', error);
     }
     return false;
+  };
+
+  // Fetch registrar profile data
+  const fetchRegistrarProfile = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        console.log('No auth token found');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/registrar/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        const data = result.data;
+        
+        // Update profile data state
+        setProfileData({
+          email: data.email,
+          contact: data.contact || '',
+          university: data.university || 'University Name',
+          universityApproved: data.universityApproved || false,
+          universityStatus: data.universityApproved ? 'Verified' : 'Pending Approval'
+        });
+
+        // Update user state
+        setUser({
+          name: data.name || 'Registrar',
+          email: data.email,
+          university: data.university || 'University Name'
+        });
+
+        // Update approval status
+        setUniversityApproved(data.universityApproved || false);
+        localStorage.setItem('registrar_approved', String(!!data.universityApproved));
+        
+        console.log('✅ Profile data loaded:', data);
+      } else {
+        console.error('Failed to fetch profile:', result.message);
+      }
+    } catch (error) {
+      console.error('Error fetching registrar profile:', error);
+    }
+  };
+
+  // Fetch login history
+  const fetchLoginHistory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        showToast('Please log in to view activity', 'error');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/registrar/login-history`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setLoginHistory(result.data || []);
+        console.log('✅ Login history fetched:', result.data);
+      } else {
+        showToast('Failed to fetch login history', 'error');
+      }
+    } catch (error) {
+      console.error('Error fetching login history:', error);
+      showToast('Error loading login activity', 'error');
+      setLoginHistory([]);
+    }
+  };
+
+  // Seed sample login history for demo
+  const seedLoginHistory = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        showToast('Please log in first', 'error');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/registrar/seed-login-history`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        showToast(`Added ${result.count} sample login records!`, 'success');
+        fetchLoginHistory(); // Refresh the data
+      } else {
+        showToast('Failed to seed login history', 'error');
+      }
+    } catch (error) {
+      console.error('Error seeding login history:', error);
+      showToast('Error adding sample data', 'error');
+    }
   };
 
   // Fetch institutes data
@@ -712,13 +1006,16 @@ function RegistrarDashboard({ onLogout }) {
       setLoading(true);
 
       // Check if user is logged in first
-      const registrarData = localStorage.getItem('registrar_user');
-      if (!registrarData) {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
         window.location.href = '/login';
         return;
       }
 
-      // Fetch dashboard data from our new API endpoint
+      // Fetch registrar profile first to get real data
+      await fetchRegistrarProfile();
+
+      // Fetch dashboard stats
       const response = await fetch(`${API_BASE_URL}/registrar/dashboard`);
       const result = await response.json();
 
@@ -731,26 +1028,6 @@ function RegistrarDashboard({ onLogout }) {
         console.error('Failed to fetch dashboard data:', result.message);
       }
 
-      // Set mock user data if not already set
-      if (!user) {
-        setUser({
-          name: 'Registrar User',
-          email: 'registrar@university.edu',
-          university: 'University Name'
-        });
-
-        setProfileData({
-          name: 'Registrar User',
-          email: 'registrar@university.edu',
-          contact: '+1 234 567 890',
-          university: 'University Name'
-        });
-
-        // Set university as approved for demo
-        setUniversityApproved(true);
-        localStorage.setItem('registrar_approved', 'true');
-      }
-
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       alert('Failed to load dashboard data. Please try again.');
@@ -760,25 +1037,20 @@ function RegistrarDashboard({ onLogout }) {
   };
 
   useEffect(() => {
-    // For demo purposes, we'll use mock data if not logged in
-    const registrarData = localStorage.getItem('registrar_user');
-
-    // If no user data, create a mock user for demo
-    if (!registrarData) {
-      const mockUser = {
-        name: 'Registrar User',
-        email: 'registrar@university.edu',
-        university: 'University Name'
-      };
-      localStorage.setItem('registrar_user', JSON.stringify(mockUser));
+    // Check if user is logged in
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      window.location.href = '/login';
+      return;
     }
 
     // Initialize WebSocket connection
     const ws = setupWebSocket();
 
-    // Fetch initial dashboard data
+    // Fetch initial dashboard data and profile
     fetchDashboardData();
     fetchInstitutes();
+    fetchLoginHistory(); // Fetch login history on mount
 
     // Set up auto-refresh every 5 minutes as a fallback
     const refreshInterval = setInterval(() => {
@@ -969,79 +1241,118 @@ function RegistrarDashboard({ onLogout }) {
       );
       case 'profile': return (
         <div className="user-management-panel">
-          <h2>👤 Account & Settings</h2>
+          <div className="settings-header">
+            <h2>👤 Account & Settings</h2>
+            <p>Manage your profile and account preferences</p>
+          </div>
 
-          {/* Account Overview */}
-          <div className="profile-section">
-            <h3>📋 Account Overview</h3>
-            <div className="profile-cards">
-              <div className="profile-card">
-                <div className="profile-icon">👤</div>
-                <div className="profile-info">
-                  <h4>Personal Information</h4>
-                  <p>Email: {profileData?.email || 'N/A'}</p>
-                  <p>Contact: {profileData?.contact || 'Not provided'}</p>
+          {/* Profile Grid */}
+          <div className="settings-grid">
+            {/* Personal Info Card */}
+            <div className="settings-card personal-card">
+              <div className="card-header">
+                <div className="card-icon">👤</div>
+                <div>
+                  <h3>Personal Information</h3>
+                  <p className="card-subtitle">Your account details</p>
                 </div>
-                <button className="btn-edit" onClick={() => setProfileOpen(true)}>Edit</button>
               </div>
-
-              <div className="profile-card">
-                <div className="profile-icon">🏛️</div>
-                <div className="profile-info">
-                  <h4>University Information</h4>
-                  <p>University: {profileData?.university || 'N/A'}</p>
-                  <p>Status: <span style={{ color: profileData?.universityApproved ? '#10b981' : '#f59e0b' }}>
-                    {profileData?.universityStatus || 'Unknown'}
-                  </span></p>
+              <div className="card-content">
+                <div className="info-row">
+                  <span className="info-label">Email</span>
+                  <span className="info-value">{profileData?.email || 'registrar@university.edu'}</span>
                 </div>
-                <div className="status-indicator">
-                  {profileData?.universityApproved ? '✅' : '⏳'}
+                <div className="info-row">
+                  <span className="info-label">Contact</span>
+                  <span className="info-value">{profileData?.contact || '+1 234 567 890'}</span>
+                </div>
+              </div>
+              <button className="card-action-btn" onClick={() => setProfileOpen(true)}>
+                <span>✏️</span> EDIT
+              </button>
+            </div>
+
+            {/* University Info Card */}
+            <div className="settings-card university-card">
+              <div className="card-header">
+                <div className="card-icon university-icon">🏛️</div>
+                <div>
+                  <h3>University Information</h3>
+                  <p className="card-subtitle">Institution details</p>
+                </div>
+              </div>
+              <div className="card-content">
+                <div className="info-row">
+                  <span className="info-label">University</span>
+                  <span className="info-value">{profileData?.university || 'University Name'}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Status</span>
+                  <span className={`status-badge ${profileData?.universityApproved ? 'approved' : 'pending'}`}>
+                    {profileData?.universityApproved ? '✓ Verified' : '⏳ Pending'}
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Security Settings */}
-          <div className="profile-section">
-            <h3>🔒 Security Settings</h3>
-            <div className="security-options">
-              <div className="security-item">
-                <div className="security-info">
-                  <h4>Password</h4>
-                  <p>Last changed: 30 days ago</p>
+            {/* Activity Card */}
+            <div className="settings-card activity-card">
+              <div className="card-header">
+                <div className="card-icon activity-icon">📊</div>
+                <div>
+                  <h3>Login Activity</h3>
+                  <p className="card-subtitle">Monitor your account access</p>
                 </div>
-                <button className="btn-secondary" onClick={() => setProfileOpen(true)}>Change Password</button>
               </div>
-
-              <div className="security-item">
-                <div className="security-info">
-                  <h4>Login Activity</h4>
-                  <p>View recent login attempts</p>
+              <div className="activity-info">
+                <div className="activity-stat">
+                  <span className="activity-count">{loginHistory.length}</span>
+                  <span className="activity-label">Total Logins</span>
                 </div>
-                <button className="btn-secondary">View Activity</button>
               </div>
+              <button 
+                className="card-action-btn secondary-btn"
+                onClick={() => {
+                  setLoginActivityOpen(true);
+                  fetchLoginHistory();
+                }}
+              >
+                <span>👁️</span> VIEW ACTIVITY
+              </button>
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="profile-section">
-            <h3>📊 Your Activity Summary</h3>
-            <div className="activity-stats">
-              <div className="stat-item">
-                <span className="stat-number">12</span>
-                <span className="stat-label">Institutes Managed</span>
+          {/* Stats Row */}
+          <div className="stats-section">
+            <h3 className="stats-title">📈 Your Activity Overview</h3>
+            <div className="stats-row">
+              <div className="stat-box">
+                <div className="stat-icon">🏢</div>
+                <div className="stat-content">
+                  <div className="stat-value">12</div>
+                  <div className="stat-label">Institutes</div>
+                </div>
               </div>
-              <div className="stat-item">
-                <span className="stat-number">1,234</span>
-                <span className="stat-label">Students Enrolled</span>
+              <div className="stat-box">
+                <div className="stat-icon">👨‍🎓</div>
+                <div className="stat-content">
+                  <div className="stat-value">1,234</div>
+                  <div className="stat-label">Students</div>
+                </div>
               </div>
-              <div className="stat-item">
-                <span className="stat-number">45</span>
-                <span className="stat-label">Courses Offered</span>
+              <div className="stat-box">
+                <div className="stat-icon">📚</div>
+                <div className="stat-content">
+                  <div className="stat-value">45</div>
+                  <div className="stat-label">Courses</div>
+                </div>
               </div>
-              <div className="stat-item">
-                <span className="stat-number">98%</span>
-                <span className="stat-label">Satisfaction Rate</span>
+              <div className="stat-box">
+                <div className="stat-icon">⭐</div>
+                <div className="stat-content">
+                  <div className="stat-value">98%</div>
+                  <div className="stat-label">Satisfaction</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1096,7 +1407,7 @@ function RegistrarDashboard({ onLogout }) {
             <span>{menuItems.find(item => item.id === activePanel)?.label}</span>
           </div>
           <div className="admin-user-info">
-            <span>Welcome, Registrar</span>
+            <span>Welcome, {user?.name || 'Registrar'}</span>
             <div className="admin-avatar">👤</div>
           </div>
         </header>
@@ -1110,7 +1421,14 @@ function RegistrarDashboard({ onLogout }) {
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
         profileData={profileData}
-        onProfileUpdate={fetchDashboardData}
+        onProfileUpdate={fetchRegistrarProfile}
+      />
+
+      <LoginActivityModal
+        open={loginActivityOpen}
+        onClose={() => setLoginActivityOpen(false)}
+        loginHistory={loginHistory}
+        onSeedData={seedLoginHistory}
       />
     </div>
   );

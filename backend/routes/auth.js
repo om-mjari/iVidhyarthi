@@ -361,6 +361,50 @@ router.post("/login", async (req, res) => {
       console.log("⚠️ Could not update lastLogin, continuing...");
     }
 
+    // Record login history for registrars
+    if (user.role === 'registrar') {
+      try {
+        const Registrars = require('../models/Tbl_Registrars');
+        const registrar = await Registrars.findOne({ User_Id: user._id });
+        
+        if (registrar) {
+          // Get user agent info
+          const userAgent = req.headers['user-agent'] || 'Unknown';
+          const ip = req.ip || req.connection.remoteAddress || 'Unknown';
+          
+          // Determine device type from user agent
+          let device = 'Desktop';
+          if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
+            device = 'Mobile';
+          } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
+            device = 'Tablet';
+          }
+          
+          // Add login entry
+          if (!registrar.LoginHistory) {
+            registrar.LoginHistory = [];
+          }
+          
+          registrar.LoginHistory.push({
+            timestamp: new Date(),
+            ip: ip,
+            device: device,
+            userAgent: userAgent.substring(0, 200) // Limit length
+          });
+          
+          // Keep only last 50 login records to avoid bloat
+          if (registrar.LoginHistory.length > 50) {
+            registrar.LoginHistory = registrar.LoginHistory.slice(-50);
+          }
+          
+          await registrar.save();
+          console.log('✅ Login history recorded for registrar');
+        }
+      } catch (loginHistoryError) {
+        console.log('⚠️ Could not record login history:', loginHistoryError.message);
+      }
+    }
+
     // Build profile info for dashboard
     let profile = { id: user._id, email: user.email, role: user.role };
     try {

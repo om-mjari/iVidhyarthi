@@ -1,41 +1,166 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 const UpcomingSessions = () => {
-  const sessions = [
-    {
-      id: 1,
-      title: 'React Advanced Patterns Workshop',
-      instructor: 'Dr. Rajesh Kumar',
-      date: 'Dec 28, 2025',
-      time: '10:00 AM - 12:00 PM',
-      duration: '2 hours',
-      type: 'Live Workshop',
-      attendees: 124,
-      isToday: true
-    },
-    {
-      id: 2,
-      title: 'ML Model Deployment Q&A Session',
-      instructor: 'Prof. Anita Desai',
-      date: 'Dec 29, 2025',
-      time: '03:00 PM - 04:30 PM',
-      duration: '1.5 hours',
-      type: 'Q&A Session',
-      attendees: 89,
-      isToday: false
-    },
-    {
-      id: 3,
-      title: 'AWS Cloud Architecture Masterclass',
-      instructor: 'Mr. Vikram Singh',
-      date: 'Dec 30, 2025',
-      time: '11:00 AM - 01:00 PM',
-      duration: '2 hours',
-      type: 'Masterclass',
-      attendees: 156,
-      isToday: false
+  const API_BASE_URL = 'http://localhost:5000/api';
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const student = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('student_user'));
+    } catch {
+      return null;
     }
-  ];
+  }, []);
+
+  useEffect(() => {
+    fetchUpcomingSessions();
+  }, []);
+
+  const fetchUpcomingSessions = async () => {
+    try {
+      const studentEmail = student?.email || student?.id;
+      if (!studentEmail) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch student's enrolled courses
+      const enrollmentsResponse = await fetch(
+        `${API_BASE_URL}/enrollments/my-enrollments`,
+        {
+          headers: {
+            'x-student-email': studentEmail
+          }
+        }
+      );
+
+      if (!enrollmentsResponse.ok) {
+        throw new Error('Failed to fetch enrollments');
+      }
+
+      const enrollmentsData = await enrollmentsResponse.json();
+      const enrolledCourseIds = enrollmentsData.data?.map(e => e.Course_Id) || [];
+
+      if (enrolledCourseIds.length === 0) {
+        setSessions([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch sessions for enrolled courses
+      const sessionsResponse = await fetch(
+        `${API_BASE_URL}/sessions/student?course_ids=${enrolledCourseIds.join(',')}`
+      );
+
+      if (!sessionsResponse.ok) {
+        throw new Error('Failed to fetch sessions');
+      }
+
+      const sessionsData = await sessionsResponse.json();
+      setSessions(sessionsData.data || []);
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+  };
+
+  const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const isToday = (dateString) => {
+    const sessionDate = new Date(dateString);
+    const today = new Date();
+    return sessionDate.toDateString() === today.toDateString();
+  };
+
+  const isStartingSoon = (dateString) => {
+    const sessionTime = new Date(dateString);
+    const now = new Date();
+    const diffMinutes = (sessionTime - now) / (1000 * 60);
+    return diffMinutes > 0 && diffMinutes <= 30; // Within 30 minutes
+  };
+
+  const canAccessMeeting = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    // Students can access 10 minutes before until end time
+    const accessTime = new Date(scheduledTime.getTime() - 10 * 60000);
+    return now >= accessTime && now <= endTime;
+  };
+
+  const getMeetingButtonText = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    const accessTime = new Date(scheduledTime.getTime() - 10 * 60000);
+    
+    if (session.status === 'Completed' || now > endTime) return 'Meeting Ended';
+    if (now < accessTime) {
+      const minutesUntil = Math.ceil((accessTime - now) / (1000 * 60));
+      return `Available in ${minutesUntil} min`;
+    }
+    return '🔗 Join Zoom Meeting →';
+  };
+
+  if (loading) {
+    return (
+      <section className="upcoming-sessions-section">
+        <div className="section-header-dashboard">
+          <h2 className="dashboard-section-title">Upcoming Live Sessions</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+          Loading sessions...
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="upcoming-sessions-section">
+        <div className="section-header-dashboard">
+          <h2 className="dashboard-section-title">Upcoming Live Sessions</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#f44336' }}>
+          ⚠️ {error}
+        </div>
+      </section>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <section className="upcoming-sessions-section">
+        <div className="section-header-dashboard">
+          <h2 className="dashboard-section-title">Upcoming Live Sessions</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+          No upcoming sessions scheduled
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="upcoming-sessions-section">
@@ -45,45 +170,82 @@ const UpcomingSessions = () => {
       </div>
 
       <div className="sessions-list">
-        {sessions.map(session => (
-          <div key={session.id} className={`session-card ${session.isToday ? 'today' : ''}`}>
-            {session.isToday && <div className="today-badge">Starting Soon</div>}
-            
-            <div className="session-header">
-              <div className="session-type-badge">{session.type}</div>
-              <div className="session-attendees">👥 {session.attendees} registered</div>
-            </div>
-
-            <h3 className="session-title">{session.title}</h3>
-            <p className="session-instructor">with {session.instructor}</p>
-
-            <div className="session-details">
-              <div className="session-detail-item">
-                <span className="detail-icon">📅</span>
-                <span className="detail-text">{session.date}</span>
+        {sessions.map(session => {
+          const isTodaySession = isToday(session.scheduled_at);
+          const startingSoon = isStartingSoon(session.scheduled_at);
+          
+          return (
+            <div key={session.session_id} className={`session-card ${isTodaySession ? 'today' : ''}`}>
+              {startingSoon && <div className="today-badge">Starting Soon</div>}
+              
+              <div className="session-header">
+                <div className="session-type-badge">{session.session_type || 'Live'}</div>
+                <div className="session-attendees">
+                  <span style={{
+                    background: session.status === 'Scheduled' ? '#4caf50' : '#ff9800',
+                    color: 'white',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '500'
+                  }}>
+                    {session.status || 'Scheduled'}
+                  </span>
+                </div>
               </div>
-              <div className="session-detail-item">
-                <span className="detail-icon">🕐</span>
-                <span className="detail-text">{session.time}</span>
-              </div>
-              <div className="session-detail-item">
-                <span className="detail-icon">⏳</span>
-                <span className="detail-text">{session.duration}</span>
-              </div>
-            </div>
 
-            <div className="session-actions">
-              {session.isToday ? (
-                <button className="join-now-btn">Join Now →</button>
-              ) : (
-                <>
-                  <button className="add-calendar-btn">Add to Calendar</button>
-                  <button className="set-reminder-btn">Set Reminder</button>
-                </>
-              )}
+              <h3 className="session-title">{session.title}</h3>
+              <p className="session-instructor">📚 {session.course_name}</p>
+
+              <div className="session-details">
+                <div className="session-detail-item">
+                  <span className="detail-icon">📅</span>
+                  <span className="detail-text">{formatDate(session.scheduled_at)}</span>
+                </div>
+                <div className="session-detail-item">
+                  <span className="detail-icon">🕐</span>
+                  <span className="detail-text">{formatTime(session.scheduled_at)}</span>
+                </div>
+                <div className="session-detail-item">
+                  <span className="detail-icon">⏳</span>
+                  <span className="detail-text">{session.duration} minutes</span>
+                </div>
+              </div>
+
+              <div className="session-actions">
+                {session.session_url ? (
+                  canAccessMeeting(session) ? (
+                    <a 
+                      href={session.session_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="join-now-btn"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      {getMeetingButtonText(session)}
+                    </a>
+                  ) : (
+                    <button 
+                      className="join-now-btn" 
+                      disabled 
+                      style={{ 
+                        opacity: 0.6, 
+                        cursor: 'not-allowed',
+                        background: '#9e9e9e'
+                      }}
+                    >
+                      {getMeetingButtonText(session)}
+                    </button>
+                  )
+                ) : (
+                  <button className="join-now-btn" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                    Link Not Available
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

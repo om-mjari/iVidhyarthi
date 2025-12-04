@@ -1992,53 +1992,561 @@ function UploadsTab() {
 }
 
 function SessionsTab() {
-  const [sessions, setSessions] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('lecturer_sessions')) || []; } catch { return []; }
-  });
-  const [form, setForm] = useState({ title: '', date: '', link: '' });
+  const API_BASE_URL = 'http://localhost:5000/api';
+  
+  const lecturer = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
+  }, []);
 
-  const addSession = () => {
-    if (!form.title || !form.date || !form.link) return;
-    const next = [...sessions, { ...form, id: Date.now() }];
-    setSessions(next);
-    localStorage.setItem('lecturer_sessions', JSON.stringify(next));
-    setForm({ title: '', date: '', link: '' });
+  // State management
+  const [sessions, setSessions] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Form state
+  const [form, setForm] = useState({
+    course_id: '',
+    title: '',
+    scheduled_at: '',
+    duration: 60,
+    description: ''
+  });
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortBy, setSortBy] = useState('scheduled_at');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  useEffect(() => {
+    fetchCourses();
+    fetchSessions();
+  }, [currentPage, sortBy, sortOrder]);
+
+  const fetchCourses = async () => {
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      if (!lecturerId) return;
+
+      console.log('🔍 Fetching courses for lecturer:', lecturerId);
+      const response = await fetch(`${API_BASE_URL}/tbl-courses?lecturerId=${lecturerId}`);
+      const result = await response.json();
+
+      console.log('📚 Courses API response:', result);
+      if (result.success && result.data) {
+        setCourses(result.data);
+        console.log('✅ Courses set:', result.data.length, 'courses');
+      } else {
+        console.warn('⚠️ No courses found or API error');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching courses:', err);
+    }
+  };
+
+  const fetchSessions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      if (!lecturerId) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/lecturer/sessions?page=${currentPage}&per_page=20&sort=${sortBy}&order=${sortOrder}`,
+        {
+          headers: {
+            'x-lecturer-id': lecturerId
+          }
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setSessions(result.data.sessions);
+        setTotalPages(result.data.pagination.total_pages);
+      } else {
+        throw new Error(result.message || 'Failed to fetch sessions');
+      }
+    } catch (err) {
+      console.error('Error fetching sessions:', err);
+      setError(err.message || 'Failed to load sessions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createSession = async () => {
+    // Validation
+    if (!form.course_id || !form.title || !form.scheduled_at || !form.duration) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    // Validate scheduled_at is in the future
+    const scheduledTime = new Date(form.scheduled_at);
+    if (scheduledTime <= new Date()) {
+      setError('Scheduled time must be in the future');
+      return;
+    }
+
+    // Validate duration
+    if (form.duration < 1 || form.duration > 480) {
+      setError('Duration must be between 1 and 480 minutes');
+      return;
+    }
+
+    setCreating(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      if (!lecturerId) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      // Convert datetime-local to ISO 8601
+      const scheduledDate = new Date(form.scheduled_at);
+      const isoDateTime = scheduledDate.toISOString();
+
+      const response = await fetch(`${API_BASE_URL}/lecturer/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-lecturer-id': lecturerId
+        },
+        body: JSON.stringify({
+          course_id: form.course_id,
+          title: form.title.trim(),
+          scheduled_at: isoDateTime,
+          duration: parseInt(form.duration),
+          description: form.description.trim()
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        // Extract detailed error message
+        const errorMsg = result.message || `Server error: ${response.status} ${response.statusText}`;
+        throw new Error(errorMsg);
+      }
+
+      // Success!
+      setSuccessMessage(result.data.zoom_configured 
+        ? '✅ Session created successfully with Zoom meeting!' 
+        : '✅ Session created successfully (Zoom not configured)');
+      
+      // Reset form
+      setForm({
+        course_id: '',
+        title: '',
+        scheduled_at: '',
+        duration: 60,
+        description: ''
+      });
+
+      // Refresh sessions list
+      fetchSessions();
+
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (err) {
+      console.error('Error creating session:', err);
+      
+      // Display user-friendly error
+      let errorMessage = err.message || 'Failed to create session';
+      
+      // Parse specific Zoom errors
+      if (errorMessage.includes('authenticate with Zoom')) {
+        errorMessage = '❌ Zoom authentication failed. Please verify API credentials in server configuration.';
+      } else if (errorMessage.includes('rate limit')) {
+        errorMessage = '❌ Too many requests. Please wait a moment and try again.';
+      } else if (errorMessage.includes('timeout')) {
+        errorMessage = '❌ Request timed out. Please check your internet connection and try again.';
+      } else if (!errorMessage.startsWith('❌')) {
+        errorMessage = `❌ ${errorMessage}`;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case 'Scheduled': return '#2196f3';
+      case 'Ongoing': return '#4caf50';
+      case 'Completed': return '#9e9e9e';
+      case 'Cancelled': return '#f44336';
+      case 'Postponed': return '#ff9800';
+      default: return '#9e9e9e';
+    }
+  };
+
+  const canAccessMeeting = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    // Meeting is accessible from scheduled time until end time
+    return now >= scheduledTime && now <= endTime;
+  };
+
+  const getMeetingButtonText = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    if (session.status === 'Completed') return 'Meeting Ended';
+    if (now < scheduledTime) return 'Not Started Yet';
+    if (now > endTime) return 'Meeting Ended';
+    return '🔗 Join Meeting';
   };
 
   return (
     <div className="panel">
       <h3>Problem-Solving Sessions</h3>
-      <div className="grid-3">
-        <div>
-          <label className="label">Title</label>
-          <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      
+      {/* Success Message */}
+      {successMessage && (
+        <div className="alert-success" style={{ 
+          background: '#d4edda', 
+          color: '#155724', 
+          padding: '12px 16px', 
+          borderRadius: '6px', 
+          marginBottom: '20px',
+          border: '1px solid #c3e6cb'
+        }}>
+          {successMessage}
         </div>
-        <div>
-          <label className="label">Date & Time</label>
-          <input className="input" type="datetime-local" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-        </div>
-        <div>
-          <label className="label">Meeting Link</label>
-          <input className="input" placeholder="https://meet..." value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
-        </div>
-      </div>
-      <button className="button primary" onClick={addSession}>Schedule Session</button>
+      )}
 
-      <div className="items-list">
-        {sessions.length === 0 && <div className="muted">No sessions scheduled.</div>}
-        {sessions.map((s) => (
-          <div className="item" key={s.id}>
-            <div>
-              <div className="item-title">{s.title}</div>
-              <div className="item-sub">{new Date(s.date).toLocaleString()} • <a href={s.link} target="_blank">Join</a></div>
-            </div>
-            <button className="button ghost sm" onClick={() => {
-              const next = sessions.filter(x => x.id !== s.id);
-              setSessions(next);
-              localStorage.setItem('lecturer_sessions', JSON.stringify(next));
-            }}>Cancel</button>
+      {/* Error Message */}
+      {error && (
+        <div className="alert-error" style={{ marginBottom: '20px' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Create Session Form */}
+      <div style={{ marginBottom: '24px' }}>
+        <h4 style={{ marginBottom: '16px' }}>
+          🎥 Create New Session
+        </h4>
+        
+        <div className="grid-3" style={{ gap: '16px', overflow: 'visible' }}>
+          <div style={{ position: 'relative', zIndex: 100 }}>
+            <label className="label">Course *</label>
+            <select 
+              className="input" 
+              value={form.course_id}
+              onChange={(e) => setForm({ ...form, course_id: e.target.value })}
+              disabled={creating}
+              style={{ position: 'relative', zIndex: 100 }}
+            >
+              <option value="">Select Course</option>
+              {courses.map((course) => (
+                <option key={course.Course_Id} value={course.Course_Id}>
+                  {course.Title}
+                </option>
+              ))}
+            </select>
           </div>
-        ))}
+
+          <div>
+            <label className="label">Session Title *</label>
+            <input 
+              className="input" 
+              placeholder="e.g., Week 5 Lecture"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              disabled={creating}
+              maxLength={200}
+            />
+          </div>
+
+          <div>
+            <label className="label">Scheduled At *</label>
+            <input 
+              className="input" 
+              type="datetime-local"
+              value={form.scheduled_at}
+              onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
+              disabled={creating}
+              min={new Date().toISOString().slice(0, 16)}
+            />
+          </div>
+
+          <div>
+            <label className="label">Duration (minutes) *</label>
+            <input 
+              className="input" 
+              type="number"
+              min="1"
+              max="480"
+              placeholder="60"
+              value={form.duration}
+              onChange={(e) => setForm({ ...form, duration: e.target.value })}
+              disabled={creating}
+            />
+          </div>
+
+          <div style={{ gridColumn: 'span 2' }}>
+            <label className="label">Description (optional)</label>
+            <input 
+              className="input" 
+              placeholder="Session details..."
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              disabled={creating}
+            />
+          </div>
+        </div>
+
+        <button 
+          className="button primary" 
+          onClick={createSession}
+          disabled={creating}
+          style={{ marginTop: '16px' }}
+        >
+          {creating ? 'Creating Session...' : '🚀 Create Session'}
+        </button>
+      </div>
+
+      {/* Sessions List */}
+      <div style={{ marginTop: '24px' }}>
+        <h4 style={{ marginBottom: '16px' }}>📋 Scheduled Sessions</h4>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <div className="loading-spinner"></div>
+            <p>Loading sessions...</p>
+          </div>
+        ) : sessions.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '40px', 
+            background: '#f5f5f5', 
+            borderRadius: '8px',
+            color: '#666'
+          }}>
+            <p>No sessions scheduled yet.</p>
+            <p style={{ fontSize: '14px', marginTop: '8px' }}>
+              Create your first session using the form above.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Sessions Table */}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ 
+                width: '100%', 
+                borderCollapse: 'collapse',
+                background: 'white',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+              }}>
+                <thead>
+                  <tr style={{ background: '#f5f5f5' }}>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd',
+                      cursor: 'pointer'
+                    }} onClick={() => handleSort('session_id')}>
+                      Session ID {sortBy === 'session_id' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd'
+                    }}>
+                      Course
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd'
+                    }}>
+                      Title
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd',
+                      cursor: 'pointer'
+                    }} onClick={() => handleSort('scheduled_at')}>
+                      Scheduled At {sortBy === 'scheduled_at' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd'
+                    }}>
+                      Duration
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'left', 
+                      borderBottom: '2px solid #ddd'
+                    }}>
+                      Status
+                    </th>
+                    <th style={{ 
+                      padding: '12px', 
+                      textAlign: 'center', 
+                      borderBottom: '2px solid #ddd'
+                    }}>
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sessions.map((session) => (
+                    <tr key={session.session_id} style={{ 
+                      borderBottom: '1px solid #eee',
+                      transition: 'background 0.2s'
+                    }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'}
+                       onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                      <td style={{ padding: '12px', fontSize: '13px', color: '#666' }}>
+                        {session.session_id.substring(0, 16)}...
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ fontWeight: '500' }}>{session.course_name}</div>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ fontWeight: '500' }}>{session.title}</div>
+                        {session.description && (
+                          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                            {session.description}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px' }}>
+                        {formatDateTime(session.scheduled_at)}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {session.duration} min
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          background: getStatusBadgeColor(session.status),
+                          color: 'white',
+                          padding: '4px 12px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}>
+                          {session.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center' }}>
+                        {session.session_url ? (
+                          canAccessMeeting(session) ? (
+                            <a 
+                              href={session.session_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="button primary sm"
+                              style={{
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                                padding: '6px 16px',
+                                borderRadius: '6px',
+                                textDecoration: 'none',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                display: 'inline-block'
+                              }}
+                            >
+                              {getMeetingButtonText(session)}
+                            </a>
+                          ) : (
+                            <span style={{ 
+                              color: '#999', 
+                              fontSize: '13px',
+                              padding: '6px 16px',
+                              background: '#f5f5f5',
+                              borderRadius: '6px',
+                              display: 'inline-block'
+                            }}>
+                              {getMeetingButtonText(session)}
+                            </span>
+                          )
+                        ) : (
+                          <span style={{ color: '#999', fontSize: '13px' }}>No link</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ 
+                marginTop: '20px', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                gap: '8px',
+                alignItems: 'center'
+              }}>
+                <button
+                  className="button ghost sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  style={{ padding: '6px 12px' }}
+                >
+                  ← Previous
+                </button>
+                
+                <span style={{ color: '#666', fontSize: '14px' }}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                
+                <button
+                  className="button ghost sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{ padding: '6px 12px' }}
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

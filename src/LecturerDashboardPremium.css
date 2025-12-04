@@ -293,6 +293,11 @@
   overflow-x: hidden;
 }
 
+/* Allow dropdowns to be visible outside panel */
+.panel > div:first-of-type {
+  overflow: visible;
+}
+
 .panel h3 {
   margin: 0 0 2rem 0;
   font-size: 2rem;
@@ -500,6 +505,25 @@
   border-color: var(--sky-dark);
   box-shadow: 0 0 0 4px rgba(46, 139, 255, 0.1), var(--shadow-md);
   background: white;
+}
+
+/* Select dropdown fix - ensure dropdown is visible */
+select.input {
+  position: relative;
+  z-index: 100;
+}
+
+select.input:focus {
+  z-index: 1000;
+}
+
+/* Ensure grid containers allow overflow for dropdowns */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+  overflow: visible !important;
 }
 
 /* ============================================

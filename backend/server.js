@@ -125,6 +125,7 @@ const courseContentRoutes = require("./routes/courseContentRoutes");
 const lecturerProfileRoutes = require("./routes/lecturerProfile");
 const lecturerOverviewRoutes = require("./routes/lecturerOverview");
 const lecturerStudentsRoutes = require("./routes/lecturerStudents");
+const sessionRoutes = require("./routes/sessionRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -149,6 +150,8 @@ app.use("/api/course-content", courseContentRoutes);
 app.use("/api/lecturer-profile", lecturerProfileRoutes);
 app.use("/api/lecturer-overview", lecturerOverviewRoutes);
 app.use("/api/lecturer-students", lecturerStudentsRoutes);
+app.use("/api/lecturer/sessions", sessionRoutes);
+app.use("/api/sessions", sessionRoutes); // Alias for student access
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -169,6 +172,8 @@ console.log("   - /api/quiz");
 console.log("   - /api/lecturer-profile");
 console.log("   - /api/lecturer-overview");
 console.log("   - /api/lecturer-students");
+console.log("   - /api/lecturer/sessions");
+console.log("   - /api/sessions");
 
 /* ============================
    Health & readiness endpoints

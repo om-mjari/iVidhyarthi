@@ -31,6 +31,10 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef(null);
 
+  // Auto-scroll carousel state
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const carouselRef = useRef(null);
+
   // Fetch courses from API on mount
   useEffect(() => {
     const fetchCourses = async () => {
@@ -153,6 +157,36 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
 
     return filtered;
   }, [searchTerm, sortBy, sortOrder, priceRange, minRating, filteredCourses]);
+
+  // Auto-scroll carousel effect - scroll every 2 seconds
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (!carousel || filteredAndSortedCourses.length <= 3) return;
+
+    const autoScroll = setInterval(() => {
+      setScrollPosition((prev) => {
+        const cardWidth = 420; // card width + gap
+        const maxScroll = (filteredAndSortedCourses.length - 3) * cardWidth;
+        const newPosition = prev + cardWidth;
+        
+        // Reset to start if reached end
+        if (newPosition > maxScroll) {
+          return 0;
+        }
+        return newPosition;
+      });
+    }, 2000); // 2 seconds
+
+    return () => clearInterval(autoScroll);
+  }, [filteredAndSortedCourses.length]);
+
+  // Apply scroll position
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (carousel) {
+      carousel.style.transform = `translateX(-${scrollPosition}px)`;
+    }
+  }, [scrollPosition]);
 
   // Reset all filters
   const resetFilters = () => {
@@ -515,22 +549,6 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
                   Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience 
                   with practical knowledge and real-world applications.
                 </p>
-                
-                <div className="intro-announcements">
-                  <div className="announcement-item">
-                    <span className="announcement-label">Current Session:</span>
-                    <span className="announcement-value">Jan - April 2026</span>
-                  </div>
-                  <div className="announcement-divider">|</div>
-                  <div className="announcement-item highlight">
-                    <span className="announcement-label">📢 Enrollments are Open!</span>
-                  </div>
-                  <div className="announcement-divider">|</div>
-                  <div className="announcement-item">
-                    <span className="announcement-label">New Batch:</span>
-                    <span className="announcement-value">Starting Soon</span>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -539,34 +557,38 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
             </div>
 
             {filteredAndSortedCourses.length > 0 ? (
-              <div className="courses-grid">
+              <div className="courses-carousel-container">
                 {(searchTerm || priceRange !== 'all' || minRating > 0) && (
                   <div className="filter-warning">
                     <p>Showing {filteredAndSortedCourses.length} courses matching your filters</p>
                   </div>
                 )}
-                {filteredAndSortedCourses.map(course => (
-                  <div key={course.Course_Id || course.id} className="course-card">
-                    <div className="course-image">
-                      <img src={course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop'} alt={course.Title || course.name} />
-                    </div>
-                    <div className="course-content">
-                      <div className="course-info-row">
-                        <h3 className="course-name">{course.Title || course.name}</h3>
-                        <p className="course-instructor">by {course.Lecturer_Id || course.instructor}</p>
-                      </div>
-                      <div className="price-button-row">
-                        <div className="course-price">
-                          ₹{course.Price || course.price}
+                <div className="courses-carousel-wrapper">
+                  <div className="courses-carousel" ref={carouselRef}>
+                    {filteredAndSortedCourses.map(course => (
+                      <div key={course.Course_Id || course.id} className="course-card-carousel">
+                        <div className="course-image">
+                          <img src={course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop'} alt={course.Title || course.name} />
                         </div>
-                        <button className="enroll-btn" onClick={() => handleEnroll(course)}>Enroll Now</button>
+                        <div className="course-content">
+                          <div className="course-info-row">
+                            <h3 className="course-name">{course.Title || course.name}</h3>
+                            <p className="course-instructor">by {course.Lecturer_Id || course.instructor}</p>
+                          </div>
+                          <div className="price-button-row">
+                            <div className="course-price">
+                              ₹{course.Price || course.price}
+                            </div>
+                            <button className="enroll-btn" onClick={() => handleEnroll(course)}>Enroll Now</button>
+                          </div>
+                          <div className="course-rating">
+                            {renderStars(course.rating || 4.5)}
+                          </div>
+                        </div>
                       </div>
-                      <div className="course-rating">
-                        {renderStars(course.rating || 4.5)}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
             ) : (
               <div className="no-courses">

@@ -30,6 +30,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
 
+  // Doubt Solving Sessions state
+  const [doubtSessions, setDoubtSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+
   // Dynamic video progress state
   const [videoProgress, setVideoProgress] = useState({
     totalVideos: 0,
@@ -107,25 +111,48 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     const savedCourse = localStorage.getItem('selected_course');
     const paymentSuccess = localStorage.getItem('payment_success');
     const authToken = localStorage.getItem('auth_token');
+    const authUser = localStorage.getItem('auth_user');
 
-    // Get student ID from token
+    // Get student ID from token or auth_user
     let userId = '';
-    if (authToken) {
+    
+    // Try getting from auth_user first (for students)
+    if (authUser) {
+      try {
+        const user = JSON.parse(authUser);
+        userId = user.studentId || user.Student_Id || user.id || '';
+        if (userId) {
+          setStudentId(userId);
+          console.log('Student ID from auth_user:', userId);
+        }
+      } catch (e) {
+        console.error('Error parsing auth_user:', e);
+      }
+    }
+    
+    // Fallback to auth_token if no userId yet
+    if (!userId && authToken) {
       try {
         const tokenParts = authToken.split('.');
         if (tokenParts.length === 3) {
           const payload = JSON.parse(atob(tokenParts[1]));
           userId = payload.userId || '';
           setStudentId(userId);
+          console.log('Student ID from auth_token:', userId);
         }
       } catch (e) {
         console.error('Error decoding token:', e);
       }
     }
 
+    console.log('Final userId:', userId);
+
     // Fetch enrolled course data from backend
     const fetchEnrolledCourseData = async () => {
-      if (!savedCourse || !userId) return;
+      if (!savedCourse || !userId) {
+        console.log('Skipping fetchEnrolledCourseData - savedCourse:', !!savedCourse, 'userId:', userId);
+        return;
+      }
 
       try {
         const courseData = JSON.parse(savedCourse);
@@ -188,13 +215,27 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
     fetchEnrolledCourseData();
 
+    // Set the selected course regardless of fetchEnrolledCourseData
     if (savedCourse) {
       try {
         const parsedCourse = JSON.parse(savedCourse);
+        console.log('Setting selected course:', parsedCourse);
+        
+        // Ensure the course has required fields
+        if (!parsedCourse.name || !parsedCourse.instructor) {
+          console.warn('Course missing required fields, setting defaults');
+          parsedCourse.name = parsedCourse.name || parsedCourse.Title || 'Course';
+          parsedCourse.instructor = parsedCourse.instructor || parsedCourse.Instructor_Name || 'Instructor';
+          parsedCourse.image = parsedCourse.image || parsedCourse.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop';
+        }
+        
         setSelectedCourse(parsedCourse);
+        console.log('✅ Course set successfully:', parsedCourse);
 
         // Fetch course details and create enrollment
-        initializeCourseData(parsedCourse, userId, paymentSuccess);
+        if (userId) {
+          initializeCourseData(parsedCourse, userId, paymentSuccess);
+        }
       } catch (error) {
         console.error('Error parsing saved course:', error);
         const defaultCourse = {
@@ -202,14 +243,17 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           instructor: "22bmiti09@gmail.com",
           image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=300&fit=crop"
         };
+        console.log('Setting default course:', defaultCourse);
         setSelectedCourse(defaultCourse);
       }
     } else {
+      console.warn('No saved course found in localStorage');
       const defaultCourse = {
         name: "Maths with AI",
         instructor: "22bmiti09@gmail.com",
         image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=300&fit=crop"
       };
+      console.log('Setting default course (no saved course):', defaultCourse);
       setSelectedCourse(defaultCourse);
     }
   }, []);
@@ -220,6 +264,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       fetchSubmittedAssignments();
     }
   }, [studentId]);
+
+  // Fetch doubt sessions when course is selected
+  useEffect(() => {
+    if (selectedCourse) {
+      fetchDoubtSessions();
+    }
+  }, [selectedCourse]);
 
   const fetchSubmittedAssignments = async () => {
     if (!studentId) return;
@@ -443,6 +494,64 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       console.error('Error submitting feedback:', error);
       alert('Error submitting feedback. Please try again.');
     }
+  };
+
+  // Fetch doubt solving sessions for the enrolled course
+  const fetchDoubtSessions = async () => {
+    if (!selectedCourse) return;
+
+    setLoadingSessions(true);
+    try {
+      const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+      const response = await fetch(
+        `http://localhost:5000/api/lecturer/sessions/student?course_ids=${courseId}`
+      );
+
+      const result = await response.json();
+      if (result.success && result.data) {
+        setDoubtSessions(result.data);
+      } else {
+        setDoubtSessions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doubt sessions:', error);
+      setDoubtSessions([]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  // Check if a session is currently active (can join)
+  const canJoinSession = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    // Session is joinable from scheduled time until end time
+    return now >= scheduledTime && now <= endTime && session.session_url;
+  };
+
+  // Get the status text for a session
+  const getSessionStatus = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    if (now < scheduledTime) return 'Upcoming';
+    if (now > endTime) return 'Ended';
+    return 'Live Now';
+  };
+
+  // Format date and time
+  const formatSessionDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Course content data - NPTEL style with multi-language support
@@ -851,7 +960,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     setSelectedQuiz(null);
   };
 
+  console.log('CourseLearningPage render - selectedCourse:', selectedCourse);
+  console.log('showAssignment:', showAssignment);
+  console.log('showWeeklyAssignments:', showWeeklyAssignments);
+  console.log('showQuiz:', showQuiz);
+
   if (!selectedCourse) {
+    console.log('Showing loading state - no selected course');
     return (
       <div className="nptel-loading">
         <div className="loading-spinner"></div>
@@ -859,6 +974,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       </div>
     );
   }
+
+  console.log('Selected course loaded, rendering course page');
 
   // Show Quiz Page if quiz is selected
   if (showQuiz && selectedQuiz) {
@@ -1310,6 +1427,95 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <span className="breakdown-label">Pending: {totalWeeks - completedAssignmentsCount}/{totalWeeks} assignments</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Doubt Solving Session Section */}
+        <div className="nptel-section doubt-session-section">
+          <h2 className="nptel-section-title">🎥 Doubt Solving Sessions</h2>
+          <div className="doubt-session-card">
+            <p className="doubt-session-intro">
+              Join live sessions with your instructor to clarify doubts and discuss course topics.
+            </p>
+
+            {loadingSessions ? (
+              <div className="sessions-loading">
+                <div className="loading-spinner"></div>
+                <p>Loading sessions...</p>
+              </div>
+            ) : doubtSessions.length === 0 ? (
+              <div className="no-sessions">
+                <span className="no-sessions-icon">📅</span>
+                <p>No doubt solving sessions scheduled yet.</p>
+                <p className="no-sessions-subtitle">Your instructor will schedule sessions soon. Check back later!</p>
+              </div>
+            ) : (
+              <div className="sessions-list">
+                {doubtSessions.map((session) => {
+                  const status = getSessionStatus(session);
+                  const canJoin = canJoinSession(session);
+
+                  return (
+                    <div key={session.session_id} className={`session-card ${status.toLowerCase().replace(' ', '-')}`}>
+                      <div className="session-header">
+                        <div className="session-title-area">
+                          <h3 className="session-title">{session.title}</h3>
+                          <span className={`session-status status-${status.toLowerCase().replace(' ', '-')}`}>
+                            {status === 'Live Now' && '🔴 '}
+                            {status === 'Upcoming' && '🕐 '}
+                            {status === 'Ended' && '⏹️ '}
+                            {status}
+                          </span>
+                        </div>
+                        <p className="session-course">{session.course_name}</p>
+                      </div>
+
+                      <div className="session-details">
+                        <div className="session-info-row">
+                          <span className="session-info-item">
+                            📅 {formatSessionDateTime(session.scheduled_at)}
+                          </span>
+                          <span className="session-info-item">
+                            ⏱️ {session.duration} minutes
+                          </span>
+                        </div>
+
+                        {session.description && (
+                          <p className="session-description">{session.description}</p>
+                        )}
+                      </div>
+
+                      <div className="session-actions">
+                        {canJoin ? (
+                          <a
+                            href={session.session_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="nptel-btn nptel-btn-primary join-meeting-btn"
+                          >
+                            🚀 Join Meeting
+                          </a>
+                        ) : status === 'Upcoming' ? (
+                          <button
+                            className="nptel-btn nptel-btn-secondary"
+                            disabled
+                          >
+                            ⏳ Starts at {new Date(session.scheduled_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          </button>
+                        ) : (
+                          <button
+                            className="nptel-btn nptel-btn-secondary"
+                            disabled
+                          >
+                            ✓ Session Ended
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

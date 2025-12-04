@@ -15,9 +15,6 @@ const StudentDropdownMenu = ({ user, onLogout, onClose, onNavigate }) => {
       <div className="dropdown-item" onClick={() => handleNavigation('profile')}>
         <span className="icon">👤</span> My Profile
       </div>
-      <div className="dropdown-item" onClick={() => handleNavigation('my-courses')}>
-        <span className="icon">📚</span> My Courses
-      </div>
       <div className="dropdown-item" onClick={() => handleNavigation('my-certifications')}>
         <span className="icon">🎓</span> My Certifications
       </div>

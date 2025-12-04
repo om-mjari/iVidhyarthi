@@ -7,9 +7,7 @@ import Logo from './Logo';
 import ChatbotAssistant from './components/ChatbotAssistant';
 import EnrolledCourses from './components/EnrolledCourses';
 import LearningStats from './components/LearningStats';
-import UpcomingSessions from './components/UpcomingSessions';
 import RecommendedCourses from './components/RecommendedCourses';
-import Announcements from './components/Announcements';
 import EnhancedFooter from './components/EnhancedFooter';
 import DashboardHeader from './components/DashboardHeader';
 
@@ -584,19 +582,13 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
             ======================================== */}
             
             {/* My Enrolled Courses with Progress */}
-            <EnrolledCourses />
+            <EnrolledCourses onNavigate={onNavigate} />
 
             {/* Learning Statistics & Skill Progress */}
             <LearningStats />
 
-            {/* Upcoming Live Sessions */}
-            <UpcomingSessions />
-
             {/* AI-Powered Recommended Courses */}
             <RecommendedCourses />
-
-            {/* Announcements & Notifications */}
-            <Announcements />
 
           </main>
 

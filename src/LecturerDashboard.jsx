@@ -2217,8 +2217,8 @@ function SessionsTab() {
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
     
-    // Meeting is accessible from scheduled time until end time
-    return now >= scheduledTime && now <= endTime;
+    // Lecturer can only access meeting when it's Ongoing AND within duration
+    return session.status === 'Ongoing' && now <= endTime;
   };
 
   const getMeetingButtonText = (session) => {
@@ -2226,11 +2226,102 @@ function SessionsTab() {
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
     
-    if (session.status === 'Completed') return 'Meeting Ended';
-    if (now < scheduledTime) return 'Not Started Yet';
-    if (now > endTime) return 'Meeting Ended';
-    return '🔗 Join Meeting';
+    if (session.status === 'Completed') return 'Completed';
+    if (session.status === 'Ongoing') {
+      // Check if duration expired
+      if (now > endTime) return 'Completed';
+      return '🔗 Join Meeting';
+    }
+    
+    // If scheduled but duration expired
+    if (session.status === 'Scheduled' && now > endTime) {
+      return 'Time Over / Not Started';
+    }
+    
+    return 'Not Started';
   };
+
+  const canStartMeeting = (session) => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    // Can start only within the duration window (scheduled time to end time)
+    return session.status === 'Scheduled' && now >= scheduledTime && now <= endTime;
+  };
+
+  const handleStartMeeting = async (sessionId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/lecturer/sessions/${sessionId}/start`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSuccessMessage('Meeting started successfully! Students can now join.');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        fetchSessions(selectedCourse);
+      } else {
+        alert(result.message || 'Failed to start meeting');
+      }
+    } catch (error) {
+      console.error('Error starting meeting:', error);
+      alert('Failed to start meeting');
+    }
+  };
+
+  // Sort sessions: upcoming meetings first (nearest first), then past meetings at bottom
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const now = new Date();
+    const aScheduled = new Date(a.scheduled_at);
+    const bScheduled = new Date(b.scheduled_at);
+    const aEnd = new Date(aScheduled.getTime() + a.duration * 60000);
+    const bEnd = new Date(bScheduled.getTime() + b.duration * 60000);
+    
+    // Correct status if ongoing but expired
+    const aStatus = (a.status === 'Ongoing' && now > aEnd) ? 'Completed' : a.status;
+    const bStatus = (b.status === 'Ongoing' && now > bEnd) ? 'Completed' : b.status;
+    
+    // Determine if session is past (Completed or Time Over/Not Started)
+    const aIsPast = aStatus === 'Completed' || (aStatus === 'Scheduled' && now > aEnd);
+    const bIsPast = bStatus === 'Completed' || (bStatus === 'Scheduled' && now > bEnd);
+    
+    // Determine if session is upcoming (Scheduled future or Ongoing within duration)
+    const aIsUpcoming = !aIsPast && (aStatus === 'Scheduled' || (aStatus === 'Ongoing' && now <= aEnd));
+    const bIsUpcoming = !bIsPast && (bStatus === 'Scheduled' || (bStatus === 'Ongoing' && now <= bEnd));
+    
+    // Upcoming meetings first, past meetings at bottom
+    if (aIsUpcoming && bIsPast) return -1;
+    if (aIsPast && bIsUpcoming) return 1;
+    
+    // Within upcoming: sort by nearest first (ascending by start time)
+    if (aIsUpcoming && bIsUpcoming) {
+      return aScheduled - bScheduled;
+    }
+    
+    // Within past: sort by most recent first (descending by start time)
+    if (aIsPast && bIsPast) {
+      return bScheduled - aScheduled;
+    }
+    
+    return 0;
+  });
+
+  // Correct session status in the display
+  const displaySessions = sortedSessions.map(session => {
+    const now = new Date();
+    const scheduledTime = new Date(session.scheduled_at);
+    const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+    
+    // If ongoing but duration expired, show as completed
+    if (session.status === 'Ongoing' && now > endTime) {
+      return { ...session, status: 'Completed' };
+    }
+    
+    return session;
+  });
 
   return (
     <div className="panel">
@@ -2432,7 +2523,7 @@ function SessionsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sessions.map((session) => (
+                  {displaySessions.map((session) => (
                     <tr key={session.session_id} style={{ 
                       borderBottom: '1px solid #eee',
                       transition: 'background 0.2s'
@@ -2471,8 +2562,29 @@ function SessionsTab() {
                         </span>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                        {session.session_url ? (
-                          canAccessMeeting(session) ? (
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {/* Start Meeting Button */}
+                          {canStartMeeting(session) && (
+                            <button
+                              onClick={() => handleStartMeeting(session.session_id)}
+                              className="button primary sm"
+                              style={{
+                                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                                color: 'white',
+                                padding: '6px 16px',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                border: 'none',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ▶️ Start Meeting
+                            </button>
+                          )}
+
+                          {/* Join Meeting Button */}
+                          {session.session_url && canAccessMeeting(session) && (
                             <a 
                               href={session.session_url} 
                               target="_blank" 
@@ -2491,7 +2603,10 @@ function SessionsTab() {
                             >
                               {getMeetingButtonText(session)}
                             </a>
-                          ) : (
+                          )}
+
+                          {/* Status text when no action available */}
+                          {!canStartMeeting(session) && !canAccessMeeting(session) && (
                             <span style={{ 
                               color: '#999', 
                               fontSize: '13px',
@@ -2500,12 +2615,10 @@ function SessionsTab() {
                               borderRadius: '6px',
                               display: 'inline-block'
                             }}>
-                              {getMeetingButtonText(session)}
+                              {session.session_url ? getMeetingButtonText(session) : 'No link'}
                             </span>
-                          )
-                        ) : (
-                          <span style={{ color: '#999', fontSize: '13px' }}>No link</span>
-                        )}
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -2755,28 +2868,74 @@ function StudentsTab() {
 }
 
 function FeedbackTab() {
-  const [feedback, setFeedback] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('lecturer_feedback')) || [
-        { id: 1, student: 'Aarav', rating: 5, comment: 'Great explanations!' },
-        { id: 2, student: 'Diya', rating: 4, comment: 'Helpful sessions and materials.' }
-      ];
-    } catch { return []; }
-  });
+  const [dynamicData, setDynamicData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDynamicData = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+        const lecturerId = userData.email;
+
+        if (!lecturerId) {
+          console.error('No lecturer ID found');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`http://localhost:5000/api/lecturer-dynamic-data/${lecturerId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          setDynamicData(result.data);
+        } else {
+          console.error('Failed to fetch dynamic data:', result.message);
+        }
+      } catch (error) {
+        console.error('Error fetching dynamic data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDynamicData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <h3>Student Feedback & Ratings</h3>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
+
+  const feedbackList = dynamicData?.feedbackList || [];
 
   return (
     <div className="panel">
       <h3>Student Feedback & Ratings</h3>
       <div className="items-list">
-        {feedback.length === 0 && <div className="muted">No feedback yet.</div>}
-        {feedback.map((f) => (
-          <div className="item" key={f.id}>
-            <div>
-              <div className="item-title">{f.student} • {Array.from({ length: f.rating }).map((_, i) => '⭐').join('')}</div>
-              <div className="item-sub">{f.comment}</div>
+        {feedbackList.length === 0 ? (
+          <div className="muted">No feedback available</div>
+        ) : (
+          feedbackList.map((f) => (
+            <div className="item" key={f.id}>
+              <div>
+                <div className="item-title">
+                  {f.studentName} • {Array.from({ length: f.rating }).map((_, i) => '⭐').join('')}
+                  <span style={{ marginLeft: '10px', color: '#666', fontSize: '0.9em' }}>
+                    ({f.courseName})
+                  </span>
+                </div>
+                <div className="item-sub">{f.comment}</div>
+                <div className="item-sub" style={{ fontSize: '0.85em', color: '#999', marginTop: '4px' }}>
+                  {new Date(f.date).toLocaleDateString()}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
@@ -3797,16 +3956,82 @@ function CoursesTab() {
 }
 
 function EarningsTab() {
-  const [payouts] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('lecturer_payouts')) || [
-        { id: 1, date: '2025-08-01', amount: 12500, status: 'Paid' },
-        { id: 2, date: '2025-09-01', amount: 9800, status: 'Processing' }
-      ];
-    } catch { return []; }
-  });
+  const [dynamicData, setDynamicData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const total = payouts.reduce((sum, p) => sum + (p.amount || 0), 0);
+  useEffect(() => {
+    const fetchDynamicData = async () => {
+      try {
+        const userData = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
+        const lecturerId = userData.email;
+
+        if (!lecturerId) {
+          console.error('No lecturer ID found');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch(`http://localhost:5000/api/lecturer-dynamic-data/${lecturerId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          setDynamicData(result.data);
+        } else {
+          console.error('Failed to fetch dynamic data:', result.message);
+        }
+      } catch (error) {
+        console.error('Error fetching dynamic data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDynamicData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <h3>Earnings & Payouts</h3>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+      </div>
+    );
+  }
+
+  const totalEarnings = dynamicData?.totalEarnings || 0;
+  const activeCourses = dynamicData?.activeCourses || 0;
+  const avgRating = dynamicData?.avgRating || '0.0';
+  const earningsTable = dynamicData?.earningsTable || [];
+  const monthlyEarningsChart = dynamicData?.monthlyEarningsChart || { labels: [], data: [] };
+  const enrollmentsChart = dynamicData?.enrollmentsThisMonthChart || { labels: [], data: [] };
+
+  // Generate chart points for monthly earnings
+  const generateEarningsChartPoints = () => {
+    const data = monthlyEarningsChart.data;
+    if (!data || data.length === 0) return '10,150 50,150 90,150 130,150 170,150 210,150 250,150 290,150';
+    
+    const maxValue = Math.max(...data, 1);
+    const points = data.map((value, index) => {
+      const x = 10 + (index * 280 / (data.length - 1));
+      const y = 150 - (value / maxValue) * 90;
+      return `${x},${y}`;
+    });
+    return points.join(' ');
+  };
+
+  // Generate bar chart for enrollments
+  const generateEnrollmentBars = () => {
+    const data = enrollmentsChart.data;
+    if (!data || data.length === 0) return [];
+    
+    const maxValue = Math.max(...data, 1);
+    return data.map((value, index) => {
+      const x = 30 + (index * 60);
+      const height = (value / maxValue) * 110;
+      const y = 150 - height;
+      return <rect key={index} x={x} y={y} width="24" height={height} fill="#4da3ff" />;
+    });
+  };
 
   return (
     <div className="panel">
@@ -3814,19 +4039,19 @@ function EarningsTab() {
       <div className="stats">
         <Stat 
           label="Total Earnings" 
-          value={`₹${total.toLocaleString()}`} 
+          value={totalEarnings === 0 ? '₹0' : `₹${totalEarnings.toLocaleString()}`}
           trend="This quarter" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
         />
         <Stat 
           label="Active Courses" 
-          value="3" 
+          value={activeCourses.toString()}
           trend="2% MoM" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
         />
         <Stat 
           label="Avg. Rating" 
-          value="4.7" 
+          value={avgRating}
           trend="+0.2" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>}
         />
@@ -3835,22 +4060,23 @@ function EarningsTab() {
         <div className="chart-card">
           <div className="chart-title">Monthly Earnings (₹)</div>
           <svg className="chart" viewBox="0 0 300 180">
-            <polyline fill="none" stroke="#4da3ff" strokeWidth="3" points="10,150 50,140 90,120 130,100 170,110 210,80 250,70 290,60" />
+            <polyline fill="none" stroke="#4da3ff" strokeWidth="3" points={generateEarningsChartPoints()} />
             <line x1="10" y1="150" x2="290" y2="150" stroke="#e6f0fb" />
             <line x1="10" y1="120" x2="290" y2="120" stroke="#e6f0fb" />
             <line x1="10" y1="90" x2="290" y2="90" stroke="#e6f0fb" />
+            {monthlyEarningsChart.labels.map((label, i) => (
+              <text key={i} x={10 + (i * 280 / (monthlyEarningsChart.labels.length - 1))} y="170" fontSize="10" textAnchor="middle" fill="#666">{label}</text>
+            ))}
           </svg>
         </div>
         <div className="chart-card">
           <div className="chart-title">Enrollments This Month</div>
           <svg className="chart" viewBox="0 0 300 180">
-            <rect x="30" y="80" width="24" height="70" fill="#89c3ff" />
-            <rect x="70" y="60" width="24" height="90" fill="#4da3ff" />
-            <rect x="110" y="100" width="24" height="50" fill="#b7dcff" />
-            <rect x="150" y="40" width="24" height="110" fill="#2e8bff" />
-            <rect x="190" y="90" width="24" height="60" fill="#89c3ff" />
-            <rect x="230" y="70" width="24" height="80" fill="#4da3ff" />
+            {generateEnrollmentBars()}
             <line x1="20" y1="150" x2="280" y2="150" stroke="#e6f0fb" />
+            {enrollmentsChart.labels.map((label, i) => (
+              <text key={i} x={42 + (i * 60)} y="170" fontSize="10" textAnchor="middle" fill="#666">{label}</text>
+            ))}
           </svg>
         </div>
       </div>
@@ -3859,14 +4085,22 @@ function EarningsTab() {
           <div>Date</div>
           <div>Amount</div>
           <div>Status</div>
+          <div>Course</div>
         </div>
-        {payouts.map((p) => (
-          <div className="t-row" key={p.id}>
-            <div>{new Date(p.date).toLocaleDateString()}</div>
-            <div>₹{p.amount.toLocaleString()}</div>
-            <div><span className={`badge ${p.status === 'Paid' ? 'success' : 'warning'}`}>{p.status}</span></div>
+        {earningsTable.length === 0 ? (
+          <div className="t-row" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+            <div style={{ gridColumn: '1 / -1' }}>No earnings available</div>
           </div>
-        ))}
+        ) : (
+          earningsTable.map((earning) => (
+            <div className="t-row" key={earning.id}>
+              <div>{new Date(earning.date).toLocaleDateString()}</div>
+              <div>₹{earning.amount.toLocaleString()}</div>
+              <div><span className={`badge ${earning.status === 'Paid' ? 'success' : 'warning'}`}>{earning.status}</span></div>
+              <div>{earning.course}</div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

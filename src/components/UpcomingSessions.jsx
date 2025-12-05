@@ -104,23 +104,19 @@ const UpcomingSessions = () => {
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
     
-    // Students can access 10 minutes before until end time
-    const accessTime = new Date(scheduledTime.getTime() - 10 * 60000);
-    return now >= accessTime && now <= endTime;
+    // Students can ONLY join when lecturer has started (status = 'Ongoing') AND within duration
+    return session.status === 'Ongoing' && now <= endTime;
   };
 
   const getMeetingButtonText = (session) => {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    const accessTime = new Date(scheduledTime.getTime() - 10 * 60000);
     
-    if (session.status === 'Completed' || now > endTime) return 'Meeting Ended';
-    if (now < accessTime) {
-      const minutesUntil = Math.ceil((accessTime - now) / (1000 * 60));
-      return `Available in ${minutesUntil} min`;
-    }
-    return '🔗 Join Zoom Meeting →';
+    if (session.status === 'Completed') return 'Meeting Ended';
+    if (session.status === 'Ongoing' && now <= endTime) return '🔗 Join Zoom Meeting →';
+    if (session.status === 'Ongoing' && now > endTime) return 'Meeting Ended';
+    return 'Waiting for lecturer to start...';
   };
 
   if (loading) {

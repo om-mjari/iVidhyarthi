@@ -400,6 +400,21 @@ router.get("/", async (req, res) => {
         
         const course = lecturerCourses.find(c => c.Course_Id === courseId);
         
+        // Auto-complete expired ongoing sessions
+        let status = session.Status;
+        if (status === 'Ongoing') {
+          const now = new Date();
+          const endTime = new Date(session.Scheduled_At.getTime() + session.Duration * 60000);
+          if (now > endTime) {
+            // Update status in database
+            await Tbl_Sessions.findOneAndUpdate(
+              { Session_Id: session.Session_Id },
+              { Status: 'Completed', Ended_At: endTime }
+            );
+            status = 'Completed';
+          }
+        }
+        
         return {
           session_id: session.Session_Id,
           course_id: session.Course_Id,
@@ -408,7 +423,7 @@ router.get("/", async (req, res) => {
           session_url: session.Session_Url,
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
-          status: session.Status,
+          status: status,
           description: session.Description,
           created_at: session.createdAt
         };
@@ -465,13 +480,15 @@ router.get("/student", async (req, res) => {
       });
     }
 
-    // Get upcoming sessions for these courses (future sessions only)
+    // Get sessions for these courses (Scheduled future sessions + Ongoing sessions)
     const now = new Date();
     const sessions = await Tbl_Sessions
       .find({
         Course_Id: { $in: courseIdArray },
-        Scheduled_At: { $gte: now },
-        Status: { $in: ['Scheduled', 'Ongoing'] }
+        $or: [
+          { Status: 'Ongoing' },
+          { Status: 'Scheduled', Scheduled_At: { $gte: now } }
+        ]
       })
       .sort({ Scheduled_At: 1 })
       .limit(10)
@@ -481,6 +498,26 @@ router.get("/student", async (req, res) => {
     const enrichedSessions = await Promise.all(
       sessions.map(async (session) => {
         const course = await Tbl_Courses.findOne({ Course_Id: session.Course_Id });
+        
+        // Auto-complete expired ongoing sessions
+        let status = session.Status;
+        if (status === 'Ongoing') {
+          const endTime = new Date(session.Scheduled_At.getTime() + session.Duration * 60000);
+          if (now > endTime) {
+            // Update status in database
+            await Tbl_Sessions.findOneAndUpdate(
+              { Session_Id: session.Session_Id },
+              { Status: 'Completed', Ended_At: endTime }
+            );
+            status = 'Completed';
+          }
+        }
+        
+        // Don't show completed sessions to students
+        if (status === 'Completed') {
+          return null;
+        }
+        
         return {
           session_id: session.Session_Id,
           course_id: session.Course_Id,
@@ -489,22 +526,101 @@ router.get("/student", async (req, res) => {
           session_url: session.Session_Url,
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
-          status: session.Status,
+          status: status,
           description: session.Description,
           session_type: session.Session_Type
         };
       })
     );
 
+    // Filter out null values (completed sessions)
+    const filteredSessions = enrichedSessions.filter(s => s !== null);
+
     res.json({
       success: true,
-      data: enrichedSessions
+      data: filteredSessions
     });
   } catch (error) {
     console.error('❌ Student sessions fetch error:', error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch sessions"
+    });
+  }
+});
+
+// Start a session (Lecturer only)
+router.put('/:sessionId/start', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    console.log(`🚀 Starting session: ${sessionId}`);
+
+    const session = await Tbl_Sessions.findOneAndUpdate(
+      { Session_Id: sessionId, Status: 'Scheduled' },
+      { 
+        Status: 'Ongoing',
+        Started_At: new Date()
+      },
+      { new: true }
+    );
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or already started'
+      });
+    }
+
+    console.log(`✅ Session started: ${sessionId}`);
+    res.json({
+      success: true,
+      message: 'Session started successfully',
+      data: session
+    });
+  } catch (error) {
+    console.error('❌ Error starting session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to start session',
+      error: error.message
+    });
+  }
+});
+
+// End a session (Lecturer only)
+router.put('/:sessionId/end', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    console.log(`🛑 Ending session: ${sessionId}`);
+
+    const session = await Tbl_Sessions.findOneAndUpdate(
+      { Session_Id: sessionId, Status: 'Ongoing' },
+      { 
+        Status: 'Completed',
+        Ended_At: new Date()
+      },
+      { new: true }
+    );
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found or not currently ongoing'
+      });
+    }
+
+    console.log(`✅ Session ended: ${sessionId}`);
+    res.json({
+      success: true,
+      message: 'Session ended successfully',
+      data: session
+    });
+  } catch (error) {
+    console.error('❌ Error ending session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to end session',
+      error: error.message
     });
   }
 });

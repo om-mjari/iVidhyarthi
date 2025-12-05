@@ -47,6 +47,14 @@ const sessionSchema = new mongoose.Schema(
       enum: ["Scheduled", "Ongoing", "Completed", "Cancelled", "Postponed"],
       default: "Scheduled",
     },
+    Started_At: {
+      type: Date,
+      default: null,
+    },
+    Ended_At: {
+      type: Date,
+      default: null,
+    },
     Recording_Url: {
       type: String,
       default: null,

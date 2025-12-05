@@ -81,7 +81,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const { name, courses, status } = req.body;
-    
+
     const updateData = {};
     if (name) updateData.Institute_Name = name;
     if (courses !== undefined) updateData.Courses_Offered = courses;

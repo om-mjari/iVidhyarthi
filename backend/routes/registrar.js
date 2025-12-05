@@ -202,7 +202,7 @@ router.get("/stats", authenticateRegistrar, async (req, res) => {
     const activeCourses = await Courses.countDocuments({
       Lecturer_Id: { $in: lecturerIds },
       Is_Active: true,
-      status: 'approved'
+      status: "approved",
     });
 
     // Calculate stats

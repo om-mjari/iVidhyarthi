@@ -129,6 +129,7 @@ const lecturerStudentsRoutes = require("./routes/lecturerStudents");
 const sessionRoutes = require("./routes/sessionRoutes");
 const recommendationsRoutes = require("./routes/recommendationsRoutes");
 const lecturerDynamicDataRoutes = require("./routes/lecturerDynamicData");
+const instituteRoutes = require("./routes/instituteRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -158,6 +159,7 @@ app.use("/api/lecturer/sessions", sessionRoutes);
 app.use("/api/sessions", sessionRoutes); // Alias for student access
 app.use("/api/recommendations", recommendationsRoutes);
 app.use("/api/lecturer-dynamic-data", lecturerDynamicDataRoutes);
+app.use("/api/institutes", instituteRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");

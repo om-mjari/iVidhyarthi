@@ -32,6 +32,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
   // Course content from database
   const [courseTopics, setCourseTopics] = useState([]);
+  const [courseSubTopics, setCourseSubTopics] = useState([]);
   const [courseContents, setCourseContents] = useState([]);
   const [loadingContent, setLoadingContent] = useState(false);
 
@@ -45,6 +46,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     completedVideos: 0,
     completionPercentage: 0
   });
+
+  // Dynamic course data from database
+  const [lecturerInfo, setLecturerInfo] = useState(null);
+  const [instituteInfo, setInstituteInfo] = useState(null);
+  const [courseDescription, setCourseDescription] = useState('');
+  const [learningObjectives, setLearningObjectives] = useState([]);
+  const [loadingCourseInfo, setLoadingCourseInfo] = useState(true);
 
   // Track which videos have been watched (to enable Mark as Complete button)
   const [watchedVideos, setWatchedVideos] = useState([]);
@@ -371,6 +379,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       // Fetch assignments for this course
       fetchAssignments(course.id || course.Course_Id || 'COURSE_001');
 
+      // Fetch course details (lecturer, institute, description, objectives)
+      fetchCourseDetails(course.id || course.Course_Id || 'COURSE_001');
+
       // Fetch course topics and content
       fetchCourseTopics(course.id || course.Course_Id || 'COURSE_001');
       fetchCourseContent(course.id || course.Course_Id || 'COURSE_001');
@@ -404,9 +415,85 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (result.success) {
         setCourseTopics(result.data);
         console.log('✅ Course topics fetched:', result.data);
+        
+        // Fetch subtopics for each topic
+        const allSubTopics = [];
+        for (const topic of result.data) {
+          try {
+            console.log(`🔍 Fetching subtopics for Topic_Id: ${topic.Topic_Id}`);
+            const subTopicResponse = await fetch(`http://localhost:5000/api/course-topics/${topic.Topic_Id}/subtopics`);
+            const subTopicResult = await subTopicResponse.json();
+            console.log(`📦 Subtopics response for Topic_Id ${topic.Topic_Id}:`, subTopicResult);
+            if (subTopicResult.success && subTopicResult.data) {
+              console.log(`✅ Found ${subTopicResult.data.length} subtopics for Topic_Id ${topic.Topic_Id}`);
+              allSubTopics.push(...subTopicResult.data);
+            } else {
+              console.log(`⚠️ No subtopics found for Topic_Id ${topic.Topic_Id}`);
+            }
+          } catch (error) {
+            console.error(`❌ Error fetching subtopics for topic ${topic.Topic_Id}:`, error);
+          }
+        }
+        setCourseSubTopics(allSubTopics);
+        console.log('✅ Total course subtopics fetched:', allSubTopics.length, allSubTopics);
       }
     } catch (error) {
       console.error('Error fetching course topics:', error);
+    }
+  };
+
+  // Fetch dynamic course information including lecturer, institute, and description
+  const fetchCourseDetails = async (courseId) => {
+    setLoadingCourseInfo(true);
+    try {
+      // Fetch course details including lecturer, institute, description
+      const courseResponse = await fetch(`http://localhost:5000/api/tbl-courses/${courseId}`);
+      const courseResult = await courseResponse.json();
+      
+      if (courseResult.success && courseResult.data) {
+        const course = courseResult.data;
+        
+        // Set course description
+        setCourseDescription(course.Description || 'No description available');
+        
+        // Fetch lecturer information
+        if (course.Lecturer_Id) {
+          try {
+            const lecturerResponse = await fetch(`http://localhost:5000/api/lecturer-profile/${course.Lecturer_Id}`);
+            const lecturerResult = await lecturerResponse.json();
+            if (lecturerResult.success && lecturerResult.data) {
+              setLecturerInfo(lecturerResult.data);
+              
+              // Fetch institute information using lecturer's institute
+              if (lecturerResult.data.Institute_Id) {
+                try {
+                  const instituteResponse = await fetch(`http://localhost:5000/api/institutes/${lecturerResult.data.Institute_Id}`);
+                  const instituteResult = await instituteResponse.json();
+                  if (instituteResult.success && instituteResult.data) {
+                    setInstituteInfo(instituteResult.data);
+                  }
+                } catch (error) {
+                  console.error('Error fetching institute info:', error);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching lecturer info:', error);
+          }
+        }
+        
+        // Extract learning objectives from topics
+        if (course.Topics && course.Topics.length > 0) {
+          const objectives = course.Topics.map(topic => topic.Description || topic.Title).filter(Boolean).slice(0, 5);
+          if (objectives.length > 0) {
+            setLearningObjectives(objectives);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching course details:', error);
+    } finally {
+      setLoadingCourseInfo(false);
     }
   };
 
@@ -624,16 +711,16 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const courseContent = {
     info: {
       title: courseInfo?.Name || selectedCourse?.name || "Introduction to Internet of Things",
-      description: courseInfo?.Description || selectedCourse?.description || "This course covers the fundamentals of IoT, including sensors, actuators, networking protocols, and real-world applications. Learn how to build smart connected devices and understand the IoT ecosystem.",
-      objectives: courseInfo?.Objectives || [
+      description: courseDescription || courseInfo?.Description || selectedCourse?.description || "This course covers the fundamentals of IoT, including sensors, actuators, networking protocols, and real-world applications. Learn how to build smart connected devices and understand the IoT ecosystem.",
+      objectives: learningObjectives.length > 0 ? learningObjectives : (courseInfo?.Objectives || [
         "Understand the basic architecture and components of IoT systems",
         "Learn about various sensors, actuators, and communication protocols",
         "Develop skills to design and implement IoT applications",
         "Explore real-world IoT use cases and industry applications"
-      ],
-      instructor: courseInfo?.Instructor || selectedCourse?.instructor || "Prof. Sudip Misra",
-      institution: courseInfo?.Institution || "IIT Kharagpur",
-      duration: courseInfo?.Duration || "12 Weeks",
+      ]),
+      instructor: lecturerInfo?.Name || courseInfo?.Instructor || selectedCourse?.instructor || "Instructor",
+      institution: instituteInfo?.Institute_Name || courseInfo?.Institution || "IIT Kharagpur",
+      duration: selectedCourse?.duration || courseInfo?.Duration || "12 Weeks",
       level: courseInfo?.Level || "Beginner to Intermediate"
     },
     videos: processedVideos.length > 0 ? processedVideos : [
@@ -1199,12 +1286,60 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               <h4>Course Description</h4>
               <p>{courseContent.info.description}</p>
 
-              <h4>Learning Objectives</h4>
-              <ul className="objectives-list">
-                {courseContent.info.objectives.map((obj, idx) => (
-                  <li key={idx}>{obj}</li>
-                ))}
-              </ul>
+              {/* Course Topics with Subtopics */}
+              {courseTopics.length > 0 && (
+                <div className="course-topics-section">
+                  <h4>Course Topics</h4>
+                  <div className="topics-hierarchy">
+                    {courseTopics
+                      .sort((a, b) => {
+                        const orderA = parseInt(a.Order_Number) || 0;
+                        const orderB = parseInt(b.Order_Number) || 0;
+                        return orderA - orderB;
+                      })
+                      .map((topic, topicIndex) => {
+                        const topicSubTopics = courseSubTopics
+                          .filter(sub => sub.Topic_Id === topic.Topic_Id)
+                          .sort((a, b) => {
+                            const orderA = parseFloat(a.Order_Number) || 0;
+                            const orderB = parseFloat(b.Order_Number) || 0;
+                            return orderA - orderB;
+                          });
+                        
+                        const mainTopicNumber = parseInt(topic.Order_Number) || (topicIndex + 1);
+                        
+                        return (
+                          <div key={topic.Topic_Id} className="topic-item">
+                            <div className="topic-main">
+                              <span className="topic-number">{mainTopicNumber}</span>
+                              <span className="topic-text">{topic.Title}</span>
+                            </div>
+                            {topicSubTopics.length > 0 && (
+                              <div className="subtopics-list">
+                                {topicSubTopics.map((subTopic, subIndex) => {
+                                  // Handle Order_Number which might be like "1.1" or just a decimal
+                                  let subNumber = subTopic.Order_Number;
+                                  if (!subNumber || !subNumber.toString().includes('.')) {
+                                    subNumber = `${mainTopicNumber}.${subIndex + 1}`;
+                                  }
+                                  
+                                  return (
+                                    <div key={subTopic.SubTopic_Id} className="subtopic-item">
+                                      <span className="subtopic-number">
+                                        {subNumber} :
+                                      </span>
+                                      <span className="subtopic-text">{subTopic.Title}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

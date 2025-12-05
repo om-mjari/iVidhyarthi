@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Tbl_CourseTopics = require("../models/Tbl_CourseTopics");
+const Tbl_CourseSubTopics = require("../models/Tbl_CourseSubTopics");
 
 // GET - Get all topics for a course
 router.get("/course/:courseId", async (req, res) => {
@@ -18,6 +19,27 @@ router.get("/course/:courseId", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch course topics",
+      error: error.message,
+    });
+  }
+});
+
+// GET - Get subtopics for a specific topic
+router.get("/:topicId/subtopics", async (req, res) => {
+  try {
+    const subtopics = await Tbl_CourseSubTopics.find({
+      Topic_Id: Number(req.params.topicId),
+    }).sort({ Order_Number: 1 });
+
+    res.json({
+      success: true,
+      data: subtopics,
+    });
+  } catch (error) {
+    console.error("Error fetching subtopics:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch subtopics",
       error: error.message,
     });
   }

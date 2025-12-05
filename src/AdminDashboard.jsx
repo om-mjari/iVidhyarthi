@@ -10,19 +10,22 @@ const AdminDashboard = ({ onLogout }) => {
   const [editCategoryName, setEditCategoryName] = useState('');
   const [activePanel, setActivePanel] = useState('overview');
   const [stats, setStats] = useState({
-    totalUsers: 1247,
-    totalRevenue: 89450,
-    activeCourses: 16,
-    pendingApprovals: 8,
-    totalFeedback: 342,
-    liveSessions: 5,
-    totalExams: 23,
-    certificatesIssued: 156
+    totalUsers: 0,
+    activeUsers: 0,
+    totalRevenue: 0,
+    activeCourses: 0,
+    totalCourses: 0,
+    pendingApprovals: 0,
+    totalFeedback: 0,
+    liveSessions: 0,
+    totalExams: 0,
+    certificatesIssued: 0
   });
 
   // Real student data from MongoDB
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   // All university requests (pending, approved, rejected)
   const [pendingUniversities, setPendingUniversities] = useState([]);
@@ -138,6 +141,108 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  // Fetch dashboard statistics from database
+  const fetchDashboardStats = async () => {
+    try {
+      setStatsLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+
+      console.log('🔄 Fetching dashboard stats...');
+
+      // Fetch total users count
+      const usersResponse = await fetch('http://localhost:5000/api/admin/stats/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Fetch total courses count
+      const coursesResponse = await fetch('http://localhost:5000/api/admin/stats/courses', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Fetch total revenue
+      const revenueResponse = await fetch('http://localhost:5000/api/admin/stats/revenue', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Fetch pending approvals (universities)
+      const approvalsResponse = await fetch('http://localhost:5000/api/admin/universities/all', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let updatedStats = { ...stats };
+
+      // Update total users
+      if (usersResponse.ok) {
+        const usersResult = await usersResponse.json();
+        console.log('📊 Users Stats Response:', usersResult);
+        if (usersResult.success) {
+          updatedStats.totalUsers = usersResult.data.total || usersResult.data.count || 0;
+          updatedStats.activeUsers = usersResult.data.active || 0;
+          console.log('✅ Users updated - Total:', updatedStats.totalUsers, 'Active:', updatedStats.activeUsers);
+        }
+      } else {
+        console.error('❌ Users stats failed:', usersResponse.status, await usersResponse.text());
+      }
+
+      // Update active courses
+      if (coursesResponse.ok) {
+        const coursesResult = await coursesResponse.json();
+        console.log('📊 Courses Stats Response:', coursesResult);
+        if (coursesResult.success) {
+          updatedStats.activeCourses = coursesResult.data.active || coursesResult.data.count || 0;
+          updatedStats.totalCourses = coursesResult.data.total || 0;
+          console.log('✅ Courses updated - Active:', updatedStats.activeCourses, 'Total:', updatedStats.totalCourses);
+        }
+      } else {
+        console.error('❌ Courses stats failed:', coursesResponse.status, await coursesResponse.text());
+      }
+
+      // Update total revenue
+      if (revenueResponse.ok) {
+        const revenueResult = await revenueResponse.json();
+        console.log('📊 Revenue Stats Response:', revenueResult);
+        if (revenueResult.success) {
+          updatedStats.totalRevenue = revenueResult.data.total || 0;
+          console.log('✅ Revenue updated:', updatedStats.totalRevenue);
+        }
+      } else {
+        console.error('❌ Revenue stats failed:', revenueResponse.status, await revenueResponse.text());
+      }
+
+      // Update pending approvals
+      if (approvalsResponse.ok) {
+        const approvalsResult = await approvalsResponse.json();
+        console.log('📊 Approvals Stats Response:', approvalsResult);
+        if (approvalsResult.success) {
+          const pendingCount = approvalsResult.data.filter(u => u.Verification_Status === 'pending').length;
+          updatedStats.pendingApprovals = pendingCount;
+          console.log('✅ Pending approvals updated:', pendingCount);
+        }
+      } else {
+        console.error('❌ Approvals stats failed:', approvalsResponse.status, await approvalsResponse.text());
+      }
+
+      console.log('📈 Final Stats Update:', updatedStats);
+      setStats(updatedStats);
+    } catch (error) {
+      console.error('❌ Error fetching dashboard stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   // Fetch students from MongoDB
   const fetchStudents = async () => {
     try {
@@ -186,6 +291,9 @@ const AdminDashboard = ({ onLogout }) => {
   };
 
   useEffect(() => {
+    // Fetch dashboard stats on component mount
+    fetchDashboardStats();
+    
     // Only fetch users when the admin panel is active
     if (activePanel === 'users') {
       fetchStudents();
@@ -201,6 +309,7 @@ const AdminDashboard = ({ onLogout }) => {
   // Refresh data every 30 seconds to show new registrations
   useEffect(() => {
     const interval = setInterval(() => {
+      fetchDashboardStats(); // Refresh stats
       if (activePanel === 'users') {
         fetchStudents();
       }
@@ -654,33 +763,65 @@ Semester: ${user.semester}
         <div className="stat-card users">
           <div className="stat-icon">👥</div>
           <div className="stat-content">
-            <h3>{stats.totalUsers.toLocaleString()}</h3>
+            <h3 className={statsLoading ? 'loading' : ''}>
+              {statsLoading ? 'Loading...' : stats.totalUsers.toLocaleString('en-IN')}
+            </h3>
             <p>Total Users</p>
-            <span className="stat-trend">+12% this month</span>
+            <span className={`stat-trend ${statsLoading ? 'loading' : ''}`}>
+              {statsLoading ? 'Fetching data...' : (
+                stats.totalUsers > 0 
+                  ? `${stats.activeUsers} active users` 
+                  : 'No users registered yet'
+              )}
+            </span>
           </div>
         </div>
         <div className="stat-card revenue">
           <div className="stat-icon">💰</div>
           <div className="stat-content">
-            <h3>₹{stats.totalRevenue.toLocaleString()}</h3>
+            <h3 className={statsLoading ? 'loading' : ''}>
+              {statsLoading ? 'Loading...' : `₹${stats.totalRevenue.toLocaleString('en-IN')}`}
+            </h3>
             <p>Total Revenue</p>
-            <span className="stat-trend">+8% this month</span>
+            <span className={`stat-trend ${statsLoading ? 'loading' : ''}`}>
+              {statsLoading ? 'Fetching data...' : (
+                stats.totalRevenue > 0 
+                  ? `from ${stats.totalUsers} users` 
+                  : 'No transactions yet'
+              )}
+            </span>
           </div>
         </div>
         <div className="stat-card courses">
           <div className="stat-icon">📚</div>
           <div className="stat-content">
-            <h3>{stats.activeCourses}</h3>
+            <h3 className={statsLoading ? 'loading' : ''}>
+              {statsLoading ? 'Loading...' : stats.activeCourses.toLocaleString('en-IN')}
+            </h3>
             <p>Active Courses</p>
-            <span className="stat-trend">+2 new courses</span>
+            <span className={`stat-trend ${statsLoading ? 'loading' : ''}`}>
+              {statsLoading ? 'Fetching data...' : (
+                stats.activeCourses > 0 
+                  ? `of ${stats.totalCourses} total courses` 
+                  : 'No courses available'
+              )}
+            </span>
           </div>
         </div>
         <div className="stat-card pending">
           <div className="stat-icon">⏳</div>
           <div className="stat-content">
-            <h3>{stats.pendingApprovals}</h3>
+            <h3 className={statsLoading ? 'loading' : ''}>
+              {statsLoading ? 'Loading...' : stats.pendingApprovals.toLocaleString('en-IN')}
+            </h3>
             <p>Pending Approvals</p>
-            <span className="stat-trend">Needs attention</span>
+            <span className={`stat-trend ${statsLoading ? 'loading' : ''}`}>
+              {statsLoading ? 'Fetching data...' : (
+                stats.pendingApprovals > 0 
+                  ? '⚠️ Requires attention' 
+                  : '✓ All clear'
+              )}
+            </span>
           </div>
         </div>
       </div>

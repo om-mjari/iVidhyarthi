@@ -207,6 +207,8 @@ function TopBar({ onLogout }) {
 // ============================================
 function DetailModal({ isOpen, onClose, title, data, columns, type }) {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
 
   if (!isOpen) return null;
 
@@ -219,11 +221,298 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
     });
   });
 
+  // Handle viewing student details
+  const handleViewStudent = (student) => {
+    setSelectedStudent(student);
+    setViewMode('detail');
+  };
+
+  const handleBackToList = () => {
+    setSelectedStudent(null);
+    setViewMode('list');
+  };
+
+  // Student Detail View Component
+  const StudentDetailView = ({ student, onBack }) => {
+    const getProgressColor = (progress) => {
+      if (progress >= 80) return '#00D896';
+      if (progress >= 60) return '#FFB547';
+      if (progress >= 40) return '#2E8BFF';
+      return '#FF6B6B';
+    };
+
+    const getProgressGradient = (progress) => {
+      if (progress >= 80) return 'linear-gradient(135deg, #00D896 0%, #00A871 100%)';
+      if (progress >= 60) return 'linear-gradient(135deg, #FFB547 0%, #FF9800 100%)';
+      if (progress >= 40) return 'linear-gradient(135deg, #2E8BFF 0%, #1a75d9 100%)';
+      return 'linear-gradient(135deg, #FF6B6B 0%, #E85656 100%)';
+    };
+
+    const getStatusColor = (status) => {
+      return status === 'Active' ? '#00D896' : '#FFB547';
+    };
+
+    const getProgressLabel = (progress) => {
+      if (progress >= 80) return 'Excellent';
+      if (progress >= 60) return 'Good Progress';
+      if (progress >= 40) return 'In Progress';
+      return 'Getting Started';
+    };
+
+    const calculateDaysEnrolled = () => {
+      const enrollDate = new Date(student.enrollDate);
+      const today = new Date();
+      const diffTime = Math.abs(today - enrollDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    };
+
+    return (
+      <div className="student-info-container">
+        <button className="back-button" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to List
+        </button>
+
+        {/* Professional Header Card */}
+        <div className="student-detail-header-card">
+          <div className="student-detail-header-bg"></div>
+          <div className="student-detail-header-content">
+            <div className="student-detail-avatar-wrapper">
+              <div className="student-detail-avatar">
+                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div className="student-detail-status-indicator" style={{ backgroundColor: getStatusColor(student.status) }}></div>
+            </div>
+            <div className="student-detail-header-info">
+              <h1 className="student-detail-name">{student.studentName}</h1>
+              <p className="student-detail-email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                {student.email}
+              </p>
+              <div className="student-detail-badges">
+                <span className="student-badge" style={{ 
+                  background: getStatusColor(student.status),
+                  boxShadow: `0 4px 12px ${getStatusColor(student.status)}40`
+                }}>
+                  {student.status}
+                </span>
+                <span className="student-badge-secondary">
+                  {calculateDaysEnrolled()} days enrolled
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="student-quick-stats">
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #E6FFF5 0%, #B3FFE6 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#00D896' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Course</div>
+              <div className="quick-stat-value">{student.course}</div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #EAF4FF 0%, #B3DBFF 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#2E8BFF' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Progress</div>
+              <div className="quick-stat-value">{student.progress || 0}%</div>
+              <div className="quick-stat-badge" style={{ background: getProgressColor(student.progress || 0) }}>
+                {getProgressLabel(student.progress || 0)}
+              </div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #F3E9FF 0%, #E0C6FF 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#9B59D0' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Enrolled</div>
+              <div className="quick-stat-value">{new Date(student.enrollDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #FFF4E6 0%, #FFE8CC 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#FFB547' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Last Active</div>
+              <div className="quick-stat-value">{student.lastActive ? new Date(student.lastActive).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Progress Section */}
+        <div className="student-progress-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+              <h3>Learning Progress</h3>
+            </div>
+            <span className="progress-percentage" style={{ color: getProgressColor(student.progress || 0) }}>
+              {student.progress || 0}%
+            </span>
+          </div>
+          
+          <div className="enhanced-progress-bar">
+            <div className="progress-track">
+              <div 
+                className="progress-fill" 
+                style={{ 
+                  width: `${student.progress || 0}%`,
+                  background: getProgressGradient(student.progress || 0)
+                }}
+              >
+                <div className="progress-glow"></div>
+              </div>
+            </div>
+            <div className="progress-markers">
+              <span className={student.progress >= 25 ? 'marker-active' : 'marker'}>25%</span>
+              <span className={student.progress >= 50 ? 'marker-active' : 'marker'}>50%</span>
+              <span className={student.progress >= 75 ? 'marker-active' : 'marker'}>75%</span>
+              <span className={student.progress >= 100 ? 'marker-active' : 'marker'}>100%</span>
+            </div>
+          </div>
+
+          <div className="progress-insights">
+            <div className="progress-insight-item">
+              <div className="insight-icon" style={{ background: '#E6FFF5', color: '#00D896' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div className="insight-content">
+                <div className="insight-label">Status</div>
+                <div className="insight-value">{getProgressLabel(student.progress || 0)}</div>
+              </div>
+            </div>
+            <div className="progress-insight-item">
+              <div className="insight-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 20V10M12 20V4M6 20v-6" />
+                </svg>
+              </div>
+              <div className="insight-content">
+                <div className="insight-label">Enrollment Status</div>
+                <div className="insight-value" style={{ color: getStatusColor(student.status) }}>{student.status}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="student-activity-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <h3>Activity Timeline</h3>
+            </div>
+          </div>
+          
+          <div className="timeline">
+            <div className="timeline-item">
+              <div className="timeline-dot" style={{ background: '#00D896' }}></div>
+              <div className="timeline-content">
+                <div className="timeline-title">Enrolled in Course</div>
+                <div className="timeline-date">{new Date(student.enrollDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                <div className="timeline-description">{student.course}</div>
+              </div>
+            </div>
+            <div className="timeline-item">
+              <div className="timeline-dot" style={{ background: '#2E8BFF' }}></div>
+              <div className="timeline-content">
+                <div className="timeline-title">Last Activity</div>
+                <div className="timeline-date">{student.lastActive ? new Date(student.lastActive).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recently active'}</div>
+                <div className="timeline-description">Course progress: {student.progress || 0}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Card */}
+        <div className="student-contact-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <h3>Contact Information</h3>
+            </div>
+          </div>
+          
+          <div className="contact-items">
+            <div className="contact-detail-item">
+              <div className="contact-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <div className="contact-detail-content">
+                <div className="contact-label">Email Address</div>
+                <div className="contact-value">{student.email}</div>
+              </div>
+            </div>
+            {student.phone && (
+              <div className="contact-detail-item">
+                <div className="contact-icon" style={{ background: '#E6FFF5', color: '#00D896' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </div>
+                <div className="contact-detail-content">
+                  <div className="contact-label">Phone Number</div>
+                  <div className="contact-value">{student.phone}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-content ${type === 'students' && viewMode === 'detail' ? 'modal-content-wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{title}</h3>
+          <h3>{viewMode === 'detail' ? 'Student Information' : title}</h3>
           <button className="modal-close" onClick={onClose}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -233,44 +522,71 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
         </div>
         
         <div className="modal-body">
-          {/* Search Input */}
-          <div style={{ marginBottom: '16px' }}>
-            <input
-              className="input"
-              type="text"
-              placeholder={`Search ${title.toLowerCase()}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {/* Data Table */}
-          {filteredData.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
-              {searchTerm ? 'No results found' : `No ${title.toLowerCase()} available`}
-            </div>
+          {type === 'students' && viewMode === 'detail' && selectedStudent ? (
+            <StudentDetailView student={selectedStudent} onBack={handleBackToList} />
           ) : (
-            <div className="table">
-              <div className="t-head">
-                {columns.map(col => (
-                  <div key={col.key}>{col.label}</div>
-                ))}
+            <>
+              {/* Search Input */}
+              <div style={{ marginBottom: '16px' }}>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder={`Search ${title.toLowerCase()}...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              {filteredData.map((item, idx) => (
-                <div className="t-row" key={item.id || idx}>
-                  {columns.map(col => (
-                    <div key={col.key}>
-                      {col.render ? col.render(item[col.key], item) : item[col.key]}
+
+              {/* Data Table */}
+              {filteredData.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
+                  {searchTerm ? 'No results found' : `No ${title.toLowerCase()} available`}
+                </div>
+              ) : (
+                <div className="table">
+                  <div className="t-head">
+                    {columns.map(col => (
+                      <div key={col.key}>{col.label}</div>
+                    ))}
+                    {type === 'students' && <div>Actions</div>}
+                  </div>
+                  {filteredData.map((item, idx) => (
+                    <div className="t-row" key={item.id || idx}>
+                      {columns.map((col, colIdx) => (
+                        <div key={col.key}>
+                          {type === 'students' && colIdx === 0 ? (
+                            // Make student name clickable
+                            <div 
+                              className="clickable-student-name"
+                              onClick={() => handleViewStudent(item)}
+                            >
+                              {col.render ? col.render(item[col.key], item) : item[col.key]}
+                            </div>
+                          ) : (
+                            col.render ? col.render(item[col.key], item) : item[col.key]
+                          )}
+                        </div>
+                      ))}
+                      {type === 'students' && (
+                        <div>
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleViewStudent(item)}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-              ))}
-            </div>
+              )}
+              
+              <div style={{ marginTop: '12px', fontSize: '13px', color: '#666', textAlign: 'center' }}>
+                Showing {filteredData.length} of {data.length} {title.toLowerCase()}
+              </div>
+            </>
           )}
-          
-          <div style={{ marginTop: '12px', fontSize: '13px', color: '#666', textAlign: 'center' }}>
-            Showing {filteredData.length} of {data.length} {title.toLowerCase()}
-          </div>
         </div>
       </div>
     </div>
@@ -352,9 +668,17 @@ function OverviewTab() {
         
         switch(type) {
           case 'students':
+            // Enrich student data with default values if missing
+            const enrichedStudents = (result.data.studentsDetail || []).map(student => ({
+              ...student,
+              progress: student.progress || 0,
+              lastActive: student.lastActive || student.enrollDate,
+              completedModules: student.completedModules || []
+            }));
+
             modalData = {
               title: 'All Students',
-              data: result.data.studentsDetail || [],
+              data: enrichedStudents,
               columns: [
                 { key: 'studentName', label: 'Student Name' },
                 { key: 'email', label: 'Email' },
@@ -364,7 +688,20 @@ function OverviewTab() {
                   label: 'Enrolled Date',
                   render: (value) => new Date(value).toLocaleDateString()
                 },
-                { key: 'status', label: 'Status' }
+                { 
+                  key: 'progress', 
+                  label: 'Progress',
+                  render: (value) => `${value || 0}%`
+                },
+                { 
+                  key: 'status', 
+                  label: 'Status',
+                  render: (value) => (
+                    <span className={`badge ${value === 'Active' ? 'success' : 'warning'}`}>
+                      {value}
+                    </span>
+                  )
+                }
               ],
               type: 'students'
             };
@@ -2721,6 +3058,8 @@ function StudentsTab() {
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showStudentDetail, setShowStudentDetail] = useState(false);
 
   const lecturer = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
@@ -2777,6 +3116,304 @@ function StudentsTab() {
     if (progress >= 80) return '#4caf50';
     if (progress >= 60) return '#ff9800';
     return '#f44336';
+  };
+
+  const handleViewStudent = (enrollment) => {
+    // Enrich student data with default values if missing
+    const enrichedStudent = {
+      ...enrollment,
+      studentName: enrollment.studentName,
+      email: enrollment.email,
+      course: enrollment.course,
+      enrollDate: enrollment.enrollDate,
+      progress: enrollment.progress || 0,
+      status: enrollment.status,
+      lastActive: enrollment.lastActive || enrollment.enrollDate,
+      completedModules: enrollment.completedModules || []
+    };
+    setSelectedStudent(enrichedStudent);
+    setShowStudentDetail(true);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedStudent(null);
+    setShowStudentDetail(false);
+  };
+
+  // Student Detail View Component (same as in DetailModal)
+  const StudentDetailView = ({ student, onBack }) => {
+    const getProgressColor = (progress) => {
+      if (progress >= 80) return '#00D896';
+      if (progress >= 60) return '#FFB547';
+      if (progress >= 40) return '#2E8BFF';
+      return '#FF6B6B';
+    };
+
+    const getProgressGradient = (progress) => {
+      if (progress >= 80) return 'linear-gradient(135deg, #00D896 0%, #00A871 100%)';
+      if (progress >= 60) return 'linear-gradient(135deg, #FFB547 0%, #FF9800 100%)';
+      if (progress >= 40) return 'linear-gradient(135deg, #2E8BFF 0%, #1a75d9 100%)';
+      return 'linear-gradient(135deg, #FF6B6B 0%, #E85656 100%)';
+    };
+
+    const getStatusColor = (status) => {
+      return status === 'Active' ? '#00D896' : '#FFB547';
+    };
+
+    const getProgressLabel = (progress) => {
+      if (progress >= 80) return 'Excellent';
+      if (progress >= 60) return 'Good Progress';
+      if (progress >= 40) return 'In Progress';
+      return 'Getting Started';
+    };
+
+    const calculateDaysEnrolled = () => {
+      const enrollDate = new Date(student.enrollDate);
+      const today = new Date();
+      const diffTime = Math.abs(today - enrollDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays;
+    };
+
+    return (
+      <div className="student-info-container">
+        <button className="back-button" onClick={onBack}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Back to List
+        </button>
+
+        {/* Professional Header Card */}
+        <div className="student-detail-header-card">
+          <div className="student-detail-header-bg"></div>
+          <div className="student-detail-header-content">
+            <div className="student-detail-avatar-wrapper">
+              <div className="student-detail-avatar">
+                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div className="student-detail-status-indicator" style={{ backgroundColor: getStatusColor(student.status) }}></div>
+            </div>
+            <div className="student-detail-header-info">
+              <h1 className="student-detail-name">{student.studentName}</h1>
+              <p className="student-detail-email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                {student.email}
+              </p>
+              <div className="student-detail-badges">
+                <span className="student-badge" style={{ 
+                  background: getStatusColor(student.status),
+                  boxShadow: `0 4px 12px ${getStatusColor(student.status)}40`
+                }}>
+                  {student.status}
+                </span>
+                <span className="student-badge-secondary">
+                  {calculateDaysEnrolled()} days enrolled
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="student-quick-stats">
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #E6FFF5 0%, #B3FFE6 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#00D896' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Course</div>
+              <div className="quick-stat-value">{student.course}</div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #EAF4FF 0%, #B3DBFF 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#2E8BFF' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Progress</div>
+              <div className="quick-stat-value">{student.progress || 0}%</div>
+              <div className="quick-stat-badge" style={{ background: getProgressColor(student.progress || 0) }}>
+                {getProgressLabel(student.progress || 0)}
+              </div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #F3E9FF 0%, #E0C6FF 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#9B59D0' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Enrolled</div>
+              <div className="quick-stat-value">{new Date(student.enrollDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+            </div>
+          </div>
+
+          <div className="quick-stat-card" style={{ background: 'linear-gradient(135deg, #FFF4E6 0%, #FFE8CC 100%)' }}>
+            <div className="quick-stat-icon-wrapper" style={{ background: '#FFB547' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div className="quick-stat-content">
+              <div className="quick-stat-label">Last Active</div>
+              <div className="quick-stat-value">{student.lastActive ? new Date(student.lastActive).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Today'}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Progress Section */}
+        <div className="student-progress-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+              <h3>Learning Progress</h3>
+            </div>
+            <span className="progress-percentage" style={{ color: getProgressColor(student.progress || 0) }}>
+              {student.progress || 0}%
+            </span>
+          </div>
+          
+          <div className="enhanced-progress-bar">
+            <div className="progress-track">
+              <div 
+                className="progress-fill" 
+                style={{ 
+                  width: `${student.progress || 0}%`,
+                  background: getProgressGradient(student.progress || 0)
+                }}
+              >
+                <div className="progress-glow"></div>
+              </div>
+            </div>
+            <div className="progress-markers">
+              <span className={student.progress >= 25 ? 'marker-active' : 'marker'}>25%</span>
+              <span className={student.progress >= 50 ? 'marker-active' : 'marker'}>50%</span>
+              <span className={student.progress >= 75 ? 'marker-active' : 'marker'}>75%</span>
+              <span className={student.progress >= 100 ? 'marker-active' : 'marker'}>100%</span>
+            </div>
+          </div>
+
+          <div className="progress-insights">
+            <div className="progress-insight-item">
+              <div className="insight-icon" style={{ background: '#E6FFF5', color: '#00D896' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div className="insight-content">
+                <div className="insight-label">Status</div>
+                <div className="insight-value">{getProgressLabel(student.progress || 0)}</div>
+              </div>
+            </div>
+            <div className="progress-insight-item">
+              <div className="insight-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 20V10M12 20V4M6 20v-6" />
+                </svg>
+              </div>
+              <div className="insight-content">
+                <div className="insight-label">Enrollment Status</div>
+                <div className="insight-value" style={{ color: getStatusColor(student.status) }}>{student.status}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="student-activity-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <h3>Activity Timeline</h3>
+            </div>
+          </div>
+          
+          <div className="timeline">
+            <div className="timeline-item">
+              <div className="timeline-dot" style={{ background: '#00D896' }}></div>
+              <div className="timeline-content">
+                <div className="timeline-title">Enrolled in Course</div>
+                <div className="timeline-date">{new Date(student.enrollDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                <div className="timeline-description">{student.course}</div>
+              </div>
+            </div>
+            <div className="timeline-item">
+              <div className="timeline-dot" style={{ background: '#2E8BFF' }}></div>
+              <div className="timeline-content">
+                <div className="timeline-title">Last Activity</div>
+                <div className="timeline-date">{student.lastActive ? new Date(student.lastActive).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Recently active'}</div>
+                <div className="timeline-description">Course progress: {student.progress || 0}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Card */}
+        <div className="student-contact-card">
+          <div className="section-header">
+            <div className="section-header-content">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <h3>Contact Information</h3>
+            </div>
+          </div>
+          
+          <div className="contact-items">
+            <div className="contact-detail-item">
+              <div className="contact-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <div className="contact-detail-content">
+                <div className="contact-label">Email Address</div>
+                <div className="contact-value">{student.email}</div>
+              </div>
+            </div>
+            {student.phone && (
+              <div className="contact-detail-item">
+                <div className="contact-icon" style={{ background: '#E6FFF5', color: '#00D896' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                </div>
+                <div className="contact-detail-content">
+                  <div className="contact-label">Phone Number</div>
+                  <div className="contact-value">{student.phone}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -2878,7 +3515,13 @@ function StudentsTab() {
         {filteredEnrollments.map((enrollment) => (
           <div className="t-row" key={enrollment.id}>
             <div>
-              <div style={{ fontWeight: '500' }}>{enrollment.studentName}</div>
+              <div 
+                className="clickable-student-name" 
+                onClick={() => handleViewStudent(enrollment)}
+                style={{ fontWeight: '500' }}
+              >
+                {enrollment.studentName}
+              </div>
               <div style={{ fontSize: '12px', color: '#666' }}>{enrollment.email}</div>
             </div>
             <div>{enrollment.course}</div>
@@ -2912,6 +3555,26 @@ function StudentsTab() {
           </div>
         ))}
       </div>
+
+      {/* Student Detail Modal */}
+      {showStudentDetail && selectedStudent && (
+        <div className="modal-overlay" onClick={handleCloseDetail}>
+          <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Student Information</h3>
+              <button className="modal-close" onClick={handleCloseDetail}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <StudentDetailView student={selectedStudent} onBack={handleCloseDetail} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

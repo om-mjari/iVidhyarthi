@@ -463,6 +463,8 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [editMode, setEditMode] = useState(null);
   const [editData, setEditData] = useState({ name: '', courses: '' });
+  const [searchName, setSearchName] = useState('');
+  const [searchCourse, setSearchCourse] = useState('');
 
   const addInstitute = async () => {
     if (!form.name) return;
@@ -626,6 +628,34 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
         <button className="btn-primary" onClick={addInstitute}>Add Institute</button>
       </div>
 
+      {/* Search Filters */}
+      <div className="panel-controls" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', width: '100%' }}>
+          <div>
+            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+              🔍 Search by Institute Name
+            </label>
+            <input
+              className="search-input"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              placeholder="Type to search institutes..."
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+              🔍 Search by Course
+            </label>
+            <input
+              className="search-input"
+              value={searchCourse}
+              onChange={(e) => setSearchCourse(e.target.value)}
+              placeholder="Type to search courses..."
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="users-table">
         <table>
           <thead>
@@ -637,14 +667,29 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             </tr>
           </thead>
           <tbody>
-            {institutes.length === 0 ? (
-              <tr>
-                <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                  No institutes added yet. Add your first institute above.
-                </td>
-              </tr>
-            ) : (
-              institutes.map(inst => (
+            {(() => {
+              // Filter institutes based on search criteria
+              const filteredInstitutes = institutes.filter(inst => {
+                const nameMatch = searchName.trim() === '' || 
+                  (inst.name || '').toLowerCase().includes(searchName.toLowerCase());
+                const courseMatch = searchCourse.trim() === '' || 
+                  (inst.courses || '').toLowerCase().includes(searchCourse.toLowerCase());
+                return nameMatch && courseMatch;
+              });
+
+              if (filteredInstitutes.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                      {institutes.length === 0 
+                        ? 'No institutes added yet. Add your first institute above.'
+                        : 'No institutes match your search criteria.'}
+                    </td>
+                  </tr>
+                );
+              }
+
+              return filteredInstitutes.map(inst => (
                 <tr key={inst.id}>
                   <td>
                     {editMode === inst.id ? (
@@ -724,8 +769,8 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
                     )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
@@ -734,95 +779,255 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
 }
 
 function ChartsTab({ analyticsData, institutes }) {
-  // Mock data for registrar-specific analytics
-  const monthlyEnrollments = [
-    { month: 'Jan', enrollments: 45, institutes: 3 },
-    { month: 'Feb', enrollments: 62, institutes: 4 },
-    { month: 'Mar', enrollments: 38, institutes: 3 },
-    { month: 'Apr', enrollments: 71, institutes: 5 },
-    { month: 'May', enrollments: 89, institutes: 6 },
-    { month: 'Jun', enrollments: 56, institutes: 5 }
-  ];
+  const [monthlyEnrollments, setMonthlyEnrollments] = useState([]);
+  const [topCourses, setTopCourses] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
 
-  const topCourses = [
-    { name: 'Computer Science', students: 234, institutes: 3 },
-    { name: 'Information Technology', students: 189, institutes: 2 },
-    { name: 'Business Administration', students: 156, institutes: 2 },
-    { name: 'Electronics', students: 98, institutes: 1 },
-    { name: 'Mechanical', students: 87, institutes: 1 }
-  ];
+  useEffect(() => {
+    console.log('📊 ChartsTab: Institutes changed, re-fetching analytics...', institutes.length);
+    fetchAllAnalytics();
+  }, [institutes, lastUpdate]); // Re-fetch when institutes change or manual refresh
 
-  const recentActivities = [
-    { type: 'enrollment', message: 'New student enrolled in Computer Science', time: '2 hours ago', icon: '👤' },
-    { type: 'institute', message: 'Engineering College added new course: AI & ML', time: '4 hours ago', icon: '📚' },
-    { type: 'institute', message: 'Management Studies updated contact info', time: '1 day ago', icon: '📝' },
-    { type: 'enrollment', message: '12 new enrollments this week', time: '2 days ago', icon: '📈' },
-    { type: 'institute', message: 'Computer Science Department added 3 new courses', time: '3 days ago', icon: '🏛️' }
-  ];
+  const fetchAllAnalytics = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchMonthlyTrends(),
+      fetchTopCourses(),
+      fetchRecentActivities()
+    ]);
+    setLoading(false);
+  };
+
+  const handleRefresh = () => {
+    setLastUpdate(Date.now());
+  };
+
+  const fetchMonthlyTrends = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/registrar/monthly-trends`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setMonthlyEnrollments(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching monthly trends:', error);
+      setMonthlyEnrollments([]);
+    }
+  };
+
+  const fetchTopCourses = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/registrar/top-courses`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setTopCourses(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching top courses:', error);
+      setTopCourses([]);
+    }
+  };
+
+  const fetchRecentActivities = async () => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`${API_BASE_URL}/registrar/recent-activities`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      
+      if (result.success) {
+        setRecentActivities(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
+      setRecentActivities([]);
+    }
+  };
+
+  // Calculate max values for scaling bars
+  const maxEnrollments = Math.max(...monthlyEnrollments.map(d => d.enrollments), 1);
+  const maxInstitutes = Math.max(...monthlyEnrollments.map(d => d.institutes), 1);
 
   return (
     <div className="analytics-panel">
       <h2>📊 Institute Analytics & Reports</h2>
 
+      {/* Institute Data Graph */}
+      <div className="analytics-section">
+        <h3>🏛️ Institute & Courses Distribution</h3>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            Loading institute data...
+          </div>
+        ) : institutes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            No institute data available yet
+          </div>
+        ) : (() => {
+          // Flatten institutes and courses into individual rows
+          const instituteCoursePairs = [];
+          institutes.forEach(inst => {
+            const coursesStr = inst.courses || inst.Courses_Offered || '';
+            const coursesList = coursesStr.trim() ? coursesStr.split(',').map(c => c.trim()).filter(c => c) : [];
+            
+            if (coursesList.length > 0) {
+              coursesList.forEach(course => {
+                instituteCoursePairs.push({
+                  instituteName: inst.name || inst.Institute_Name || 'N/A',
+                  courseName: course
+                });
+              });
+            } else {
+              // If no courses, still show the institute
+              instituteCoursePairs.push({
+                instituteName: inst.name || inst.Institute_Name || 'N/A',
+                courseName: 'No courses'
+              });
+            }
+          });
+
+          return instituteCoursePairs.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+              No courses available
+            </div>
+          ) : (
+            <div className="chart-container">
+              <div className="chart-header">
+                <span>Institute Name</span>
+                <span>Course Name</span>
+              </div>
+              {instituteCoursePairs.map((pair, index) => (
+                <div key={index} className="chart-row">
+                  <div className="chart-label" style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {pair.instituteName}
+                  </div>
+                  <div className="chart-bars">
+                    <div className="bar-container">
+                      <div 
+                        className="bar institutes" 
+                        style={{ 
+                          width: '100%',
+                          backgroundColor: '#14b8a6'
+                        }}
+                      ></div>
+                      <span className="bar-value">
+                        {pair.courseName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* Monthly Enrollment Trends */}
       <div className="analytics-section">
         <h3>📈 Monthly Enrollment Trends</h3>
-        <div className="chart-container">
-          <div className="chart-header">
-            <span>Student Enrollments</span>
-            <span>Active Institutes</span>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            Loading analytics data...
           </div>
-          {monthlyEnrollments.map((data, index) => (
-            <div key={data.month} className="chart-row">
-              <div className="chart-label">{data.month}</div>
-              <div className="chart-bars">
-                <div className="bar-container">
-                  <div className="bar enrollments" style={{ width: `${(data.enrollments / 100) * 100}%` }}></div>
-                  <span className="bar-value">{data.enrollments}</span>
-                </div>
-                <div className="bar-container">
-                  <div className="bar institutes" style={{ width: `${(data.institutes / 6) * 100}%` }}></div>
-                  <span className="bar-value">{data.institutes}</span>
+        ) : monthlyEnrollments.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            No enrollment data available yet
+          </div>
+        ) : (
+          <div className="chart-container">
+            <div className="chart-header">
+              <span>Student Enrollments</span>
+              <span>Active Institutes</span>
+            </div>
+            {monthlyEnrollments.map((data, index) => (
+              <div key={index} className="chart-row">
+                <div className="chart-label">{data.month}</div>
+                <div className="chart-bars">
+                  <div className="bar-container">
+                    <div className="bar enrollments" style={{ width: `${(data.enrollments / maxEnrollments) * 100}%` }}></div>
+                    <span className="bar-value">{data.enrollments}</span>
+                  </div>
+                  <div className="bar-container">
+                    <div className="bar institutes" style={{ width: `${(data.institutes / maxInstitutes) * 100}%` }}></div>
+                    <span className="bar-value">{data.institutes}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Performing Courses */}
       <div className="analytics-section">
         <h3>🏆 Most Popular Courses</h3>
-        <div className="courses-grid">
-          {topCourses.map((course, index) => (
-            <div key={course.name} className="course-card">
-              <div className="course-rank">#{index + 1}</div>
-              <div className="course-info">
-                <h4>{course.name}</h4>
-                <div className="course-stats">
-                  <span className="students">{course.students} students</span>
-                  <span className="institutes">{course.institutes} institutes</span>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            Loading courses...
+          </div>
+        ) : topCourses.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            No course data available yet
+          </div>
+        ) : (
+          <div className="courses-grid">
+            {topCourses.map((course, index) => (
+              <div key={index} className="course-card">
+                <div className="course-rank">#{index + 1}</div>
+                <div className="course-info">
+                  <h4>{course.name}</h4>
+                  <div className="course-stats">
+                    <span className="students">{course.students} students</span>
+                    <span className="institutes">{course.institutes} institutes</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Recent Activities Feed */}
       <div className="analytics-section">
         <h3>🔄 Recent Institute Activities</h3>
-        <div className="activities-feed">
-          {recentActivities.map((activity, index) => (
-            <div key={index} className="activity-item">
-              <div className="activity-icon">{activity.icon}</div>
-              <div className="activity-content">
-                <p>{activity.message}</p>
-                <span className="activity-time">{activity.time}</span>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            Loading activities...
+          </div>
+        ) : recentActivities.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+            No recent activities
+          </div>
+        ) : (
+          <div className="activities-feed">
+            {recentActivities.map((activity, index) => (
+              <div key={index} className="activity-item">
+                <div className="activity-icon">{activity.icon}</div>
+                <div className="activity-content">
+                  <p>{activity.message}</p>
+                  <span className="activity-time">{activity.time}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Institute Management Actions */}
@@ -876,6 +1081,7 @@ function RegistrarDashboard({ onLogout }) {
   const [activePanel, setActivePanel] = useState('overview');
   const [profileOpen, setProfileOpen] = useState(false);
   const [loginActivityOpen, setLoginActivityOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [user, setUser] = useState(null);
   const [profileData, setProfileData] = useState(null);
   const [loginHistory, setLoginHistory] = useState([]);
@@ -1298,10 +1504,10 @@ function RegistrarDashboard({ onLogout }) {
       );
       case 'charts': return (
         universityApproved ? (
-          <ChartsTab analyticsData={analyticsData} institutes={institutes} />
+          <ChartsTab key={institutes.length} analyticsData={analyticsData} institutes={institutes} />
         ) : (
           <ApprovalGate>
-            <ChartsTab analyticsData={analyticsData} institutes={institutes} />
+            <ChartsTab key={institutes.length} analyticsData={analyticsData} institutes={institutes} />
           </ApprovalGate>
         )
       );
@@ -1395,29 +1601,22 @@ function RegistrarDashboard({ onLogout }) {
               <div className="stat-box">
                 <div className="stat-icon">🏢</div>
                 <div className="stat-content">
-                  <div className="stat-value">12</div>
+                  <div className="stat-value">{stats.totalInstitutes || 0}</div>
                   <div className="stat-label">Institutes</div>
                 </div>
               </div>
               <div className="stat-box">
                 <div className="stat-icon">👨‍🎓</div>
                 <div className="stat-content">
-                  <div className="stat-value">1,234</div>
+                  <div className="stat-value">{stats.totalStudents || 0}</div>
                   <div className="stat-label">Students</div>
                 </div>
               </div>
               <div className="stat-box">
                 <div className="stat-icon">📚</div>
                 <div className="stat-content">
-                  <div className="stat-value">45</div>
+                  <div className="stat-value">{stats.activeCourses || 0}</div>
                   <div className="stat-label">Courses</div>
-                </div>
-              </div>
-              <div className="stat-box">
-                <div className="stat-icon">⭐</div>
-                <div className="stat-content">
-                  <div className="stat-value">98%</div>
-                  <div className="stat-label">Satisfaction</div>
                 </div>
               </div>
             </div>
@@ -1449,17 +1648,7 @@ function RegistrarDashboard({ onLogout }) {
           ))}
         </nav>
         <div className="admin-footer">
-          <button className="logout-btn" onClick={() => {
-            try {
-              localStorage.removeItem('auth_token');
-              localStorage.removeItem('registrar_user');
-              localStorage.removeItem('registrar_approved');
-            } catch (e) { }
-            if (typeof onLogout === 'function') {
-              try { onLogout(); } catch (e) { }
-            }
-            window.location.href = '/login';
-          }}>
+          <button className="logout-btn" onClick={() => setShowLogoutConfirm(true)}>
             🚪 Logout
           </button>
         </div>
@@ -1509,6 +1698,103 @@ function RegistrarDashboard({ onLogout }) {
         loginHistory={loginHistory}
         onSeedData={seedLoginHistory}
       />
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '2rem',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+            textAlign: 'center'
+          }}>
+            <h3 style={{ 
+              margin: '0 0 1rem 0', 
+              color: '#333', 
+              fontSize: '1.5rem',
+              fontWeight: '600'
+            }}>
+              Confirm Logout
+            </h3>
+            <p style={{ 
+              margin: '0 0 2rem 0', 
+              color: '#666',
+              fontSize: '1rem',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to logout?
+            </p>
+            <div style={{ 
+              display: 'flex', 
+              gap: '1rem', 
+              justifyContent: 'center' 
+            }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '0.75rem 2rem',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#666',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  minWidth: '120px',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#f5f5f5'}
+                onMouseOut={(e) => e.target.style.backgroundColor = 'white'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('registrar_user');
+                    localStorage.removeItem('registrar_approved');
+                  } catch (e) { }
+                  if (typeof onLogout === 'function') {
+                    try { onLogout(); } catch (e) { }
+                  }
+                  window.location.href = '/login';
+                }}
+                style={{
+                  padding: '0.75rem 2rem',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#14b8a6',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  minWidth: '120px',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseOver={(e) => e.target.style.backgroundColor = '#0d9488'}
+                onMouseOut={(e) => e.target.style.backgroundColor = '#14b8a6'}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

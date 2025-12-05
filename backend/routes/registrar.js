@@ -562,4 +562,307 @@ router.post("/seed-login-history", authenticateRegistrar, async (req, res) => {
   }
 });
 
+// Get monthly enrollment trends
+router.get("/monthly-trends", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    if (!registrar) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
+    }
+
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    });
+    const instituteIds = institutes.map((inst) => inst._id);
+
+    // Get all students from these institutes
+    const students = await Students.find({
+      Institution_Id: { $in: instituteIds },
+    });
+
+    // Group students by month (last 6 months)
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const currentDate = new Date();
+    const monthlyData = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const targetDate = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - i,
+        1
+      );
+      const monthIndex = targetDate.getMonth();
+      const year = targetDate.getFullYear();
+
+      // Count students enrolled in this month
+      const enrollmentsInMonth = students.filter((student) => {
+        if (student.createdAt) {
+          const studentDate = new Date(student.createdAt);
+          return (
+            studentDate.getMonth() === monthIndex &&
+            studentDate.getFullYear() === year
+          );
+        }
+        return false;
+      }).length;
+
+      // Count active institutes in this month
+      const activeInstitutes = institutes.filter((inst) => {
+        if (inst.createdAt) {
+          const instDate = new Date(inst.createdAt);
+          return instDate <= targetDate;
+        }
+        return true;
+      }).length;
+
+      monthlyData.push({
+        month: monthNames[monthIndex],
+        enrollments: enrollmentsInMonth,
+        institutes: activeInstitutes || institutes.length,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: monthlyData,
+    });
+  } catch (error) {
+    console.error("Error fetching monthly trends:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get top popular courses
+router.get("/top-courses", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    if (!registrar) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
+    }
+
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    });
+    const instituteIds = institutes.map((inst) => inst._id);
+
+    // Get all lecturers from these institutes
+    const lecturers = await Lecturers.find({
+      Institute_Id: { $in: instituteIds },
+    });
+    const lecturerIds = lecturers.map((lec) => lec._id.toString());
+
+    // Get all courses taught by these lecturers
+    const courses = await Courses.find({
+      Lecturer_Id: { $in: lecturerIds },
+      Is_Active: true,
+      status: "approved",
+    });
+
+    // Get enrollments for these courses
+    const Enrollments = require("../models/Tbl_Enrollments");
+    const enrollments = await Enrollments.find({
+      Course_Id: { $in: courses.map((c) => c.Course_Id) },
+    });
+
+    // Count enrollments per course
+    const courseStats = {};
+    enrollments.forEach((enrollment) => {
+      const courseId = enrollment.Course_Id;
+      if (!courseStats[courseId]) {
+        courseStats[courseId] = 0;
+      }
+      courseStats[courseId]++;
+    });
+
+    // Map course data with enrollment counts
+    const courseData = courses.map((course) => {
+      const lecturer = lecturers.find(
+        (l) => l._id.toString() === course.Lecturer_Id
+      );
+      const institute = institutes.find(
+        (i) => i._id.toString() === lecturer?.Institute_Id?.toString()
+      );
+
+      return {
+        name: course.Title,
+        students: courseStats[course.Course_Id] || 0,
+        courseId: course.Course_Id,
+        institute: institute?.Institute_Name || "Unknown",
+      };
+    });
+
+    // Group by course title and count institutes
+    const groupedCourses = {};
+    courseData.forEach((course) => {
+      if (!groupedCourses[course.name]) {
+        groupedCourses[course.name] = {
+          name: course.name,
+          students: 0,
+          institutes: new Set(),
+        };
+      }
+      groupedCourses[course.name].students += course.students;
+      groupedCourses[course.name].institutes.add(course.institute);
+    });
+
+    // Convert to array and sort by student count
+    const topCourses = Object.values(groupedCourses)
+      .map((course) => ({
+        name: course.name,
+        students: course.students,
+        institutes: course.institutes.size,
+      }))
+      .sort((a, b) => b.students - a.students)
+      .slice(0, 5);
+
+    res.json({
+      success: true,
+      data: topCourses,
+    });
+  } catch (error) {
+    console.error("Error fetching top courses:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get recent activities
+router.get("/recent-activities", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    if (!registrar) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Registrar not found" });
+    }
+
+    const institutes = await Institutes.find({
+      University_Id: registrar.University_Id,
+    }).sort({ createdAt: -1 });
+    const instituteIds = institutes.map((inst) => inst._id);
+
+    // Get recent students
+    const recentStudents = await Students.find({
+      Institution_Id: { $in: instituteIds },
+    })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Get recent lecturers
+    const lecturers = await Lecturers.find({
+      Institute_Id: { $in: instituteIds },
+    });
+    const lecturerIds = lecturers.map((l) => l._id.toString());
+
+    // Get recent courses
+    const recentCourses = await Courses.find({
+      Lecturer_Id: { $in: lecturerIds },
+    })
+      .sort({ Created_At: -1 })
+      .limit(5);
+
+    const activities = [];
+
+    // Add student enrollments
+    recentStudents.forEach((student) => {
+      const institute = institutes.find(
+        (i) => i._id.toString() === student.Institution_Id?.toString()
+      );
+      activities.push({
+        type: "enrollment",
+        message: `New student enrolled: ${student.Full_Name}`,
+        time: student.createdAt || new Date(),
+        icon: "👤",
+        institute: institute?.Institute_Name,
+      });
+    });
+
+    // Add course additions
+    recentCourses.forEach((course) => {
+      const lecturer = lecturers.find(
+        (l) => l._id.toString() === course.Lecturer_Id
+      );
+      const institute = institutes.find(
+        (i) => i._id.toString() === lecturer?.Institute_Id?.toString()
+      );
+      activities.push({
+        type: "course",
+        message: `New course added: ${course.Title}`,
+        time: course.Created_At || new Date(),
+        icon: "📚",
+        institute: institute?.Institute_Name,
+      });
+    });
+
+    // Add institute additions
+    institutes.slice(0, 3).forEach((inst) => {
+      if (inst.createdAt) {
+        activities.push({
+          type: "institute",
+          message: `Institute added: ${inst.Institute_Name}`,
+          time: inst.createdAt,
+          icon: "🏛️",
+          institute: inst.Institute_Name,
+        });
+      }
+    });
+
+    // Sort by time and return top 10
+    const sortedActivities = activities
+      .sort((a, b) => new Date(b.time) - new Date(a.time))
+      .slice(0, 10)
+      .map((activity) => ({
+        ...activity,
+        time: formatTimeAgo(new Date(activity.time)),
+      }));
+
+    res.json({
+      success: true,
+      data: sortedActivities,
+    });
+  } catch (error) {
+    console.error("Error fetching recent activities:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+
+  const intervals = {
+    year: 31536000,
+    month: 2592000,
+    week: 604800,
+    day: 86400,
+    hour: 3600,
+    minute: 60,
+  };
+
+  for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+    const interval = Math.floor(seconds / secondsInUnit);
+    if (interval >= 1) {
+      return `${interval} ${unit}${interval > 1 ? "s" : ""} ago`;
+    }
+  }
+
+  return "Just now";
+}
+
 module.exports = router;

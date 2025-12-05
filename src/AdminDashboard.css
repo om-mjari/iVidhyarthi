@@ -38,8 +38,14 @@
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(0.98); 
+  }
 }
 
 @keyframes floatShape {
@@ -64,6 +70,16 @@
 @keyframes buttonPulse {
   0%, 100% { box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3); }
   50% { box-shadow: 0 6px 25px rgba(147, 51, 234, 0.5); }
+}
+
+@keyframes numberCounter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loadingShimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
 }
 
 /* ============================================
@@ -406,16 +422,33 @@
 .stat-content h3 {
   margin: 0 0 0.35rem 0;
   color: #1F2937;
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  letter-spacing: -0.5px;
+  letter-spacing: -1px;
+  animation: numberCounter 0.6s ease-out;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.1;
+}
+
+.stat-content h3.loading {
+  background: linear-gradient(90deg, #E5E7EB 0%, #F3F4F6 50%, #E5E7EB 100%);
+  background-size: 200% 100%;
+  animation: loadingShimmer 1.5s infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  border-radius: 6px;
+  display: inline-block;
+  min-width: 80px;
 }
 
 .stat-content p {
-  margin: 0 0 0.35rem 0;
+  margin: 0 0 0.5rem 0;
   color: #6B7280;
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .stat-trend {
@@ -425,6 +458,21 @@
   background-clip: text;
   font-size: 0.8rem;
   font-weight: 700;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-trend.loading {
+  background: #E5E7EB;
+  -webkit-background-clip: initial;
+  -webkit-text-fill-color: initial;
+  background-clip: initial;
+  color: #9CA3AF;
+  border-radius: 4px;
+  padding: 2px 8px;
+  animation: pulse 1.5s infinite;
 }
 
 /* ============================================

@@ -5,6 +5,8 @@ const Users = require("../models/User");
 const Institutes = require("../models/Tbl_Institutes");
 const Students = require("../models/Tbl_Students");
 const Lecturers = require("../models/Tbl_Lecturers");
+const Courses = require("../models/Tbl_Courses");
+const Payments = require("../models/Payment");
 
 const router = express.Router();
 
@@ -12,94 +14,107 @@ const router = express.Router();
 const authenticateAdmin = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'No token provided' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ success: false, message: "No token provided" });
     }
 
     const token = authHeader.substring(7);
-    
+
     // Check for mock admin token (for hardcoded admin login)
-    if (token.startsWith('admin_mock_token_')) {
-      req.user = { id: 'admin_001', role: 'admin', email: 'admin123@gmail.com' };
+    if (token.startsWith("admin_mock_token_")) {
+      req.user = {
+        id: "admin_001",
+        role: "admin",
+        email: "admin123@gmail.com",
+      };
       return next();
     }
-    
+
     // For real JWT tokens
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-secret');
-    
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
+
     // Check if user is admin
     const user = await Users.findById(decoded.userId);
-    if (!user || user.role !== 'admin') {
-      return res.status(401).json({ success: false, message: 'Admin access required' });
+    if (!user || user.role !== "admin") {
+      return res
+        .status(401)
+        .json({ success: false, message: "Admin access required" });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Invalid token' });
+    return res.status(401).json({ success: false, message: "Invalid token" });
   }
 };
 
 // Get all pending universities
 router.get("/universities/pending", authenticateAdmin, async (req, res) => {
   try {
-    const pendingUniversities = await University.find({ Verification_Status: 'pending' })
-      .sort({ createdAt: -1 });
+    const pendingUniversities = await University.find({
+      Verification_Status: "pending",
+    }).sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: pendingUniversities.map(uni => ({
+      data: pendingUniversities.map((uni) => ({
         _id: uni._id,
         University_Name: uni.University_Name,
-        Location: uni.State && uni.City ? `${uni.City}, ${uni.State}` : uni.State || uni.City || '—',
-        Contact_No: uni.Contact_No || '—',
-        Website: uni.Website || '—',
+        Location:
+          uni.State && uni.City
+            ? `${uni.City}, ${uni.State}`
+            : uni.State || uni.City || "—",
+        Contact_No: uni.Contact_No || "—",
+        Website: uni.Website || "—",
         Verification_Status: uni.Verification_Status,
         createdAt: uni.createdAt,
-        updatedAt: uni.updatedAt
-      }))
+        updatedAt: uni.updatedAt,
+      })),
     });
   } catch (error) {
-    console.error('Error fetching pending universities:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching pending universities:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 // Get all universities (pending, approved, rejected)
 router.get("/universities/all", authenticateAdmin, async (req, res) => {
   try {
-    const allUniversities = await University.find()
-      .sort({ createdAt: -1 });
+    const allUniversities = await University.find().sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: allUniversities.map(uni => ({
+      data: allUniversities.map((uni) => ({
         _id: uni._id,
         University_Name: uni.University_Name,
-        Location: uni.State && uni.City ? `${uni.City}, ${uni.State}` : uni.State || uni.City || '—',
-        Contact_No: uni.Contact_No || '—',
-        Website: uni.Website || '—',
-        Verification_Status: uni.Verification_Status || 'pending',
+        Location:
+          uni.State && uni.City
+            ? `${uni.City}, ${uni.State}`
+            : uni.State || uni.City || "—",
+        Contact_No: uni.Contact_No || "—",
+        Website: uni.Website || "—",
+        Verification_Status: uni.Verification_Status || "pending",
         createdAt: uni.createdAt,
-        updatedAt: uni.updatedAt
-      }))
+        updatedAt: uni.updatedAt,
+      })),
     });
   } catch (error) {
-    console.error('Error fetching all universities:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching all universities:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 // Get all universities
 router.get("/universities", authenticateAdmin, async (req, res) => {
   try {
-    const universities = await University.find()
-      .sort({ createdAt: -1 });
+    const universities = await University.find().sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: universities.map(uni => ({
+      data: universities.map((uni) => ({
         id: uni._id,
         name: uni.University_Name,
         email: uni.University_Email,
@@ -107,12 +122,12 @@ router.get("/universities", authenticateAdmin, async (req, res) => {
         city: uni.City,
         status: uni.Verification_Status,
         createdAt: uni.createdAt,
-        updatedAt: uni.updatedAt
-      }))
+        updatedAt: uni.updatedAt,
+      })),
     });
   } catch (error) {
-    console.error('Error fetching universities:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching universities:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -120,27 +135,29 @@ router.get("/universities", authenticateAdmin, async (req, res) => {
 router.put("/universities/:id/approve", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const university = await University.findById(id);
     if (!university) {
-      return res.status(404).json({ success: false, message: 'University not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "University not found" });
     }
 
-    university.Verification_Status = 'verified';
+    university.Verification_Status = "verified";
     await university.save();
 
     res.json({
       success: true,
-      message: 'University approved successfully',
+      message: "University approved successfully",
       data: {
         id: university._id,
         name: university.University_Name,
-        status: university.Verification_Status
-      }
+        status: university.Verification_Status,
+      },
     });
   } catch (error) {
-    console.error('Error approving university:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error approving university:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -148,27 +165,29 @@ router.put("/universities/:id/approve", authenticateAdmin, async (req, res) => {
 router.put("/universities/:id/reject", authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const university = await University.findById(id);
     if (!university) {
-      return res.status(404).json({ success: false, message: 'University not found' });
+      return res
+        .status(404)
+        .json({ success: false, message: "University not found" });
     }
 
-    university.Verification_Status = 'rejected';
+    university.Verification_Status = "rejected";
     await university.save();
 
     res.json({
       success: true,
-      message: 'University rejected successfully',
+      message: "University rejected successfully",
       data: {
         id: university._id,
         name: university.University_Name,
-        status: university.Verification_Status
-      }
+        status: university.Verification_Status,
+      },
     });
   } catch (error) {
-    console.error('Error rejecting university:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error rejecting university:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -176,8 +195,12 @@ router.put("/universities/:id/reject", authenticateAdmin, async (req, res) => {
 router.get("/stats", authenticateAdmin, async (req, res) => {
   try {
     const totalUniversities = await University.countDocuments();
-    const pendingUniversities = await University.countDocuments({ Verification_Status: 'pending' });
-    const verifiedUniversities = await University.countDocuments({ Verification_Status: 'verified' });
+    const pendingUniversities = await University.countDocuments({
+      Verification_Status: "pending",
+    });
+    const verifiedUniversities = await University.countDocuments({
+      Verification_Status: "verified",
+    });
     const totalRegistrars = await Registrars.countDocuments();
     const totalInstitutes = await Institutes.countDocuments();
     const totalStudents = await Students.countDocuments();
@@ -192,12 +215,12 @@ router.get("/stats", authenticateAdmin, async (req, res) => {
         totalRegistrars,
         totalInstitutes,
         totalStudents,
-        totalLecturers
-      }
+        totalLecturers,
+      },
     });
   } catch (error) {
-    console.error('Error fetching admin stats:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching admin stats:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
@@ -205,24 +228,127 @@ router.get("/stats", authenticateAdmin, async (req, res) => {
 router.get("/registrars", authenticateAdmin, async (req, res) => {
   try {
     const registrars = await Registrars.find()
-      .populate('User_Id', 'email role')
-      .populate('University_Id', 'University_Name Verification_Status')
+      .populate("User_Id", "email role")
+      .populate("University_Id", "University_Name Verification_Status")
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: registrars.map(reg => ({
+      data: registrars.map((reg) => ({
         id: reg._id,
         email: reg.User_Id.email,
         contact: reg.Contact_No,
-        university: reg.University_Id?.University_Name || 'Unknown',
-        universityStatus: reg.University_Id?.Verification_Status || 'pending',
-        createdAt: reg.createdAt
-      }))
+        university: reg.University_Id?.University_Name || "Unknown",
+        universityStatus: reg.University_Id?.Verification_Status || "pending",
+        createdAt: reg.createdAt,
+      })),
     });
   } catch (error) {
-    console.error('Error fetching registrars:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error("Error fetching registrars:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ============================================
+// DASHBOARD STATISTICS ENDPOINTS
+// ============================================
+
+// Get total users stats
+router.get("/stats/users", authenticateAdmin, async (req, res) => {
+  try {
+    const totalUsers = await Users.countDocuments();
+    const activeUsers = await Users.countDocuments({ isActive: true });
+
+    console.log("📊 Users Stats - Total:", totalUsers, "Active:", activeUsers);
+
+    res.json({
+      success: true,
+      data: {
+        total: totalUsers,
+        active: activeUsers,
+        count: totalUsers,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching users stats:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error fetching users stats",
+        error: error.message,
+      });
+  }
+});
+
+// Get courses stats
+router.get("/stats/courses", authenticateAdmin, async (req, res) => {
+  try {
+    const totalCourses = await Courses.countDocuments();
+    const activeCourses = await Courses.countDocuments({ Is_Active: true });
+
+    console.log(
+      "📊 Courses Stats - Total:",
+      totalCourses,
+      "Active:",
+      activeCourses
+    );
+
+    res.json({
+      success: true,
+      data: {
+        total: totalCourses,
+        active: activeCourses,
+        count: activeCourses,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching courses stats:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error fetching courses stats",
+        error: error.message,
+      });
+  }
+});
+
+// Get revenue stats
+router.get("/stats/revenue", authenticateAdmin, async (req, res) => {
+  try {
+    const payments = await Payments.find({
+      status: "SUCCESS",
+    });
+
+    const totalRevenue = payments.reduce((sum, payment) => {
+      return sum + (parseFloat(payment.amount) || 0);
+    }, 0);
+
+    console.log(
+      "📊 Revenue Stats - Total:",
+      totalRevenue,
+      "Payments:",
+      payments.length
+    );
+
+    res.json({
+      success: true,
+      data: {
+        total: Math.round(totalRevenue),
+        currency: "INR",
+        transactionCount: payments.length,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching revenue stats:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Error fetching revenue stats",
+        error: error.message,
+      });
   }
 });
 

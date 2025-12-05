@@ -7,7 +7,12 @@
    MAIN CONTAINER OVERRIDE
 ============================================ */
 .admin-dashboard {
+  min-height: 100vh;
+  max-height: 100vh;
   background: linear-gradient(165deg, #F0FDFA 0%, #ECFDF5 20%, #F0FDF4 40%, #FEFCE8 60%, #EFF6FF 80%, #F0F9FF 100%);
+  display: flex;
+  overflow: hidden;
+  position: relative;
 }
 
 .admin-dashboard::before {
@@ -86,6 +91,35 @@
 /* ============================================
    CONTENT HEADER
 ============================================ */
+.admin-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(20, 184, 166, 0.7) rgba(255, 255, 255, 0.1);
+}
+
+.admin-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.admin-content::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.7);
+  border-radius: 4px;
+}
+
+.admin-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 184, 166, 0.9);
+}
+
 .admin-content-header {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 253, 250, 0.9) 100%);
   border-bottom: 1px solid rgba(20, 184, 166, 0.12);

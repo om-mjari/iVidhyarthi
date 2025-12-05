@@ -29,6 +29,11 @@ const submissionSchema = new mongoose.Schema(
       required: false,
       default: null,
     },
+    Submission_Data: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     File_Url: {
       type: String,
       required: false,

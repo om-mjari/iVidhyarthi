@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AssignmentPage from './AssignmentPage';
 import WeeklyAssignments from './WeeklyAssignments';
 import QuizPage from './QuizPage';
+import AssignmentViewer from './AssignmentViewer';
 import './CourseLearningPage.css';
 
 const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
@@ -63,6 +64,21 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Store interval IDs to clear them later
   const intervalRefs = React.useRef({});
 
+  // Read more state for course description
+  const [showFullDescription, setShowFullDescription] = useState(false);
+
+  // Transcription states
+  const [videoTranscripts, setVideoTranscripts] = useState({});
+  const [loadingTranscript, setLoadingTranscript] = useState({});
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState(null);
+
+  // Selected video state for single player
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  
+  // Ref for video section
+  const videoSectionRef = React.useRef(null);
+
   // Handle video watching with duration tracking
   const handleWatchVideo = (videoId, durationMinutes) => {
     // Mark as currently watching
@@ -119,6 +135,102 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       Object.values(intervalRefs.current).forEach(interval => clearInterval(interval));
     };
   }, []);
+
+  // Generate transcript for a video
+  const handleGenerateTranscript = async (video) => {
+    const videoKey = video.id || video.title;
+    
+    // Check if transcript already exists
+    if (videoTranscripts[videoKey]) {
+      setCurrentTranscript({
+        ...videoTranscripts[videoKey],
+        videoTitle: video.title
+      });
+      setShowTranscriptModal(true);
+      return;
+    }
+
+    setLoadingTranscript(prev => ({ ...prev, [videoKey]: true }));
+
+    try {
+      const response = await fetch('http://localhost:5000/api/transcription/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          videoUrl: video.url,
+          videoTitle: video.title,
+          language: selectedLanguage
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const transcriptData = {
+          transcript: result.data.transcript,
+          summary: result.data.summary,
+          language: result.data.language
+        };
+        
+        setVideoTranscripts(prev => ({
+          ...prev,
+          [videoKey]: transcriptData
+        }));
+
+        setCurrentTranscript({
+          ...transcriptData,
+          videoTitle: video.title
+        });
+        setShowTranscriptModal(true);
+      } else {
+        alert('Failed to generate transcript: ' + result.message);
+      }
+    } catch (error) {
+      console.error('Error generating transcript:', error);
+      alert('Failed to generate transcript. Please try again.');
+    } finally {
+      setLoadingTranscript(prev => ({ ...prev, [videoKey]: false }));
+    }
+  };
+
+  // Download transcript as PDF
+  const handleDownloadTranscriptPDF = async () => {
+    if (!currentTranscript) return;
+
+    try {
+      const response = await fetch('http://localhost:5000/api/transcription/download-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          transcript: currentTranscript.transcript,
+          summary: currentTranscript.summary,
+          videoTitle: currentTranscript.videoTitle,
+          language: currentTranscript.language
+        })
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transcript_${currentTranscript.videoTitle.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to download PDF');
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
+  };
 
   useEffect(() => {
     const savedCourse = localStorage.getItem('selected_course');
@@ -377,7 +489,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       }
 
       // Fetch assignments for this course
-      fetchAssignments(course.id || course.Course_Id || 'COURSE_001');
+      const actualCourseId = course.id || course.Course_Id || 'COURSE_001';
+      console.log('📚 Course selected:', course.name || course.Title);
+      console.log('🔑 Using courseId for assignments:', actualCourseId);
+      fetchAssignments(actualCourseId);
 
       // Fetch course details (lecturer, institute, description, objectives)
       fetchCourseDetails(course.id || course.Course_Id || 'COURSE_001');
@@ -397,9 +512,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Fetch assignments from backend
   const fetchAssignments = async (courseId) => {
     try {
+      console.log('🔍 Fetching assignments for courseId:', courseId);
       const response = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
       const result = await response.json();
       if (result.success) {
+        console.log('📝 Assignments fetched:', result.data);
+        console.log('📝 Number of assignments:', result.data.length);
         setAssignments(result.data);
       }
     } catch (error) {
@@ -513,6 +631,42 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setLoadingContent(false);
     }
   };
+
+  // Set default video (Week 1's first video) when content is loaded
+  useEffect(() => {
+    if (courseTopics.length > 0 && courseContents.length > 0 && !selectedVideo) {
+      // Sort topics by order to get Week 1
+      const sortedTopics = [...courseTopics].sort((a, b) => {
+        const orderA = parseInt(a.Order_Number) || 0;
+        const orderB = parseInt(b.Order_Number) || 0;
+        return orderA - orderB;
+      });
+
+      if (sortedTopics.length > 0) {
+        const firstTopic = sortedTopics[0];
+        const topicVideos = courseContents.filter(
+          c => c.Topic_Id === firstTopic.Topic_Id && c.Content_Type === 'video'
+        );
+
+        if (topicVideos.length > 0) {
+          const firstVideo = topicVideos[0];
+          setSelectedVideo({
+            id: firstVideo.Content_Id,
+            title: firstVideo.Title,
+            url: firstVideo.File_Url,
+            description: firstVideo.Description || firstVideo.Title,
+            duration: "15:00",
+            transcripts: {
+              English: "Transcript not available",
+              Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
+              Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+            }
+          });
+          console.log('✅ Default video set:', firstVideo.Title);
+        }
+      }
+    }
+  }, [courseTopics, courseContents, selectedVideo]);
 
   // Fetch progress from backend
   const fetchProgress = async (courseId, userId) => {
@@ -939,14 +1093,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   };
 
   const handleAssignmentStart = (assignmentId) => {
-    const assignment = courseContent.assignments.find(a => a.id === assignmentId);
+    const assignment = assignments.find(a => a.Assignment_Id === assignmentId);
     if (assignment) {
-      // Add Course_Id to assignment object
-      const assignmentWithCourseId = {
-        ...assignment,
-        Course_Id: selectedCourse?.Course_Id || selectedCourse?.id || selectedCourse?.courseId || courseInfo?.Course_Id
-      };
-      setSelectedAssignment(assignmentWithCourseId);
+      setSelectedAssignment(assignment);
       setShowAssignment(true);
     }
   };
@@ -997,12 +1146,23 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           )[0];
 
           // Get the original assignment to fetch questions
-          const assignment = courseContent.assignments.find(a => a.id === assignmentId);
+          const assignment = assignments.find(a => a.Assignment_Id === assignmentId) || courseContent.assignments.find(a => a.id === assignmentId);
+
+          // Parse Submission_Data if it's a string
+          let submissionData = latestSubmission.Submission_Data;
+          if (typeof submissionData === 'string') {
+            try {
+              submissionData = JSON.parse(submissionData);
+            } catch (e) {
+              submissionData = {};
+            }
+          }
 
           // Convert Tbl_Submissions format to expected format
           const convertedData = {
             Assignment_Id: latestSubmission.Assignment_Id,
-            Marks: assignment?.marks || 100,
+            Marks: assignment?.Marks || assignment?.marks || 100,
+            File_Url: latestSubmission.File_Url,
             Submission_Data: {
               Student_Id: latestSubmission.Student_Id,
               Course_Id: latestSubmission.Course_Id,
@@ -1010,8 +1170,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               Time_Spent: latestSubmission.Time_Spent,
               Submitted_On: latestSubmission.Submitted_On,
               Feedback: latestSubmission.Feedback,
-              Answers: JSON.parse(latestSubmission.Submission_Content || '{}'),
-              Questions: assignment?.questions || [] // Use original assignment questions
+              Answers: submissionData.Answers || JSON.parse(latestSubmission.Submission_Content || '{}'),
+              Questions: assignment?.questions || [],
+              learningAnswer: submissionData.learningAnswer,
+              challengeAnswer: submissionData.challengeAnswer,
+              applicationAnswer: submissionData.applicationAnswer,
+              textSubmission: submissionData.textSubmission,
+              uploadedFile: submissionData.uploadedFile
             }
           };
           setSelectedSubmission(convertedData);
@@ -1157,10 +1322,16 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Show Assignment Page if assignment is selected
   if (showAssignment && selectedAssignment) {
     return (
-      <AssignmentPage
+      <AssignmentViewer
         assignment={selectedAssignment}
         onBack={handleAssignmentBack}
-        onComplete={handleAssignmentComplete}
+        studentId={studentId}
+        totalAssignments={assignments.length}
+        submittedCount={Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length}
+        onSubmissionComplete={() => {
+          fetchSubmittedAssignments();
+          fetchAssignments(selectedCourse?.Course_Id || selectedCourse?.id);
+        }}
       />
     );
   }
@@ -1196,6 +1367,55 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 </span>
               </div>
             </div>
+
+            {/* Show uploaded PDF if exists */}
+            {selectedSubmission.File_Url && (
+              <div style={{ marginTop: '20px' }}>
+                <h3 style={{ marginBottom: '10px' }}>📄 Uploaded PDF</h3>
+                <button
+                  onClick={() => window.open(`http://localhost:5000${selectedSubmission.File_Url}`, '_blank')}
+                  style={{
+                    padding: '10px 20px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '600'
+                  }}
+                >
+                  📥 View Uploaded PDF
+                </button>
+              </div>
+            )}
+
+            {/* Show reflective answers if exists */}
+            {(selectedSubmission.Submission_Data?.learningAnswer || 
+              selectedSubmission.Submission_Data?.challengeAnswer || 
+              selectedSubmission.Submission_Data?.applicationAnswer) && (
+              <div style={{ marginTop: '20px' }}>
+                <h3>📝 Reflective Answers</h3>
+                {selectedSubmission.Submission_Data.learningAnswer && (
+                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🎓 What did you learn?</h4>
+                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.learningAnswer}</p>
+                  </div>
+                )}
+                {selectedSubmission.Submission_Data.challengeAnswer && (
+                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🤔 What challenges did you face?</h4>
+                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.challengeAnswer}</p>
+                  </div>
+                )}
+                {selectedSubmission.Submission_Data.applicationAnswer && (
+                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>💡 How will you apply this?</h4>
+                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.applicationAnswer}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="answers-display">
@@ -1283,63 +1503,82 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               </div>
             </div>
             <div className="course-info-body">
-              <h4>Course Description</h4>
-              <p>{courseContent.info.description}</p>
-
-              {/* Course Topics with Subtopics */}
-              {courseTopics.length > 0 && (
-                <div className="course-topics-section">
-                  <h4>Course Topics</h4>
-                  <div className="topics-hierarchy">
-                    {courseTopics
-                      .sort((a, b) => {
-                        const orderA = parseInt(a.Order_Number) || 0;
-                        const orderB = parseInt(b.Order_Number) || 0;
-                        return orderA - orderB;
-                      })
-                      .map((topic, topicIndex) => {
-                        const topicSubTopics = courseSubTopics
-                          .filter(sub => sub.Topic_Id === topic.Topic_Id)
-                          .sort((a, b) => {
-                            const orderA = parseFloat(a.Order_Number) || 0;
-                            const orderB = parseFloat(b.Order_Number) || 0;
-                            return orderA - orderB;
-                          });
-                        
-                        const mainTopicNumber = parseInt(topic.Order_Number) || (topicIndex + 1);
-                        
-                        return (
-                          <div key={topic.Topic_Id} className="topic-item">
-                            <div className="topic-main">
-                              <span className="topic-number">{mainTopicNumber}</span>
-                              <span className="topic-text">{topic.Title}</span>
-                            </div>
-                            {topicSubTopics.length > 0 && (
-                              <div className="subtopics-list">
-                                {topicSubTopics.map((subTopic, subIndex) => {
-                                  // Handle Order_Number which might be like "1.1" or just a decimal
-                                  let subNumber = subTopic.Order_Number;
-                                  if (!subNumber || !subNumber.toString().includes('.')) {
-                                    subNumber = `${mainTopicNumber}.${subIndex + 1}`;
-                                  }
-                                  
-                                  return (
-                                    <div key={subTopic.SubTopic_Id} className="subtopic-item">
-                                      <span className="subtopic-number">
-                                        {subNumber} :
-                                      </span>
-                                      <span className="subtopic-text">{subTopic.Title}</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'start' }}>
+                {/* Course Description - Left Side */}
+                <div>
+                  <h4 style={{ marginBottom: '12px' }}>Course Description</h4>
+                  <p style={{ lineHeight: '1.6', color: '#555' }}>
+                    {showFullDescription 
+                      ? courseContent.info.description 
+                      : courseContent.info.description.length > 200 
+                        ? `${courseContent.info.description.substring(0, 200)}...` 
+                        : courseContent.info.description
+                    }
+                  </p>
+                  {courseContent.info.description.length > 200 && (
+                    <button 
+                      onClick={() => setShowFullDescription(!showFullDescription)}
+                      style={{
+                        marginTop: '8px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#0066cc',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        padding: '0'
+                      }}
+                    >
+                      {showFullDescription ? 'Show less' : 'Read more...'}
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {/* What You Will Learn - Right Side */}
+                {courseTopics.length > 0 && (
+                  <div style={{ padding: '20px', background: '#f0f8ff', borderRadius: '8px', border: '1px solid #d0e7ff' }}>
+                    <h4 style={{ marginBottom: '16px', color: '#0066cc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      📚 What You Will Learn
+                    </h4>
+                    <div style={{ fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.8', color: '#333', whiteSpace: 'pre-wrap' }}>
+                      {courseTopics
+                        .sort((a, b) => {
+                          const orderA = parseInt(a.Order_Number) || 0;
+                          const orderB = parseInt(b.Order_Number) || 0;
+                          return orderA - orderB;
+                        })
+                        .map((topic, topicIndex) => {
+                          const topicSubTopics = courseSubTopics
+                            .filter(sub => sub.Topic_Id === topic.Topic_Id)
+                            .sort((a, b) => {
+                              const orderA = parseFloat(a.Order_Number) || 0;
+                              const orderB = parseFloat(b.Order_Number) || 0;
+                              return orderA - orderB;
+                            });
+                          
+                          const mainTopicNumber = topicIndex + 1;
+                          
+                          return (
+                            <div key={topic.Topic_Id} style={{ marginBottom: '12px' }}>
+                              <div style={{ fontWeight: '600', color: '#000' }}>
+                                {mainTopicNumber}. {topic.Title}
+                              </div>
+                              {topicSubTopics.length > 0 && (
+                                <div style={{ marginLeft: '24px' }}>
+                                  {topicSubTopics.map((subTopic, subIndex) => (
+                                    <div key={subTopic.SubTopic_Id}>
+                                      {mainTopicNumber}.{subIndex + 1} {subTopic.Title}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1348,7 +1587,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         {courseTopics.length > 0 && (
           <div className="nptel-section">
             <h2 className="nptel-section-title">📚 Course Content</h2>
-            <div className="course-topics-container">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '24px', padding: '0 20px' }}>
               {loadingContent ? (
                 <div className="loading-topics">
                   <div className="loading-spinner"></div>
@@ -1362,93 +1601,168 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   const notes = topicContents.filter(c => c.Content_Type === 'notes');
 
                   return (
-                    <div key={topic.Topic_Id} className="topic-card">
-                      <div className="topic-header">
-                        <div className="topic-number">{index + 1}</div>
-                        <div className="topic-info">
-                          <h3 className="topic-title">{topic.Title}</h3>
-                          {topic.Description && (
-                            <p className="topic-description">{topic.Description}</p>
-                          )}
+                    <div key={topic.Topic_Id} style={{
+                      background: 'white',
+                      borderRadius: '16px',
+                      border: '3px solid #2dd4bf',
+                      padding: '24px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer'
+                    }}>
+                      {/* Topic Header */}
+                      <div style={{ borderLeft: '4px solid #000', paddingLeft: '16px', marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: '#1a1a1a' }}>
+                            {topic.Title}
+                          </h3>
                           {topic.Estimated_Hours && (
-                            <span className="topic-duration">⏱️ {topic.Estimated_Hours} hours</span>
+                            <span style={{
+                              background: '#ff9800',
+                              color: 'white',
+                              padding: '6px 14px',
+                              borderRadius: '20px',
+                              fontSize: '0.85rem',
+                              fontWeight: '600'
+                            }}>
+                              {topic.Estimated_Hours} Hours
+                            </span>
                           )}
                         </div>
+                        {topic.Description && (
+                          <p style={{ color: '#666', margin: '8px 0 0 0', fontSize: '0.95rem' }}>
+                            {topic.Description}
+                          </p>
+                        )}
                       </div>
-                      
-                      {topicContents.length > 0 && (
-                        <div className="topic-content-section">
+
+                      {/* Content Details */}
+                      <div style={{ borderLeft: '4px solid #2dd4bf', paddingLeft: '16px', marginBottom: '20px' }}>
+                        {videos.length > 0 && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{
+                              background: '#e0f2fe',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              marginBottom: '8px'
+                            }}>
+                              <span style={{ fontSize: '1.1rem' }}>🎥</span>
+                              <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#0369a1' }}>Type: Video Lectures ({videos.length})</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {pdfs.length > 0 && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{
+                              background: '#fef3c7',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              marginBottom: '8px'
+                            }}>
+                              <span style={{ fontSize: '1.1rem' }}>📄</span>
+                              <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#92400e' }}>Type: PDF Resources ({pdfs.length})</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {notes.length > 0 && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <div style={{
+                              background: '#f3e8ff',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <span style={{ fontSize: '1.1rem' }}>📝</span>
+                              <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#6b21a8' }}>Type: Study Notes ({notes.length})</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      {topicContents.length > 0 ? (
+                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                           {videos.length > 0 && (
-                            <div className="content-type-group">
-                              <h4 className="content-type-title">🎥 Video Lectures ({videos.length})</h4>
-                              <div className="content-items-list">
-                                {videos.map((video, idx) => (
-                                  <div key={idx} className="content-item">
-                                    <span className="content-icon">🎥</span>
-                                    <span className="content-title">{video.Title}</span>
-                                    <a 
-                                      href={video.File_Url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="content-link"
-                                    >
-                                      Watch
-                                    </a>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                            <button style={{
+                              flex: 1,
+                              minWidth: '140px',
+                              padding: '12px 20px',
+                              background: 'linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontSize: '0.95rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease'
+                            }}
+                            onClick={() => {
+                              const firstVideo = videos[0];
+                              console.log('Selected video:', firstVideo);
+                              const videoData = {
+                                id: firstVideo.Content_Id,
+                                title: firstVideo.Title,
+                                url: firstVideo.File_Url,
+                                description: firstVideo.Description || firstVideo.Title,
+                                duration: "15:00",
+                                transcripts: {
+                                  English: "Transcript not available",
+                                  Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
+                                  Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+                                }
+                              };
+                              console.log('Setting video data:', videoData);
+                              setSelectedVideo(videoData);
+                              console.log('Video state updated');
+                              // Scroll to video section
+                              setTimeout(() => {
+                                if (videoSectionRef.current) {
+                                  videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }
+                              }, 100);
+                            }}
+                            >
+                              Watch Videos
+                            </button>
                           )}
-
                           {pdfs.length > 0 && (
-                            <div className="content-type-group">
-                              <h4 className="content-type-title">📄 PDF Resources ({pdfs.length})</h4>
-                              <div className="content-items-list">
-                                {pdfs.map((pdf, idx) => (
-                                  <div key={idx} className="content-item">
-                                    <span className="content-icon">📄</span>
-                                    <span className="content-title">{pdf.Title}</span>
-                                    <a 
-                                      href={pdf.File_Url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="content-link"
-                                    >
-                                      Download
-                                    </a>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {notes.length > 0 && (
-                            <div className="content-type-group">
-                              <h4 className="content-type-title">📝 Study Notes ({notes.length})</h4>
-                              <div className="content-items-list">
-                                {notes.map((note, idx) => (
-                                  <div key={idx} className="content-item">
-                                    <span className="content-icon">📝</span>
-                                    <span className="content-title">{note.Title}</span>
-                                    <a 
-                                      href={note.File_Url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="content-link"
-                                    >
-                                      View
-                                    </a>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                            <button style={{
+                              flex: 1,
+                              minWidth: '140px',
+                              padding: '12px 20px',
+                              background: 'white',
+                              color: '#14b8a6',
+                              border: '2px solid #14b8a6',
+                              borderRadius: '10px',
+                              fontSize: '0.95rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.3s ease'
+                            }}
+                            onClick={() => window.open(pdfs[0].File_Url, '_blank')}
+                            >
+                              View Resources
+                            </button>
                           )}
                         </div>
-                      )}
-
-                      {topicContents.length === 0 && (
-                        <div className="no-content">
-                          <p>No content available for this topic yet.</p>
+                      ) : (
+                        <div style={{
+                          textAlign: 'center',
+                          padding: '20px',
+                          color: '#999',
+                          fontSize: '0.9rem'
+                        }}>
+                          No content available yet
                         </div>
                       )}
                     </div>
@@ -1537,7 +1851,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         </div>
 
         {/* Video Lectures Section */}
-        <div className="nptel-section">
+        <div className="nptel-section" ref={videoSectionRef}>
           <div className="section-header-with-language">
             <h2 className="nptel-section-title">📹 Video Lectures</h2>
             <div className="language-selector">
@@ -1554,196 +1868,223 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             </div>
           </div>
           <div className="nptel-videos-grid">
-            {courseContent.videos.map((video, index) => (
-              <div key={video.id} className="nptel-video-card">
+            {selectedVideo ? (
+              <div key={selectedVideo.id} className="nptel-video-card">
                 <div className="video-card-header">
-                  <h3 className="video-lecture-number">Lecture {index + 1}</h3>
-                  <span className="video-duration">{video.duration}</span>
+                  <h3 className="video-lecture-number">Video Lecture</h3>
+                  <span className="video-duration">{selectedVideo.duration}</span>
                 </div>
                 <div className="nptel-video-container">
                   <iframe
-                    src={video.url}
-                    title={video.title}
+                    key={selectedVideo.url}
+                    src={selectedVideo.url}
+                    title={selectedVideo.title}
                     frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     className="nptel-video-iframe"
                   ></iframe>
                 </div>
                 <div className="video-card-footer">
-                  <h4 className="video-title">{video.title}</h4>
-                  <p className="video-description">{video.description}</p>
+                  <h4 className="video-title">{selectedVideo.title}</h4>
+                  <p className="video-description">{selectedVideo.description}</p>
 
                   {/* Video Content/Transcript */}
                   <div className="video-content-section">
-                    <h5>Video Content ({selectedLanguage})</h5>
-                    <p className="video-transcript">
-                      {video.transcripts[selectedLanguage]}
-                    </p>
-                  </div>
-
-                  {/* Video watching progress */}
-                  {watchingVideos[video.id] && !watchedVideos.includes(video.id) && (
-                    <div style={{
-                      marginBottom: '0.75rem',
-                      padding: '0.75rem',
-                      background: '#f0f8ff',
-                      borderRadius: '8px',
-                      border: '2px solid #667eea'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '600', color: '#667eea' }}>
-                          🎬 Watching video...
-                        </span>
-                        <span style={{ fontSize: '0.85rem', color: '#666' }}>
-                          {Math.round((watchingVideos[video.id].progress / (parseInt(video.duration.split(':')[0]) * 60 + parseInt(video.duration.split(':')[1]))) * 100)}%
-                        </span>
-                      </div>
-                      <div style={{
-                        width: '100%',
-                        height: '8px',
-                        background: '#e0e0e0',
-                        borderRadius: '4px',
-                        overflow: 'hidden'
-                      }}>
-                        <div style={{
-                          width: `${(watchingVideos[video.id].progress / (parseInt(video.duration.split(':')[0]) * 60 + parseInt(video.duration.split(':')[1]))) * 100}%`,
-                          height: '100%',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          transition: 'width 0.3s ease'
-                        }}></div>
-                      </div>
-                      <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '0.5rem', marginBottom: 0 }}>
-                        Please watch the entire video to enable Mark as Complete
-                      </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h5>Video Transcript ({selectedLanguage})</h5>
+                      <button
+                        onClick={() => handleGenerateTranscript(selectedVideo)}
+                        disabled={loadingTranscript[selectedVideo.id]}
+                        style={{
+                          padding: '8px 16px',
+                          background: loadingTranscript[selectedVideo.id] ? '#ccc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          cursor: loadingTranscript[selectedVideo.id] ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {loadingTranscript[selectedVideo.id] ? (
+                          <>
+                            <span className="spinner-small"></span>
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            📝 Generate Transcript
+                          </>
+                        )}
+                      </button>
                     </div>
-                  )}
-
-                  {/* Watch Video Button */}
-                  {!watchingVideos[video.id] && !watchedVideos.includes(video.id) && !completedVideos.includes(video.id) && (
-                    <button
-                      className="watch-video-btn"
-                      onClick={() => handleWatchVideo(video.id, video.duration)}
-                      style={{
-                        marginBottom: '0.5rem',
-                        padding: '0.75rem 1.5rem',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        color: 'white',
-                        border: 'none',
+                    {videoTranscripts[selectedVideo.id] ? (
+                      <div style={{
+                        background: '#f8f9fa',
+                        padding: '16px',
                         borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        width: '100%'
-                      }}
-                    >
-                      ▶ Watch Video
-                    </button>
-                  )}
-
-                  {/* Mark as Complete Button */}
-                  <button
-                    className={`mark-complete-btn ${completedVideos.includes(video.id) ? 'completed' : ''}`}
-                    onClick={() => handleVideoComplete(video.id)}
-                    disabled={!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)}
-                    style={{
-                      opacity: (!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)) ? 0.5 : 1,
-                      cursor: (!watchedVideos.includes(video.id) && !completedVideos.includes(video.id)) ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    {completedVideos.includes(video.id) ? '✓ Completed' : 'Mark as Complete'}
-                  </button>
+                        border: '1px solid #e0e0e0'
+                      }}>
+                        <div style={{ marginBottom: '16px' }}>
+                          <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📌 Summary</h6>
+                          <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#555' }}>
+                            {videoTranscripts[selectedVideo.id].summary}
+                          </p>
+                        </div>
+                        <div>
+                          <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📄 Full Transcript</h6>
+                          <p className="video-transcript" style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#666', maxHeight: '150px', overflow: 'auto' }}>
+                            {videoTranscripts[selectedVideo.id].transcript}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setCurrentTranscript({
+                              ...videoTranscripts[selectedVideo.id],
+                              videoTitle: selectedVideo.title
+                            });
+                            setShowTranscriptModal(true);
+                          }}
+                          style={{
+                            marginTop: '12px',
+                            padding: '8px 16px',
+                            background: 'white',
+                            color: '#667eea',
+                            border: '2px solid #667eea',
+                            borderRadius: '6px',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          View Full Transcript & Download PDF
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="video-transcript" style={{ color: '#999', fontStyle: 'italic' }}>
+                        Click "Generate Transcript" to get AI-powered transcription with summary
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+            ) : (
+              <div style={{
+                background: 'white',
+                borderRadius: '16px',
+                padding: '48px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                textAlign: 'center'
+              }}>
+                <p style={{ fontSize: '1.1rem', color: '#999' }}>
+                  {loadingContent ? 'Loading video content...' : 'No video lectures available. Select a week from Course Content below.'}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Assignments Section */}
         <div className="nptel-section">
           <h2 className="nptel-section-title">📝 Assignments</h2>
-          <div className="nptel-assignments-grid">
-            {courseContent.assignments.map((assignment) => (
-              <div key={assignment.id} className="nptel-assignment-card">
-                <div className="assignment-card-header">
-                  <h3 className="assignment-title">{assignment.title || assignment.Title}</h3>
-                  <span className="assignment-marks">{assignment.marks || assignment.Marks} Marks</span>
+          
+          {/* Assignment Progress Stats */}
+          {assignments.length > 0 && (
+            <div className="assignment-progress-stats">
+              <div className="progress-stats-grid">
+                <div className="stat-card">
+                  <span className="stat-label">TOTAL ASSIGNMENTS</span>
+                  <span className="stat-value">{assignments.length}</span>
                 </div>
-                <p className="assignment-description">{assignment.description || assignment.Description}</p>
-                <div className="assignment-meta">
-                  <span className="assignment-type">
-                    📋 Type: {assignment.Assignment_Type || 'Assignment'}
-                  </span>
-                  <span className="assignment-deadline">
-                    📅 Due: {assignment.deadline || assignment.Due_Date?.split('T')[0]}
+                <div className="stat-card">
+                  <span className="stat-label">SUBMITTED</span>
+                  <span className="stat-value">
+                    {Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length}
                   </span>
                 </div>
-                <div className="assignment-actions">
-                  <button
-                    className="nptel-btn nptel-btn-primary"
-                    onClick={() => handleAssignmentStart(assignment.id)}
-                    disabled={submittedAssignments[assignment.id]}
-                    style={{
-                      opacity: submittedAssignments[assignment.id] ? 0.5 : 1,
-                      cursor: submittedAssignments[assignment.id] ? 'not-allowed' : 'pointer'
+                <div className="stat-card">
+                  <span className="stat-label">PROGRESS</span>
+                  <span className="stat-value">
+                    {assignments.length > 0 
+                      ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100).toFixed(1)
+                      : 0}%
+                  </span>
+                </div>
+              </div>
+              <div className="progress-bar-container">
+                <div className="progress-bar-track">
+                  <div
+                    className="progress-bar-fill"
+                    style={{ 
+                      width: `${assignments.length > 0 
+                        ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100)
+                        : 0}%` 
                     }}
-                  >
-                    {submittedAssignments[assignment.id] ? '✓ Submitted' : 'Start Assignment'}
-                  </button>
-                  {submittedAssignments[assignment.id] && (
-                    <button
-                      className="nptel-btn nptel-btn-secondary"
-                      onClick={() => handleViewSubmission(assignment.id)}
-                    >
-                      View Submission
-                    </button>
-                  )}
+                  ></div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
 
-        {/* Assignment Progress Status */}
-        <div className="nptel-section assignment-progress-section">
-          <h2 className="nptel-section-title">📈 Assignment Progress Status</h2>
-          <div className="assignment-progress-card">
-            <div className="progress-stats">
-              <div className="stat-item">
-                <span className="stat-label">Completed</span>
-                <span className="stat-value">{completedAssignmentsCount}</span>
-              </div>
-              <div className="stat-divider"></div>
-              <div className="stat-item">
-                <span className="stat-label">Total Weeks</span>
-                <span className="stat-value">{totalWeeks}</span>
-              </div>
-              <div className="stat-divider"></div>
-              <div className="stat-item">
-                <span className="stat-label">Progress</span>
-                <span className="stat-value">{assignmentProgressPercentage}%</span>
-              </div>
+          {assignments.length === 0 ? (
+            <div className="no-assignments" style={{
+              background: 'white',
+              borderRadius: '16px',
+              padding: '48px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              textAlign: 'center'
+            }}>
+              <span style={{ fontSize: '3rem' }}>📋</span>
+              <p style={{ fontSize: '1.1rem', color: '#999', marginTop: '16px' }}>
+                No assignments available yet.
+              </p>
             </div>
-            <div className="progress-bar-container">
-              <div className="progress-bar-track">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${assignmentProgressPercentage}%` }}
-                >
-                  <span className="progress-bar-text">{assignmentProgressPercentage}%</span>
+          ) : (
+            <div className="nptel-assignments-grid">
+              {assignments.map((assignment) => (
+                <div key={assignment.Assignment_Id} className="nptel-assignment-card">
+                  <div className="assignment-card-header">
+                    <h3 className="assignment-title">{assignment.Title}</h3>
+                    <span className="assignment-marks">{assignment.Marks} Marks</span>
+                  </div>
+                  <p className="assignment-description">{assignment.Description}</p>
+                  <div className="assignment-meta">
+                    <span className="assignment-type">
+                      📋 Type: {assignment.Assignment_Type || 'Assignment'}
+                    </span>
+                    <span className="assignment-deadline">
+                      📅 Due: {new Date(assignment.Due_Date).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="assignment-actions">
+                    <button
+                      className="nptel-btn nptel-btn-primary"
+                      onClick={() => handleAssignmentStart(assignment.Assignment_Id)}
+                      disabled={submittedAssignments[assignment.Assignment_Id]}
+                      style={{
+                        opacity: submittedAssignments[assignment.Assignment_Id] ? 0.5 : 1,
+                        cursor: submittedAssignments[assignment.Assignment_Id] ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {submittedAssignments[assignment.Assignment_Id] ? '✓ Submitted' : 'Start Assignment'}
+                    </button>
+                    {submittedAssignments[assignment.Assignment_Id] && (
+                      <button
+                        className="nptel-btn nptel-btn-secondary"
+                        onClick={() => handleViewSubmission(assignment.Assignment_Id)}
+                      >
+                        View Submission
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-            <div className="progress-breakdown">
-              <div className="breakdown-item">
-                <span className="breakdown-dot completed-dot"></span>
-                <span className="breakdown-label">Completed: {completedAssignmentsCount}/{totalWeeks} assignments</span>
-              </div>
-              <div className="breakdown-item">
-                <span className="breakdown-dot pending-dot"></span>
-                <span className="breakdown-label">Pending: {totalWeeks - completedAssignmentsCount}/{totalWeeks} assignments</span>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Doubt Solving Session Section */}
@@ -1890,6 +2231,190 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* Transcript Modal */}
+      {showTranscriptModal && currentTranscript && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            maxWidth: '800px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '32px',
+            position: 'relative',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            {/* Close Button */}
+            <button
+              onClick={() => setShowTranscriptModal(false)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'none',
+                border: 'none',
+                fontSize: '28px',
+                cursor: 'pointer',
+                color: '#999',
+                lineHeight: 1,
+                padding: '4px 8px'
+              }}
+            >
+              ×
+            </button>
+
+            {/* Modal Header */}
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#1a1a1a',
+              marginBottom: '8px'
+            }}>
+              Video Transcript
+            </h2>
+            <h3 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#667eea',
+              marginBottom: '24px'
+            }}>
+              {currentTranscript.videoTitle}
+            </h3>
+
+            {/* Language Badge */}
+            <div style={{
+              display: 'inline-block',
+              background: '#e0f2fe',
+              color: '#0369a1',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              marginBottom: '24px'
+            }}>
+              Language: {currentTranscript.language}
+            </div>
+
+            {/* Summary Section */}
+            <div style={{
+              background: '#f0f8ff',
+              padding: '20px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              border: '2px solid #667eea'
+            }}>
+              <h4 style={{
+                fontSize: '16px',
+                fontWeight: '700',
+                color: '#667eea',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                📌 Summary
+              </h4>
+              <p style={{
+                fontSize: '15px',
+                lineHeight: '1.7',
+                color: '#333',
+                margin: 0
+              }}>
+                {currentTranscript.summary}
+              </p>
+            </div>
+
+            {/* Full Transcript Section */}
+            <div style={{
+              background: '#f8f9fa',
+              padding: '20px',
+              borderRadius: '12px',
+              marginBottom: '24px',
+              border: '1px solid #e0e0e0'
+            }}>
+              <h4 style={{
+                fontSize: '16px',
+                fontWeight: '700',
+                color: '#333',
+                marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                📄 Full Transcript
+              </h4>
+              <div style={{
+                fontSize: '14px',
+                lineHeight: '1.8',
+                color: '#555',
+                maxHeight: '300px',
+                overflow: 'auto',
+                whiteSpace: 'pre-wrap',
+                padding: '12px',
+                background: 'white',
+                borderRadius: '8px'
+              }}>
+                {currentTranscript.transcript}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowTranscriptModal(false)}
+                style={{
+                  padding: '12px 24px',
+                  background: 'white',
+                  color: '#667eea',
+                  border: '2px solid #667eea',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleDownloadTranscriptPDF}
+                style={{
+                  padding: '12px 24px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                📥 Download PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

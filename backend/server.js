@@ -34,6 +34,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static('uploads'));
+
 /* ============================
    MongoDB connection + GridFS
    ============================ */
@@ -130,6 +133,7 @@ const sessionRoutes = require("./routes/sessionRoutes");
 const recommendationsRoutes = require("./routes/recommendationsRoutes");
 const lecturerDynamicDataRoutes = require("./routes/lecturerDynamicData");
 const instituteRoutes = require("./routes/instituteRoutes");
+const transcriptionRoutes = require("./routes/transcriptionRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -158,6 +162,7 @@ app.use("/api/lecturer-students", lecturerStudentsRoutes);
 app.use("/api/lecturer/sessions", sessionRoutes);
 app.use("/api/sessions", sessionRoutes); // Alias for student access
 app.use("/api/recommendations", recommendationsRoutes);
+app.use("/api/transcription", transcriptionRoutes);
 app.use("/api/lecturer-dynamic-data", lecturerDynamicDataRoutes);
 app.use("/api/institutes", instituteRoutes);
 

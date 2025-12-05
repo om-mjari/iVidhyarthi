@@ -47,6 +47,11 @@ const assignmentSchema = new mongoose.Schema(
       min: 0,
       default: 100,
     },
+    File_URL: {
+      type: String,
+      required: false,
+      default: null,
+    },
     Submission_Data: {
       type: Object,
       required: false,

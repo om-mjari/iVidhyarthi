@@ -147,14 +147,34 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 2rem 0;
+  padding: 2rem 0 2rem 0;
   overflow-y: auto;
+  overflow-x: hidden;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   z-index: 10;
   box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .tab {
@@ -172,6 +192,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: left;
+  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -196,7 +217,27 @@
   position: relative;
   z-index: 5;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.main::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.main::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .panel {
@@ -630,7 +671,10 @@ select.input option {
   .sidebar {
     width: 100%;
     height: auto;
+    max-height: 40vh;
     order: 2;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .content {

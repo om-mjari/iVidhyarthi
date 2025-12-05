@@ -5,6 +5,7 @@ const CourseDetails = ({ onBack, onPay }) => {
   const [course, setCourse] = useState(null);
   const [courseTopics, setCourseTopics] = useState([]);
   const [courseContents, setCourseContents] = useState([]);
+  const [topicsWithSubtopics, setTopicsWithSubtopics] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +31,19 @@ const CourseDetails = ({ onBack, onPay }) => {
       const topicsResult = await topicsResponse.json();
       if (topicsResult.success) {
         setCourseTopics(topicsResult.data);
+        
+        // Fetch subtopics for each topic
+        const topicsWithSubs = await Promise.all(
+          topicsResult.data.map(async (topic) => {
+            const subtopicsResponse = await fetch(`http://localhost:5000/api/course-subtopics/topic/${topic.Topic_Id}`);
+            const subtopicsResult = await subtopicsResponse.json();
+            return {
+              ...topic,
+              subtopics: subtopicsResult.success ? subtopicsResult.data : []
+            };
+          })
+        );
+        setTopicsWithSubtopics(topicsWithSubs);
       }
 
       // Fetch course content
@@ -92,6 +106,32 @@ const CourseDetails = ({ onBack, onPay }) => {
               <p className="course-description">
                 {course.description || course.Description || "This course provides a comprehensive, hands-on curriculum designed to take you from fundamentals to practical mastery. Expect engaging lessons, real-world projects, and clear guidance throughout your learning journey."}
               </p>
+
+              {/* What You Will Learn Section */}
+              {topicsWithSubtopics.length > 0 && (
+                <div style={{ marginTop: '24px', padding: '20px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid #e0e0e0' }}>
+                  <h3 style={{ marginBottom: '16px', color: '#333' }}>📚 What You Will Learn</h3>
+                  <div style={{ fontFamily: 'monospace', fontSize: '14px', lineHeight: '1.8', color: '#555' }}>
+                    {topicsWithSubtopics.map((topic, topicIndex) => (
+                      <div key={topic.Topic_Id} style={{ marginBottom: '12px' }}>
+                        <div style={{ fontWeight: '600', color: '#000' }}>
+                          {topicIndex + 1}. {topic.Title}
+                        </div>
+                        {topic.subtopics && topic.subtopics.length > 0 && (
+                          <div style={{ marginLeft: '24px' }}>
+                            {topic.subtopics.map((subtopic, subtopicIndex) => (
+                              <div key={subtopic.SubTopic_Id}>
+                                {topicIndex + 1}.{subtopicIndex + 1} {subtopic.Title}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <ul className="highlights">
                 <li>📚 {countVideos} Video Lectures</li>
                 <li>📄 {countPDFs} PDF Resources</li>

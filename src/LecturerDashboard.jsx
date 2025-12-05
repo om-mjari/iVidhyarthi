@@ -1863,6 +1863,7 @@ function UploadsTab() {
         Due_Date: new Date(assignmentForm.dueDate).toISOString(),
         Assignment_Type: assignmentForm.assignmentType === 'pdf' ? 'Individual' : assignmentForm.assignmentType === 'task' ? 'Project' : 'Other',
         Marks: Number(assignmentForm.marks),
+        File_URL: fileUrl,  // Store file URL in File_URL field
         Submission_Data: fileUrl ? { file_url: fileUrl } : null
       };
 
@@ -2324,6 +2325,402 @@ function UploadsTab() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function SubmissionsTab() {
+  const API_BASE_URL = 'http://localhost:5000/api';
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [showPDFViewer, setShowPDFViewer] = useState(false);
+  const [studentStats, setStudentStats] = useState({});
+  const [savingMarks, setSavingMarks] = useState({});
+  const [marksInput, setMarksInput] = useState({});
+
+  const lecturer = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
+  }, []);
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  const fetchSubmissions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const lecturerId = lecturer?.email || lecturer?.id;
+      
+      if (!lecturerId) {
+        throw new Error('Lecturer identification not found');
+      }
+
+      // Use the new lecturer endpoint that includes student names
+      const response = await fetch(`${API_BASE_URL}/submissions/lecturer/${encodeURIComponent(lecturerId)}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch submissions');
+      }
+
+      setSubmissions(result.data);
+
+      // Calculate student statistics
+      const stats = {};
+      result.data.forEach(sub => {
+        const studentKey = sub.studentName || sub.Student_Id;
+        if (!stats[studentKey]) {
+          stats[studentKey] = {
+            studentId: sub.Student_Id,
+            studentName: sub.studentName || sub.Student_Id,
+            totalSubmissions: 0,
+            gradedSubmissions: 0,
+            pendingSubmissions: 0,
+            totalMarksEarned: 0,
+            totalMarksPossible: 0
+          };
+        }
+        stats[studentKey].totalSubmissions++;
+        if (sub.Status === 'Graded' && sub.Grade !== null) {
+          stats[studentKey].gradedSubmissions++;
+          stats[studentKey].totalMarksEarned += sub.Grade || 0;
+          stats[studentKey].totalMarksPossible += sub.assignmentMarks || 0;
+        } else {
+          stats[studentKey].pendingSubmissions++;
+        }
+      });
+      setStudentStats(stats);
+
+      // Initialize marks input state
+      const marksState = {};
+      result.data.forEach(sub => {
+        if (sub.Grade !== null && sub.Grade !== undefined) {
+          marksState[sub.Submission_Id] = sub.Grade;
+        }
+      });
+      setMarksInput(marksState);
+
+    } catch (err) {
+      console.error('Error fetching submissions:', err);
+      setError(err.message || 'Failed to load submissions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewPDF = (submission) => {
+    if (submission.File_Url) {
+      window.open(`http://localhost:5000${submission.File_Url}`, '_blank');
+    }
+  };
+
+  const handleMarksChange = (submissionId, value) => {
+    setMarksInput(prev => ({
+      ...prev,
+      [submissionId]: value
+    }));
+  };
+
+  const handleSaveMarks = async (submission) => {
+    const marks = marksInput[submission.Submission_Id];
+    
+    if (marks === undefined || marks === null || marks === '') {
+      alert('Please enter marks');
+      return;
+    }
+
+    const marksNum = Number(marks);
+    if (isNaN(marksNum) || marksNum < 0 || marksNum > submission.assignmentMarks) {
+      alert(`Please enter valid marks between 0 and ${submission.assignmentMarks}`);
+      return;
+    }
+
+    setSavingMarks(prev => ({ ...prev, [submission.Submission_Id]: true }));
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/submissions/marks/${submission.Submission_Id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Grade: marksNum,
+          Graded_By: lecturer?.email || lecturer?.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Update the submission in the list
+        setSubmissions(prev => prev.map(s => 
+          s.Submission_Id === submission.Submission_Id 
+            ? { ...s, Grade: marksNum, Status: 'Graded', Graded_On: new Date() }
+            : s
+        ));
+        alert('✅ Marks saved successfully!');
+        // Refresh to update statistics
+        fetchSubmissions();
+      } else {
+        throw new Error(result.message || 'Failed to save marks');
+      }
+    } catch (err) {
+      console.error('Error saving marks:', err);
+      alert('❌ ' + (err.message || 'Failed to save marks'));
+    } finally {
+      setSavingMarks(prev => ({ ...prev, [submission.Submission_Id]: false }));
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <div className="lec-profile-loading">
+          <div className="loading-spinner"></div>
+          <p>Loading submissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="panel">
+        <div className="alert-error">⚠️ {error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel">
+      <h3>📝 Student Submissions</h3>
+      
+      {/* Summary Cards */}
+      <div className="stats" style={{ marginBottom: '24px' }}>
+        <Stat 
+          label="Total Submissions" 
+          value={submissions.length} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+        />
+        <Stat 
+          label="Pending Grading" 
+          value={submissions.filter(s => s.Status !== 'Graded').length} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+        />
+        <Stat 
+          label="Graded" 
+          value={submissions.filter(s => s.Status === 'Graded').length} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+        />
+        <Stat 
+          label="Unique Students" 
+          value={Object.keys(studentStats).length} 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+        />
+      </div>
+
+      {/* Student Statistics */}
+      {Object.keys(studentStats).length > 0 && (
+        <div style={{ marginBottom: '24px', padding: '20px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: '12px', color: 'white' }}>
+          <h4 style={{ marginBottom: '16px', fontSize: '18px' }}>📊 Submission Count by Student</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
+            {Object.values(studentStats).map((stat, idx) => (
+              <div key={idx} style={{ 
+                background: 'rgba(255,255,255,0.15)', 
+                padding: '12px 16px', 
+                borderRadius: '8px',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>{stat.studentName}</div>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                  📚 Total: {stat.totalSubmissions} | 
+                  ✅ Graded: {stat.gradedSubmissions} | 
+                  ⏳ Pending: {stat.pendingSubmissions}
+                </div>
+                {stat.gradedSubmissions > 0 && (
+                  <div style={{ fontSize: '13px', marginTop: '4px', opacity: 0.85 }}>
+                    🎯 Score: {stat.totalMarksEarned}/{stat.totalMarksPossible} ({Math.round((stat.totalMarksEarned/stat.totalMarksPossible)*100)}%)
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Submissions Table */}
+      {submissions.length === 0 ? (
+        <div style={{ padding: '60px 20px', textAlign: 'center', color: '#666' }}>
+          <p style={{ fontSize: '18px', marginBottom: '8px' }}>No submissions yet</p>
+          <p style={{ fontSize: '14px', color: '#999' }}>Student submissions will appear here</p>
+        </div>
+      ) : (
+        <div className="table">
+          <div className="t-head">
+            <div>Student Name</div>
+            <div>Assignment</div>
+            <div>Course</div>
+            <div>Submitted On</div>
+            <div>PDF</div>
+            <div>Marks</div>
+            <div>Action</div>
+          </div>
+          {submissions.map((submission) => (
+            <div className="t-row" key={submission.Submission_Id}>
+              <div>
+                <strong>{submission.studentName || 'Unknown'}</strong>
+                <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+                  ID: {submission.Student_Id}
+                </div>
+              </div>
+              <div>{submission.assignmentTitle}</div>
+              <div>{submission.courseName}</div>
+              <div>{formatDate(submission.Submitted_On)}</div>
+              <div>
+                {submission.File_Url ? (
+                  <button 
+                    className="button secondary" 
+                    onClick={() => handleViewPDF(submission)}
+                    style={{ padding: '6px 12px', fontSize: '13px' }}
+                  >
+                    📄 View PDF
+                  </button>
+                ) : (
+                  <span style={{ color: '#999', fontSize: '13px' }}>No file</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input 
+                  type="number"
+                  min="0"
+                  max={submission.assignmentMarks}
+                  value={marksInput[submission.Submission_Id] ?? ''}
+                  onChange={(e) => handleMarksChange(submission.Submission_Id, e.target.value)}
+                  placeholder={`/${submission.assignmentMarks}`}
+                  style={{ 
+                    width: '70px', 
+                    padding: '6px 8px', 
+                    borderRadius: '4px', 
+                    border: '1px solid #ddd',
+                    fontSize: '14px'
+                  }}
+                  disabled={savingMarks[submission.Submission_Id]}
+                />
+                <span style={{ fontSize: '14px', color: '#666' }}>/ {submission.assignmentMarks}</span>
+              </div>
+              <div>
+                <button 
+                  className="button primary" 
+                  onClick={() => handleSaveMarks(submission)}
+                  style={{ padding: '6px 16px', fontSize: '13px' }}
+                  disabled={savingMarks[submission.Submission_Id]}
+                >
+                  {savingMarks[submission.Submission_Id] ? (
+                    <>⏳ Saving...</>
+                  ) : submission.Status === 'Graded' ? (
+                    <>✓ Update</>
+                  ) : (
+                    <>💾 Save</>
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* PDF Viewer Modal */}
+      {showPDFViewer && selectedSubmission && selectedSubmission.File_Url && (
+        <div className="modal-overlay" onClick={() => setShowPDFViewer(false)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '95vw', maxHeight: '95vh', width: '1200px', height: '90vh' }}
+          >
+            <div className="modal-header">
+              <div>
+                <h3>📄 {selectedSubmission.assignmentTitle}</h3>
+                <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
+                  Student: {selectedSubmission.studentName || selectedSubmission.Student_Id} | 
+                  Submitted: {formatDate(selectedSubmission.Submitted_On)}
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowPDFViewer(false)}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: 0, height: 'calc(100% - 80px)' }}>
+              <iframe 
+                src={`http://localhost:5000${selectedSubmission.File_Url}`}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  border: 'none',
+                  borderRadius: '0 0 8px 8px'
+                }}
+                title="Submission PDF"
+              />
+            </div>
+            <div style={{ 
+              padding: '12px 20px', 
+              borderTop: '1px solid #e5e7eb',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label style={{ fontWeight: '500', fontSize: '14px' }}>Marks:</label>
+                <input 
+                  type="number"
+                  min="0"
+                  max={selectedSubmission.assignmentMarks}
+                  value={marksInput[selectedSubmission.Submission_Id] ?? ''}
+                  onChange={(e) => handleMarksChange(selectedSubmission.Submission_Id, e.target.value)}
+                  placeholder={`out of ${selectedSubmission.assignmentMarks}`}
+                  style={{ 
+                    width: '100px', 
+                    padding: '8px 12px', 
+                    borderRadius: '6px', 
+                    border: '1px solid #ddd',
+                    fontSize: '14px'
+                  }}
+                />
+                <span style={{ fontSize: '14px', color: '#666' }}>/ {selectedSubmission.assignmentMarks}</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a 
+                  href={`http://localhost:5000${selectedSubmission.File_Url}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button secondary"
+                  style={{ padding: '8px 16px' }}
+                >
+                  📥 Download
+                </a>
+                <button 
+                  className="button primary" 
+                  onClick={() => handleSaveMarks(selectedSubmission)}
+                  disabled={savingMarks[selectedSubmission.Submission_Id]}
+                  style={{ padding: '8px 20px' }}
+                >
+                  {savingMarks[selectedSubmission.Submission_Id] ? '⏳ Saving...' : '💾 Save Marks'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4975,6 +5372,16 @@ function LecturerDashboard({ onLogout }) {
             </svg>
             Uploads
           </button>
+          <button className={`tab ${activeTab === 'submissions' ? 'active' : ''}`} onClick={() => setActiveTab('submissions')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            Submissions
+          </button>
           <button className={`tab ${activeTab === 'sessions' ? 'active' : ''}`} onClick={() => setActiveTab('sessions')}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -5013,6 +5420,7 @@ function LecturerDashboard({ onLogout }) {
           {activeTab === 'courses' && <CoursesTab />}
           {activeTab === 'students' && <StudentsTab />}
           {activeTab === 'uploads' && <UploadsTab />}
+          {activeTab === 'submissions' && <SubmissionsTab />}
           {activeTab === 'sessions' && <SessionsTab />}
           {activeTab === 'feedback' && <FeedbackTab />}
           {activeTab === 'earnings' && <EarningsTab />}

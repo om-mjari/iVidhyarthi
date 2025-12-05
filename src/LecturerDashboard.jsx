@@ -3077,6 +3077,7 @@ function CoursesTab() {
   }, []);
 
   const [courses, setCourses] = useState([]);
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, courseId: null, courseName: '' });
 
   const [form, setForm] = useState({
     categoryId: '',
@@ -3546,10 +3547,30 @@ function CoursesTab() {
 
       // Update local state - course deleted silently
       setCourses(prev => prev.filter(course => course.id !== courseId));
+      setDeleteConfirm({ show: false, courseId: null, courseName: '' });
     } catch (error) {
       console.error('Error deleting course:', error);
+      setDeleteConfirm({ show: false, courseId: null, courseName: '' });
       // Silently handle error
     }
+  };
+
+  const handleDeleteClick = (course) => {
+    setDeleteConfirm({ 
+      show: true, 
+      courseId: course.id, 
+      courseName: course.name 
+    });
+  };
+
+  const confirmDelete = () => {
+    if (deleteConfirm.courseId) {
+      deleteCourse(deleteConfirm.courseId);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm({ show: false, courseId: null, courseName: '' });
   };
 
   const startEdit = async (course) => {
@@ -3887,9 +3908,70 @@ function CoursesTab() {
                   {viewingCourse?.id === course.id ? 'Hide' : 'View'}
                 </button>
                 <button className="button ghost sm" onClick={() => startEdit(course)}>Edit</button>
-                <button className="button ghost sm" onClick={() => deleteCourse(course.id)}>Delete</button>
+                <button className="button ghost sm" onClick={() => handleDeleteClick(course)}>Delete</button>
               </div>
             </div>
+
+            {/* Delete Confirmation - Inline */}
+            {deleteConfirm.show && deleteConfirm.courseId === course.id && (
+              <div style={{
+                backgroundColor: '#fff',
+                padding: '2rem',
+                borderRadius: '8px',
+                margin: '1rem 0',
+                border: '2px solid #ef4444',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+              }}>
+                <h4 style={{
+                  margin: '0 0 1rem 0',
+                  color: '#1f2937',
+                  fontSize: '1.1rem',
+                  fontWeight: '600',
+                  textAlign: 'center'
+                }}>
+                  Delete Course
+                </h4>
+                <p style={{
+                  margin: '0 0 1.5rem 0',
+                  color: '#6b7280',
+                  fontSize: '1rem',
+                  lineHeight: '1.5',
+                  textAlign: 'center'
+                }}>
+                  Are you sure you want to delete <strong>"{deleteConfirm.courseName}"</strong>?
+                </p>
+                <div style={{
+                  display: 'flex',
+                  gap: '1rem',
+                  justifyContent: 'center'
+                }}>
+                  <button
+                    onClick={cancelDelete}
+                    className="button ghost sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    style={{
+                      padding: '0.625rem 1.5rem',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '0.875rem',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#dc2626'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#ef4444'}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Inline Expanded Course View */}
             {viewingCourse?.id === course.id && (
@@ -4159,6 +4241,7 @@ function EarningsTab() {
 function LecturerDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem('lecturer_user');
@@ -4170,11 +4253,18 @@ function LecturerDashboard({ onLogout }) {
   // Handle logout with confirmation
   const handleLogoutClick = (e) => {
     e.preventDefault();
-    if (window.confirm('Are you sure you want to logout?')) {
-      if (onLogout && typeof onLogout === 'function') {
-        onLogout();
-      }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    if (onLogout && typeof onLogout === 'function') {
+      onLogout();
     }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   return (
@@ -4266,6 +4356,93 @@ function LecturerDashboard({ onLogout }) {
         </div>
       </div>
       <ProfileSlideOver open={profileOpen} onClose={() => setProfileOpen(false)} />
+      
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+            maxWidth: '400px',
+            width: '90%',
+            textAlign: 'center'
+          }}>
+            <h3 style={{
+              margin: '0 0 1rem 0',
+              color: '#1f2937',
+              fontSize: '1.25rem',
+              fontWeight: '600'
+            }}>
+              Confirm Logout
+            </h3>
+            <p style={{
+              margin: '0 0 1.5rem 0',
+              color: '#6b7280',
+              fontSize: '1rem',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to logout?
+            </p>
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={cancelLogout}
+                style={{
+                  padding: '0.625rem 1.5rem',
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  minWidth: '100px'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#e5e7eb'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f3f4f6'}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmLogout}
+                style={{
+                  padding: '0.625rem 1.5rem',
+                  backgroundColor: '#14b8a6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  minWidth: '100px'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#0d9488'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#14b8a6'}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

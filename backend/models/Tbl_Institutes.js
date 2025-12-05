@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 
-// Institute_Id [PK], Institute_Name, University_Id [FK]
+// Institute_Id [PK], Institute_Name, University_Id [FK], Courses_Offered
 const instituteSchema = new mongoose.Schema(
   {
     Institute_Name: { type: String, required: true, trim: true },
     University_Id: { type: mongoose.Schema.Types.ObjectId, ref: "Tbl_University" },
+    Courses_Offered: { type: String, trim: true, default: "" },
   },
   { timestamps: true }
 );

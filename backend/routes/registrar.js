@@ -5,6 +5,7 @@ const Institutes = require("../models/Tbl_Institutes");
 const Students = require("../models/Tbl_Students");
 const Lecturers = require("../models/Tbl_Lecturers");
 const University = require("../models/Tbl_University");
+const Courses = require("../models/Tbl_Courses");
 
 const router = express.Router();
 
@@ -194,14 +195,20 @@ router.get("/stats", authenticateRegistrar, async (req, res) => {
       Institute_Id: { $in: instituteIds },
     });
 
+    // Get lecturer IDs to count courses
+    const lecturerIds = lecturers.map((lec) => lec._id.toString());
+
+    // Count active courses taught by these lecturers
+    const activeCourses = await Courses.countDocuments({
+      Lecturer_Id: { $in: lecturerIds },
+      Is_Active: true,
+      status: 'approved'
+    });
+
     // Calculate stats
     const totalInstitutes = institutes.length;
     const totalStudents = students.length;
     const totalLecturers = lecturers.length;
-    const activeCourses = institutes.reduce(
-      (sum, inst) => sum + (inst.Courses_Offered?.length || 0),
-      0
-    );
 
     res.json({
       success: true,
@@ -238,8 +245,7 @@ router.get("/institutes", authenticateRegistrar, async (req, res) => {
       data: institutes.map((inst) => ({
         id: inst._id,
         name: inst.Institute_Name,
-        contact: inst.Contact_No || "",
-        courses: inst.Courses_Offered || [],
+        courses: inst.Courses_Offered || "",
         status: inst.Verification_Status || "Active",
         university: inst.University_Id?.University_Name || "Unknown",
       })),
@@ -253,7 +259,7 @@ router.get("/institutes", authenticateRegistrar, async (req, res) => {
 // Add new institute
 router.post("/institutes", authenticateRegistrar, async (req, res) => {
   try {
-    const { name, contact, courses } = req.body;
+    const { name, courses } = req.body;
 
     if (!name) {
       return res
@@ -281,13 +287,7 @@ router.post("/institutes", authenticateRegistrar, async (req, res) => {
 
     const institute = await Institutes.create({
       Institute_Name: name,
-      Contact_No: contact,
-      Courses_Offered: courses
-        ? courses
-            .split(",")
-            .map((c) => c.trim())
-            .filter(Boolean)
-        : [],
+      Courses_Offered: courses || "",
       University_Id: registrar.University_Id._id,
       Verification_Status: "Active",
     });
@@ -298,7 +298,6 @@ router.post("/institutes", authenticateRegistrar, async (req, res) => {
       data: {
         id: institute._id,
         name: institute.Institute_Name,
-        contact: institute.Contact_No,
         courses: institute.Courses_Offered,
         status: institute.Verification_Status,
       },
@@ -313,7 +312,7 @@ router.post("/institutes", authenticateRegistrar, async (req, res) => {
 router.put("/institutes/:id", authenticateRegistrar, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, contact, courses, status } = req.body;
+    const { name, courses, status } = req.body;
 
     const registrar = await Registrars.findOne({
       User_Id: req.user._id,
@@ -345,12 +344,7 @@ router.put("/institutes/:id", authenticateRegistrar, async (req, res) => {
     }
 
     if (name) institute.Institute_Name = name;
-    if (contact !== undefined) institute.Contact_No = contact;
-    if (courses)
-      institute.Courses_Offered = courses
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean);
+    if (courses !== undefined) institute.Courses_Offered = courses;
     if (status) institute.Verification_Status = status;
 
     await institute.save();
@@ -361,7 +355,6 @@ router.put("/institutes/:id", authenticateRegistrar, async (req, res) => {
       data: {
         id: institute._id,
         name: institute.Institute_Name,
-        contact: institute.Contact_No,
         courses: institute.Courses_Offered,
         status: institute.Verification_Status,
       },

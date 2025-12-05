@@ -170,13 +170,13 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
 
   return (
     <>
-      {/* Modal Overlay */}
-      <div className="profile-modal-overlay" onClick={onClose} />
+      {/* Overlay */}
+      <div className={`registrar-profile-overlay ${open ? 'open' : ''}`} onClick={onClose} />
       
-      {/* Modal Container */}
-      <div className="profile-modal-container">
+      {/* Slide-Over Panel */}
+      <aside className={`registrar-profile-panel ${open ? 'open' : ''}`} aria-hidden={!open}>
         {/* Modal Header */}
-        <div className="profile-modal-header">
+        <div className="registrar-profile-header">
           <div className="modal-title-section">
             <div className="modal-icon">
               <span>{activeTab === 'profile' ? '👤' : '🔐'}</span>
@@ -210,7 +210,7 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
         </div>
 
         {/* Modal Body */}
-        <div className="profile-modal-body">{activeTab === 'profile' ? (
+        <div className="registrar-profile-body">{activeTab === 'profile' ? (
             <form onSubmit={saveProfile} className="profile-form">
               <div className="form-group-modern">
                 <label className="form-label-modern">
@@ -332,7 +332,7 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
             onClose={() => setToast(null)} 
           />
         )}
-      </div>
+      </aside>
     </>
   );
 }
@@ -456,9 +456,13 @@ function LoginActivityModal({ open, onClose, loginHistory, onSeedData }) {
   );
 }
 
+// Institute Management - Updated to remove Contact field
 function InstitutesTab({ institutes, onInstitutesUpdate }) {
-  const [form, setForm] = useState({ name: '', contact: '', courses: '' });
+  const [form, setForm] = useState({ name: '', courses: '' });
   const [loading, setLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editMode, setEditMode] = useState(null);
+  const [editData, setEditData] = useState({ name: '', courses: '' });
 
   const addInstitute = async () => {
     if (!form.name) return;
@@ -479,16 +483,14 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
         },
         body: JSON.stringify({
           name: form.name.trim(),
-          contact: form.contact.trim(),
-          courses: form.courses
+          courses: form.courses.trim()
         })
       });
 
       const result = await response.json();
 
       if (result.success) {
-        alert('Institute added successfully!');
-        setForm({ name: '', contact: '', courses: '' });
+        setForm({ name: '', courses: '' });
         if (onInstitutesUpdate) {
           onInstitutesUpdate();
         }
@@ -525,7 +527,7 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Institute updated successfully!');
+        setEditMode(null);
         if (onInstitutesUpdate) {
           onInstitutesUpdate();
         }
@@ -540,9 +542,31 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
     }
   };
 
-  const removeInstitute = async (id) => {
-    if (!confirm('Remove this institute?')) return;
+  const handleEditClick = (inst) => {
+    setEditMode(inst.id);
+    setEditData({ name: inst.name, courses: inst.courses || '' });
+  };
+
+  const handleUpdateClick = (id) => {
+    updateInstitute(id, { name: editData.name, courses: editData.courses });
+  };
+
+  const cancelEdit = () => {
+    setEditMode(null);
+    setEditData({ name: '', courses: '' });
+  };
+
+  const handleDeleteClick = (id) => {
+    setDeleteConfirm(id);
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
+  };
+
+  const confirmDelete = async (id) => {
     setLoading(true);
+    setDeleteConfirm(null);
 
     try {
       const token = localStorage.getItem('auth_token');
@@ -561,7 +585,6 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
       const result = await response.json();
 
       if (result.success) {
-        alert('Institute removed successfully!');
         if (onInstitutesUpdate) {
           onInstitutesUpdate();
         }
@@ -591,15 +614,6 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             />
           </div>
           <div>
-            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Contact</label>
-            <input
-              className="search-input"
-              value={form.contact}
-              onChange={(e) => setForm({ ...form, contact: e.target.value })}
-              placeholder="Contact information"
-            />
-          </div>
-          <div>
             <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Courses Offered</label>
             <input
               className="search-input"
@@ -617,7 +631,6 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
           <thead>
             <tr>
               <th>Institute Name</th>
-              <th>Contact</th>
               <th>Courses Offered</th>
               <th>Status</th>
               <th>Actions</th>
@@ -626,29 +639,89 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
           <tbody>
             {institutes.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255, 255, 255, 0.6)' }}>
                   No institutes added yet. Add your first institute above.
                 </td>
               </tr>
             ) : (
               institutes.map(inst => (
                 <tr key={inst.id}>
-                  <td>{inst.name}</td>
-                  <td>{inst.contact || '—'}</td>
-                  <td>{inst.courses?.join(', ') || '—'}</td>
+                  <td>
+                    {editMode === inst.id ? (
+                      <input
+                        className="search-input"
+                        value={editData.name}
+                        onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                        style={{ margin: 0, width: '100%' }}
+                      />
+                    ) : (
+                      inst.name
+                    )}
+                  </td>
+                  <td>
+                    {editMode === inst.id ? (
+                      <input
+                        className="search-input"
+                        value={editData.courses}
+                        onChange={(e) => setEditData({ ...editData, courses: e.target.value })}
+                        placeholder="e.g., BCA, BSc IT, MCA"
+                        style={{ margin: 0, width: '100%' }}
+                      />
+                    ) : (
+                      inst.courses || '—'
+                    )}
+                  </td>
                   <td>
                     <span className={`status-badge ${inst.status === 'Active' ? 'active' : 'pending'}`}>
                       {inst.status}
                     </span>
                   </td>
                   <td>
-                    <button
-                      className={`btn-${inst.status === 'Active' ? 'reject' : 'approve'}`}
-                      onClick={() => updateInstitute(inst.id, { status: inst.status === 'Active' ? 'Disabled' : 'Active' })}
-                    >
-                      {inst.status === 'Active' ? 'Disable' : 'Enable'}
-                    </button>
-                    <button className="btn-delete" onClick={() => removeInstitute(inst.id)}>Remove</button>
+                    {deleteConfirm === inst.id ? (
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center', padding: '0.5rem', background: 'rgba(255, 107, 107, 0.1)', borderRadius: '8px' }}>
+                        <span style={{ color: '#ff6b6b', fontSize: '0.9rem', fontWeight: '500' }}>Delete this?</span>
+                        <button
+                          className="btn-approve"
+                          onClick={() => confirmDelete(inst.id)}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                          OK
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={cancelDelete}
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : editMode === inst.id ? (
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          className="btn-approve"
+                          onClick={() => handleUpdateClick(inst.id)}
+                        >
+                          Update
+                        </button>
+                        <button
+                          className="btn-reject"
+                          onClick={cancelEdit}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          className="btn-primary"
+                          onClick={() => handleEditClick(inst)}
+                          style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', marginLeft: 0 }}
+                        >
+                          Edit
+                        </button>
+                        <button className="btn-delete" onClick={() => handleDeleteClick(inst.id)}>Remove</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -964,7 +1037,13 @@ function RegistrarDashboard({ onLogout }) {
       });
       const result = await response.json();
       if (result.success) {
-        setInstitutes(result.data || []);
+        const institutesData = result.data || [];
+        setInstitutes(institutesData);
+        // Update stats count dynamically
+        setStats(prev => ({
+          ...prev,
+          totalInstitutes: institutesData.length
+        }));
       }
     } catch (error) {
       console.error('Error fetching institutes:', error);
@@ -1152,19 +1231,6 @@ function RegistrarDashboard({ onLogout }) {
             <h3>{stats.activeCourses.toLocaleString()}</h3>
             <p>Active Courses</p>
             <span className="stat-trend">Available programs</span>
-          </div>
-        </div>
-        <div className="stat-card pending">
-          <div className="stat-icon">⏳</div>
-          <div className="stat-content">
-            <h3>{stats.pendingApprovals}</h3>
-            <p>Pending Approvals</p>
-            <span className="stat-trend">Requires attention</span>
-            {stats.pendingApprovals > 0 && (
-              <div className="stat-details">
-                <span>Action required</span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -1407,8 +1473,21 @@ function RegistrarDashboard({ onLogout }) {
             <span>{menuItems.find(item => item.id === activePanel)?.label}</span>
           </div>
           <div className="admin-user-info">
-            <span>Welcome, {user?.name || 'Registrar'}</span>
-            <div className="admin-avatar">👤</div>
+            <span 
+              style={{ cursor: 'pointer', transition: 'color 0.2s' }}
+              onClick={() => setProfileOpen(true)}
+              onMouseEnter={(e) => e.target.style.color = '#14b8a6'}
+              onMouseLeave={(e) => e.target.style.color = ''}
+            >
+              Welcome, {user?.name || 'Registrar'}
+            </span>
+            <div 
+              className="admin-avatar" 
+              style={{ cursor: 'pointer' }}
+              onClick={() => setProfileOpen(true)}
+            >
+              👤
+            </div>
           </div>
         </header>
 

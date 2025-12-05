@@ -2262,13 +2262,35 @@ function SessionsTab() {
       if (result.success) {
         setSuccessMessage('Meeting started successfully! Students can now join.');
         setTimeout(() => setSuccessMessage(''), 3000);
-        fetchSessions(selectedCourse);
+        fetchSessions();
       } else {
         alert(result.message || 'Failed to start meeting');
       }
     } catch (error) {
       console.error('Error starting meeting:', error);
       alert('Failed to start meeting');
+    }
+  };
+
+  const handleEndMeeting = async (sessionId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/lecturer/sessions/${sessionId}/end`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setSuccessMessage('Meeting ended successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        fetchSessions();
+      } else {
+        alert(result.message || 'Failed to end meeting');
+      }
+    } catch (error) {
+      console.error('Error ending meeting:', error);
+      alert('Failed to end meeting');
     }
   };
 
@@ -2563,7 +2585,7 @@ function SessionsTab() {
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                          {/* Start Meeting Button */}
+                          {/* Start Meeting Button - for Scheduled sessions within time window */}
                           {canStartMeeting(session) && (
                             <button
                               onClick={() => handleStartMeeting(session.session_id)}
@@ -2583,26 +2605,53 @@ function SessionsTab() {
                             </button>
                           )}
 
-                          {/* Join Meeting Button */}
-                          {session.session_url && canAccessMeeting(session) && (
-                            <a 
-                              href={session.session_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="button primary sm"
-                              style={{
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                color: 'white',
-                                padding: '6px 16px',
-                                borderRadius: '6px',
-                                textDecoration: 'none',
-                                fontSize: '13px',
-                                fontWeight: '500',
-                                display: 'inline-block'
-                              }}
-                            >
-                              {getMeetingButtonText(session)}
-                            </a>
+                          {/* Join Meeting Button - for Ongoing sessions */}
+                          {canAccessMeeting(session) && (
+                            <>
+                              <a 
+                                href={session.session_url || session.Session_URL || '#'} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="button primary sm"
+                                onClick={(e) => {
+                                  if (!session.session_url && !session.Session_URL) {
+                                    e.preventDefault();
+                                    alert('Meeting link not available. Please check Zoom configuration.');
+                                    console.log('Session data:', session);
+                                  }
+                                }}
+                                style={{
+                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                  color: 'white',
+                                  padding: '6px 16px',
+                                  borderRadius: '6px',
+                                  textDecoration: 'none',
+                                  fontSize: '13px',
+                                  fontWeight: '500',
+                                  display: 'inline-block'
+                                }}
+                              >
+                                🔗 Join Meeting
+                              </a>
+                              
+                              {/* End Meeting Button - for Ongoing sessions */}
+                              <button
+                                onClick={() => handleEndMeeting(session.session_id)}
+                                className="button danger sm"
+                                style={{
+                                  background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                                  color: 'white',
+                                  padding: '6px 16px',
+                                  borderRadius: '6px',
+                                  fontSize: '13px',
+                                  fontWeight: '500',
+                                  border: 'none',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                ⏹️ End Meeting
+                              </button>
+                            </>
                           )}
 
                           {/* Status text when no action available */}
@@ -2615,7 +2664,7 @@ function SessionsTab() {
                               borderRadius: '6px',
                               display: 'inline-block'
                             }}>
-                              {session.session_url ? getMeetingButtonText(session) : 'No link'}
+                              {getMeetingButtonText(session)}
                             </span>
                           )}
                         </div>

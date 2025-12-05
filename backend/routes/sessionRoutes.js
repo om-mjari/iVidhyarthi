@@ -400,21 +400,6 @@ router.get("/", async (req, res) => {
         
         const course = lecturerCourses.find(c => c.Course_Id === courseId);
         
-        // Auto-complete expired ongoing sessions
-        let status = session.Status;
-        if (status === 'Ongoing') {
-          const now = new Date();
-          const endTime = new Date(session.Scheduled_At.getTime() + session.Duration * 60000);
-          if (now > endTime) {
-            // Update status in database
-            await Tbl_Sessions.findOneAndUpdate(
-              { Session_Id: session.Session_Id },
-              { Status: 'Completed', Ended_At: endTime }
-            );
-            status = 'Completed';
-          }
-        }
-        
         return {
           session_id: session.Session_Id,
           course_id: session.Course_Id,
@@ -423,7 +408,7 @@ router.get("/", async (req, res) => {
           session_url: session.Session_Url,
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
-          status: status,
+          status: session.Status,
           description: session.Description,
           created_at: session.createdAt
         };
@@ -499,25 +484,6 @@ router.get("/student", async (req, res) => {
       sessions.map(async (session) => {
         const course = await Tbl_Courses.findOne({ Course_Id: session.Course_Id });
         
-        // Auto-complete expired ongoing sessions
-        let status = session.Status;
-        if (status === 'Ongoing') {
-          const endTime = new Date(session.Scheduled_At.getTime() + session.Duration * 60000);
-          if (now > endTime) {
-            // Update status in database
-            await Tbl_Sessions.findOneAndUpdate(
-              { Session_Id: session.Session_Id },
-              { Status: 'Completed', Ended_At: endTime }
-            );
-            status = 'Completed';
-          }
-        }
-        
-        // Don't show completed sessions to students
-        if (status === 'Completed') {
-          return null;
-        }
-        
         return {
           session_id: session.Session_Id,
           course_id: session.Course_Id,
@@ -526,19 +492,16 @@ router.get("/student", async (req, res) => {
           session_url: session.Session_Url,
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
-          status: status,
+          status: session.Status,
           description: session.Description,
           session_type: session.Session_Type
         };
       })
     );
 
-    // Filter out null values (completed sessions)
-    const filteredSessions = enrichedSessions.filter(s => s !== null);
-
     res.json({
       success: true,
-      data: filteredSessions
+      data: enrichedSessions
     });
   } catch (error) {
     console.error('❌ Student sessions fetch error:', error);

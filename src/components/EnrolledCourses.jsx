@@ -153,11 +153,11 @@ const EnrolledCourses = ({ onNavigate }) => {
       
       // Navigate to course learning page
       if (onNavigate) {
-        onNavigate('course-learning');
+        onNavigate('learning');
       } else {
         // Fallback: try window navigation
         console.warn('onNavigate prop not provided, using window navigation');
-        window.location.href = '/course-learning';
+        window.location.href = '/learning';
       }
     } catch (err) {
       console.error('Error navigating to course:', err);
@@ -240,10 +240,6 @@ const EnrolledCourses = ({ onNavigate }) => {
               <div className="meta-item">
                 <span className="meta-label">Next Lesson</span>
                 <span className="meta-value">{course.nextLesson}</span>
-              </div>
-              <div className="meta-item">
-                <span className="meta-label">Due In</span>
-                <span className="meta-value due-date">{course.dueDate}</span>
               </div>
             </div>
 

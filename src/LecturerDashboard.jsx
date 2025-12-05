@@ -3313,20 +3313,16 @@ function CoursesTab() {
       // Reset topics
       setTopics([]);
 
-      window.alert('✓ Course updated successfully!');
+      // Course updated successfully - no popup
     } catch (error) {
       console.error('Error updating course:', error);
-      window.alert(`Failed to update course: ${error.message}`);
+      // Silently handle error or show non-intrusive notification
     } finally {
       setSavingCourse(false);
     }
   };
 
   const deleteCourse = async (courseId) => {
-    if (!window.confirm('Are you sure you want to delete this course?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${courseId}`, {
         method: 'DELETE',
@@ -3340,12 +3336,11 @@ function CoursesTab() {
         throw new Error(errorData.message || 'Failed to delete course');
       }
 
-      // Update local state
+      // Update local state - course deleted silently
       setCourses(prev => prev.filter(course => course.id !== courseId));
-      window.alert('✓ Course deleted successfully!');
     } catch (error) {
       console.error('Error deleting course:', error);
-      window.alert(`Failed to delete course: ${error.message}`);
+      // Silently handle error
     }
   };
 
@@ -3414,6 +3409,12 @@ function CoursesTab() {
   };
 
   const viewCourse = async (course) => {
+    // Toggle: if same course is clicked, close it
+    if (viewingCourse?.id === course.id) {
+      setViewingCourse(null);
+      return;
+    }
+
     try {
       // Fetch full course details including topics/subtopics
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}`);
@@ -3437,121 +3438,6 @@ function CoursesTab() {
   return (
     <div className="panel">
       <h3>Course Management</h3>
-
-      {/* View Course Modal */}
-      {viewingCourse && (
-        <>
-          <div className="lec-modal-overlay" onClick={closeViewCourse} />
-          <div className="lec-modal lec-modal-large">
-            <div className="lec-modal-header">
-              <h3>📚 Course Overview</h3>
-              <button className="btn-close" onClick={closeViewCourse}>×</button>
-            </div>
-            <div className="lec-modal-body">
-              {/* Course Header - Image Left, Details Right */}
-              <div className="view-course-header">
-                <div className="view-course-image">
-                  <img
-                    src={viewingCourse.image || viewingCourse.fullData?.image_url}
-                    alt={viewingCourse.name}
-                  />
-                </div>
-
-                <div className="view-course-header-details">
-                  <h2 className="view-course-title">{viewingCourse.name}</h2>
-                  
-                  <div className="view-course-meta">
-                    <div className="view-meta-item">
-                      <span className="view-meta-icon">🏷️</span>
-                      <span>{categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}</span>
-                    </div>
-                    <div className="view-meta-item">
-                      <span className="view-meta-icon">👨‍🏫</span>
-                      <span>{viewingCourse.instructor}</span>
-                    </div>
-                    <div className="view-meta-item">
-                      <span className="view-meta-icon">⭐</span>
-                      <span>{viewingCourse.rating} / 5.0</span>
-                    </div>
-                  </div>
-
-                  {viewingCourse.description && (
-                    <div className="view-course-description-text">
-                      {viewingCourse.description}
-                    </div>
-                  )}
-
-                  <div className="view-course-stats">
-                    <span className="view-stat-badge">
-                      <span>💰</span>
-                      <span>₹{viewingCourse.price}</span>
-                    </span>
-                    <span className="view-stat-badge">
-                      <span>⏱️</span>
-                      <span>{viewingCourse.duration || 'N/A'}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Topics & Subtopics Section */}
-              {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
-                <div className="view-section">
-                  <h4 className="view-section-title">📋 Course Curriculum ({viewingCourse.fullData.Topics.length} Topics)</h4>
-                  <div className="view-topics-container">
-                    {viewingCourse.fullData.Topics.map((topic, idx) => (
-                      <div key={topic.Topic_Id || idx} className="view-topic-card">
-                        <div className="view-topic-header">
-                          <span className="view-topic-number">{topic.Order_Number}.</span>
-                          <div className="view-topic-info">
-                            <span className="view-topic-title">{topic.Title}</span>
-                            {topic.Description && (
-                              <div className="view-topic-description">{topic.Description}</div>
-                            )}
-                            {topic.Estimated_Hours && (
-                              <div className="view-topic-hours">⏱ {topic.Estimated_Hours} hours</div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Subtopics */}
-                        {topic.SubTopics && topic.SubTopics.length > 0 && (
-                          <div className="view-subtopics">
-                            {topic.SubTopics.map((sub, subIdx) => (
-                              <div key={sub.SubTopic_Id || subIdx} className="view-subtopic-item">
-                                <span className="view-subtopic-number">{sub.Order_Number}</span>
-                                <div className="view-subtopic-content">
-                                  <span className="view-subtopic-title">{sub.Title}</span>
-                                  {sub.Description && (
-                                    <div className="view-subtopic-description">{sub.Description}</div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* No Topics Message */}
-              {(!viewingCourse.fullData?.Topics || viewingCourse.fullData.Topics.length === 0) && (
-                <div className="view-section">
-                  <div className="view-no-content">
-                    <div style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
-                    <div>No topics added to this course yet.</div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="lec-modal-footer">
-              <button className="button primary" onClick={closeViewCourse}>Close</button>
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Add/Edit Course Form */}
       <div className="lec-form-card">
@@ -3762,34 +3648,149 @@ function CoursesTab() {
         {loadingCourses && <div className="lec-loading">Loading courses...</div>}
         {!loadingCourses && courses.length === 0 && <div className="muted">No courses created yet. Create your first course above!</div>}
         {!loadingCourses && courses.map((course) => (
-          <div className="item" key={course.id}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-              <img
-                src={course.image}
-                alt={course.name}
-                style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '8px' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div className="item-title">{course.name}</div>
-                <div className="item-sub">
-                  ₹{course.price} • {course.duration || 'Duration not set'} • Rating: {course.rating} ⭐
-                </div>
-                {course.description && (
-                  <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>
-                    {course.description.length > 100 ? `${course.description.substring(0, 100)}...` : course.description}
+          <React.Fragment key={course.id}>
+            <div className="item">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                <img
+                  src={course.image}
+                  alt={course.name}
+                  style={{ width: '80px', height: '60px', objectFit: 'cover', borderRadius: '8px' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div className="item-title">{course.name}</div>
+                  <div className="item-sub">
+                    ₹{course.price} • {course.duration || 'Duration not set'} • Rating: {course.rating} ⭐
                   </div>
-                )}
-                <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
-                  Category: {categories.find(c => c.categoryId === course.categoryId)?.categoryName || 'N/A'}
+                  {course.description && (
+                    <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', marginTop: '4px' }}>
+                      {course.description.length > 100 ? `${course.description.substring(0, 100)}...` : course.description}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
+                    Category: {categories.find(c => c.categoryId === course.categoryId)?.categoryName || 'N/A'}
+                  </div>
                 </div>
               </div>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button 
+                  className={`button ghost sm ${viewingCourse?.id === course.id ? 'active' : ''}`} 
+                  onClick={() => viewCourse(course)}
+                >
+                  {viewingCourse?.id === course.id ? 'Hide' : 'View'}
+                </button>
+                <button className="button ghost sm" onClick={() => startEdit(course)}>Edit</button>
+                <button className="button ghost sm" onClick={() => deleteCourse(course.id)}>Delete</button>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-              <button className="button ghost sm" onClick={() => viewCourse(course)}>View</button>
-              <button className="button ghost sm" onClick={() => startEdit(course)}>Edit</button>
-              <button className="button ghost sm" onClick={() => deleteCourse(course.id)}>Delete</button>
+
+            {/* Inline Expanded Course View */}
+            {viewingCourse?.id === course.id && (
+            <div className="inline-course-view">
+              <div className="inline-course-content">
+                {/* Course Header - Image Left, Details Right */}
+                <div className="inline-view-header">
+                  <div className="inline-view-image">
+                    <img
+                      src={viewingCourse.image || viewingCourse.fullData?.image_url}
+                      alt={viewingCourse.name}
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80';
+                      }}
+                    />
+                  </div>
+
+                  <div className="inline-view-details">
+                    <h2 className="inline-view-title">{viewingCourse.name}</h2>
+                    
+                    <div className="inline-view-meta">
+                      <div className="inline-meta-item">
+                        <span className="inline-meta-icon">🏷️</span>
+                        <span>{categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}</span>
+                      </div>
+                      <div className="inline-meta-item">
+                        <span className="inline-meta-icon">👨‍🏫</span>
+                        <span>{viewingCourse.instructor}</span>
+                      </div>
+                      <div className="inline-meta-item">
+                        <span className="inline-meta-icon">⭐</span>
+                        <span>{viewingCourse.rating} / 5.0</span>
+                      </div>
+                    </div>
+
+                    {viewingCourse.description && (
+                      <div className="inline-view-description">
+                        {viewingCourse.description}
+                      </div>
+                    )}
+
+                    <div className="inline-view-stats">
+                      <span className="inline-stat-badge">
+                        <span>💰</span>
+                        <span>₹{viewingCourse.price}</span>
+                      </span>
+                      <span className="inline-stat-badge">
+                        <span>⏱️</span>
+                        <span>{viewingCourse.duration || 'N/A'}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Topics & Subtopics Section */}
+                {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
+                  <div className="inline-view-section">
+                    <h4 className="inline-section-title">📋 Course Curriculum ({viewingCourse.fullData.Topics.length} Topics)</h4>
+                    <div className="inline-topics-container">
+                      {viewingCourse.fullData.Topics.map((topic, idx) => (
+                        <div key={topic.Topic_Id || idx} className="inline-topic-card">
+                          <div className="inline-topic-header">
+                            <span className="inline-topic-number">{topic.Order_Number}.</span>
+                            <div className="inline-topic-info">
+                              <span className="inline-topic-title">{topic.Title}</span>
+                              {topic.Description && (
+                                <div className="inline-topic-description">{topic.Description}</div>
+                              )}
+                              {topic.Estimated_Hours && (
+                                <div className="inline-topic-hours">⏱ {topic.Estimated_Hours} hours</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Subtopics */}
+                          {topic.SubTopics && topic.SubTopics.length > 0 && (
+                            <div className="inline-subtopics">
+                              {topic.SubTopics.map((sub, subIdx) => (
+                                <div key={sub.SubTopic_Id || subIdx} className="inline-subtopic-item">
+                                  <span className="inline-subtopic-number">{sub.Order_Number}</span>
+                                  <div className="inline-subtopic-content">
+                                    <span className="inline-subtopic-title">{sub.Title}</span>
+                                    {sub.Description && (
+                                      <div className="inline-subtopic-description">{sub.Description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No Topics Message */}
+                {(!viewingCourse.fullData?.Topics || viewingCourse.fullData.Topics.length === 0) && (
+                  <div className="inline-view-section">
+                    <div className="inline-no-content">
+                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
+                      <div>No topics added to this course yet.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+          </React.Fragment>
         ))}
       </div>
     </div>

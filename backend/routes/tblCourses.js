@@ -38,7 +38,17 @@ router.get('/', async (req, res) => {
 // Get single course by ID
 router.get('/:id', async (req, res) => {
   try {
-    const course = await Tbl_Courses.findOne({ Course_Id: req.params.id });
+    // Convert id to number since Course_Id is a number in the schema
+    const courseId = parseInt(req.params.id, 10);
+    
+    if (isNaN(courseId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid course ID format'
+      });
+    }
+
+    const course = await Tbl_Courses.findOne({ Course_Id: courseId });
     
     if (!course) {
       return res.status(404).json({
@@ -53,7 +63,7 @@ router.get('/:id', async (req, res) => {
     // Fetch subtopics for each topic
     const topicsWithSubTopics = await Promise.all(
       topics.map(async (topic) => {
-        const subtopics = await Tbl_CourseSubTopics.find({ Topic_Id: topic.Topic_Id });
+        const subtopics = await Tbl_CourseSubTopics.find({ Topic_Id: topic.Topic_Id }).sort({ Order_Number: 1 });
         return {
           ...topic.toObject(),
           SubTopics: subtopics
@@ -72,6 +82,7 @@ router.get('/:id', async (req, res) => {
       data: courseData
     });
   } catch (error) {
+    console.error('Error in GET /api/tbl-courses/:id:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching course',

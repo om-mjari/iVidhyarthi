@@ -588,7 +588,7 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
             <LearningStats />
 
             {/* AI-Powered Recommended Courses */}
-            <RecommendedCourses />
+            <RecommendedCourses onNavigate={onNavigate} />
 
           </main>
 

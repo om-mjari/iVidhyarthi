@@ -122,10 +122,12 @@ const certificationRoutes = require("./routes/certificationRoutes");
 const quizRoutes = require("./routes/quizRoutes");
 const videoProgressRoutes = require("./routes/videoProgressRoutes");
 const courseContentRoutes = require("./routes/courseContentRoutes");
+const courseTopicsRoutes = require("./routes/courseTopicsRoutes");
 const lecturerProfileRoutes = require("./routes/lecturerProfile");
 const lecturerOverviewRoutes = require("./routes/lecturerOverview");
 const lecturerStudentsRoutes = require("./routes/lecturerStudents");
 const sessionRoutes = require("./routes/sessionRoutes");
+const recommendationsRoutes = require("./routes/recommendationsRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -147,11 +149,13 @@ app.use("/api/certifications", certificationRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/video-progress", videoProgressRoutes);
 app.use("/api/course-content", courseContentRoutes);
+app.use("/api/course-topics", courseTopicsRoutes);
 app.use("/api/lecturer-profile", lecturerProfileRoutes);
 app.use("/api/lecturer-overview", lecturerOverviewRoutes);
 app.use("/api/lecturer-students", lecturerStudentsRoutes);
 app.use("/api/lecturer/sessions", sessionRoutes);
 app.use("/api/sessions", sessionRoutes); // Alias for student access
+app.use("/api/recommendations", recommendationsRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
@@ -398,14 +402,14 @@ app.post("/reset-password", async (req, res, next) => {
     if (!email || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Email and new password are required"
+        message: "Email and new password are required",
       });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 6 characters"
+        message: "Password must be at least 6 characters",
       });
     }
 
@@ -415,7 +419,7 @@ app.post("/reset-password", async (req, res, next) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -427,7 +431,7 @@ app.post("/reset-password", async (req, res, next) => {
 
     res.json({
       success: true,
-      message: "Password reset successfully"
+      message: "Password reset successfully",
     });
   } catch (err) {
     console.error("❌ Error resetting password:", err);
@@ -485,22 +489,25 @@ app.use("*", (req, res) => {
    ============================ */
 
 // Port availability checker
-const net = require('net');
+const net = require("net");
 
 function checkPortAvailability(port) {
   return new Promise((resolve, reject) => {
-    const tester = net.createServer()
-      .once('error', (err) => {
-        if (err.code === 'EADDRINUSE') {
+    const tester = net
+      .createServer()
+      .once("error", (err) => {
+        if (err.code === "EADDRINUSE") {
           resolve(false); // Port is in use
         } else {
           reject(err);
         }
       })
-      .once('listening', () => {
-        tester.once('close', () => {
-          resolve(true); // Port is available
-        }).close();
+      .once("listening", () => {
+        tester
+          .once("close", () => {
+            resolve(true); // Port is available
+          })
+          .close();
       })
       .listen(port);
   });
@@ -510,7 +517,7 @@ function checkPortAvailability(port) {
 async function startServer() {
   try {
     const isPortAvailable = await checkPortAvailability(PORT);
-    
+
     if (!isPortAvailable) {
       console.error(`\n❌ ERROR: Port ${PORT} is already in use!`);
       console.error(`\n💡 Solution:`);
@@ -555,7 +562,6 @@ async function startServer() {
         }
       });
     });
-
   } catch (error) {
     console.error("❌ Error starting server:", error.message);
     process.exit(1);

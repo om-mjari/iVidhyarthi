@@ -30,6 +30,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
 
+  // Course content from database
+  const [courseTopics, setCourseTopics] = useState([]);
+  const [courseContents, setCourseContents] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(false);
+
   // Doubt Solving Sessions state
   const [doubtSessions, setDoubtSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
@@ -366,6 +371,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       // Fetch assignments for this course
       fetchAssignments(course.id || course.Course_Id || 'COURSE_001');
 
+      // Fetch course topics and content
+      fetchCourseTopics(course.id || course.Course_Id || 'COURSE_001');
+      fetchCourseContent(course.id || course.Course_Id || 'COURSE_001');
+
       // Fetch progress
       fetchProgress(course.id || course.Course_Id || 'COURSE_001', userId);
 
@@ -384,6 +393,37 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       }
     } catch (error) {
       console.error('Error fetching assignments:', error);
+    }
+  };
+
+  // Fetch course topics from backend
+  const fetchCourseTopics = async (courseId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/course-topics/course/${courseId}`);
+      const result = await response.json();
+      if (result.success) {
+        setCourseTopics(result.data);
+        console.log('✅ Course topics fetched:', result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching course topics:', error);
+    }
+  };
+
+  // Fetch course content (videos, pdfs, notes) from backend
+  const fetchCourseContent = async (courseId) => {
+    try {
+      setLoadingContent(true);
+      const response = await fetch(`http://localhost:5000/api/course-content/course/${courseId}`);
+      const result = await response.json();
+      if (result.success) {
+        setCourseContents(result.data);
+        console.log('✅ Course content fetched:', result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching course content:', error);
+    } finally {
+      setLoadingContent(false);
     }
   };
 
@@ -555,6 +595,32 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   };
 
   // Course content data - NPTEL style with multi-language support
+  // Process videos from courseContents (filter by Content_Type === 'video')
+  const processedVideos = courseContents
+    .filter(content => content.Content_Type === 'video')
+    .map((content, index) => ({
+      id: index + 1,
+      title: content.Title,
+      duration: "15:00", // Default duration, can be enhanced
+      url: content.File_Url,
+      description: content.Title,
+      topic_id: content.Topic_Id,
+      transcripts: {
+        English: "Transcript not available",
+        Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
+        Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+      }
+    }));
+
+  // Group content by topics for organized display
+  const contentByTopic = {};
+  courseTopics.forEach(topic => {
+    contentByTopic[topic.Topic_Id] = {
+      topic: topic,
+      contents: courseContents.filter(c => c.Topic_Id === topic.Topic_Id)
+    };
+  });
+
   const courseContent = {
     info: {
       title: courseInfo?.Name || selectedCourse?.name || "Introduction to Internet of Things",
@@ -570,7 +636,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       duration: courseInfo?.Duration || "12 Weeks",
       level: courseInfo?.Level || "Beginner to Intermediate"
     },
-    videos: courseInfo?.Videos || [
+    videos: processedVideos.length > 0 ? processedVideos : [
       {
         id: 1,
         title: "Introduction to IoT - Part I",
@@ -1142,6 +1208,121 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             </div>
           </div>
         </div>
+
+        {/* Course Content by Topics Section */}
+        {courseTopics.length > 0 && (
+          <div className="nptel-section">
+            <h2 className="nptel-section-title">📚 Course Content</h2>
+            <div className="course-topics-container">
+              {loadingContent ? (
+                <div className="loading-topics">
+                  <div className="loading-spinner"></div>
+                  <p>Loading course content...</p>
+                </div>
+              ) : (
+                courseTopics.map((topic, index) => {
+                  const topicContents = Object.values(contentByTopic[topic.Topic_Id]?.contents || []);
+                  const videos = topicContents.filter(c => c.Content_Type === 'video');
+                  const pdfs = topicContents.filter(c => c.Content_Type === 'pdf');
+                  const notes = topicContents.filter(c => c.Content_Type === 'notes');
+
+                  return (
+                    <div key={topic.Topic_Id} className="topic-card">
+                      <div className="topic-header">
+                        <div className="topic-number">{index + 1}</div>
+                        <div className="topic-info">
+                          <h3 className="topic-title">{topic.Title}</h3>
+                          {topic.Description && (
+                            <p className="topic-description">{topic.Description}</p>
+                          )}
+                          {topic.Estimated_Hours && (
+                            <span className="topic-duration">⏱️ {topic.Estimated_Hours} hours</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {topicContents.length > 0 && (
+                        <div className="topic-content-section">
+                          {videos.length > 0 && (
+                            <div className="content-type-group">
+                              <h4 className="content-type-title">🎥 Video Lectures ({videos.length})</h4>
+                              <div className="content-items-list">
+                                {videos.map((video, idx) => (
+                                  <div key={idx} className="content-item">
+                                    <span className="content-icon">🎥</span>
+                                    <span className="content-title">{video.Title}</span>
+                                    <a 
+                                      href={video.File_Url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="content-link"
+                                    >
+                                      Watch
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {pdfs.length > 0 && (
+                            <div className="content-type-group">
+                              <h4 className="content-type-title">📄 PDF Resources ({pdfs.length})</h4>
+                              <div className="content-items-list">
+                                {pdfs.map((pdf, idx) => (
+                                  <div key={idx} className="content-item">
+                                    <span className="content-icon">📄</span>
+                                    <span className="content-title">{pdf.Title}</span>
+                                    <a 
+                                      href={pdf.File_Url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="content-link"
+                                    >
+                                      Download
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {notes.length > 0 && (
+                            <div className="content-type-group">
+                              <h4 className="content-type-title">📝 Study Notes ({notes.length})</h4>
+                              <div className="content-items-list">
+                                {notes.map((note, idx) => (
+                                  <div key={idx} className="content-item">
+                                    <span className="content-icon">📝</span>
+                                    <span className="content-title">{note.Title}</span>
+                                    <a 
+                                      href={note.File_Url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="content-link"
+                                    >
+                                      View
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {topicContents.length === 0 && (
+                        <div className="no-content">
+                          <p>No content available for this topic yet.</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Course Progress Card */}
         <div className="nptel-progress-card">

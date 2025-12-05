@@ -1,0 +1,264 @@
+{
+  "example_api_response": {
+    "description": "Example response from /api/recommendations/student/:studentId endpoint",
+    "endpoint": "GET /api/recommendations/student/STU001?limit=6",
+    "response": {
+      "success": true,
+      "count": 6,
+      "data": [
+        {
+          "Course_Id": "WD201",
+          "Title": "Advanced React & TypeScript",
+          "Description": "Master React with TypeScript, build scalable applications with best practices",
+          "Category": "Web Development",
+          "Tags": "React, TypeScript, Frontend, Hooks, Redux",
+          "Instructor_Name": "Dr. Sarah Johnson",
+          "Price": 1299,
+          "Rating": 4.8,
+          "Enrolled_Students": 2340,
+          "Duration": "12 weeks",
+          "Level": "Advanced",
+          "Thumbnail_URL": "https://example.com/react-ts.jpg",
+          "Status": "Active",
+          "matchScore": "95",
+          "matchDetails": {
+            "textSimilarity": "88.5",
+            "categoryMatch": true,
+            "tagsSimilarity": "75.0",
+            "levelMatch": true
+          }
+        },
+        {
+          "Course_Id": "WD301",
+          "Title": "Next.js Full Stack Development",
+          "Description": "Build production-ready applications with Next.js, Server Components, and API routes",
+          "Category": "Web Development",
+          "Tags": "Next.js, React, SSR, Full Stack, API",
+          "Instructor_Name": "Prof. Michael Chen",
+          "Price": 1499,
+          "Rating": 4.9,
+          "Enrolled_Students": 3120,
+          "Duration": "16 weeks",
+          "Level": "Intermediate",
+          "Thumbnail_URL": "https://example.com/nextjs.jpg",
+          "Status": "Active",
+          "matchScore": "88",
+          "matchDetails": {
+            "textSimilarity": "82.3",
+            "categoryMatch": true,
+            "tagsSimilarity": "60.0",
+            "levelMatch": true
+          }
+        },
+        {
+          "Course_Id": "WD401",
+          "Title": "GraphQL with React & Apollo",
+          "Description": "Learn modern data fetching with GraphQL, Apollo Client, and React",
+          "Category": "Web Development",
+          "Tags": "GraphQL, React, Apollo, API, Frontend",
+          "Instructor_Name": "John Smith",
+          "Price": 1299,
+          "Rating": 4.7,
+          "Enrolled_Students": 1890,
+          "Duration": "10 weeks",
+          "Level": "Intermediate",
+          "Thumbnail_URL": "https://example.com/graphql.jpg",
+          "Status": "Active",
+          "matchScore": "85",
+          "matchDetails": {
+            "textSimilarity": "78.9",
+            "categoryMatch": true,
+            "tagsSimilarity": "65.0",
+            "levelMatch": true
+          }
+        },
+        {
+          "Course_Id": "WD501",
+          "Title": "Vue.js Complete Masterclass",
+          "Description": "Master Vue.js 3 with Composition API, Pinia, and modern development",
+          "Category": "Web Development",
+          "Tags": "Vue, JavaScript, Frontend, Vuex, Pinia",
+          "Instructor_Name": "Emily Davis",
+          "Price": 1199,
+          "Rating": 4.6,
+          "Enrolled_Students": 1650,
+          "Duration": "10 weeks",
+          "Level": "Intermediate",
+          "Thumbnail_URL": "https://example.com/vue.jpg",
+          "Status": "Active",
+          "matchScore": "72",
+          "matchDetails": {
+            "textSimilarity": "65.2",
+            "categoryMatch": true,
+            "tagsSimilarity": "45.0",
+            "levelMatch": true
+          }
+        },
+        {
+          "Course_Id": "BD201",
+          "Title": "Node.js Backend Development",
+          "Description": "Build scalable backend APIs with Node.js, Express, and MongoDB",
+          "Category": "Backend Development",
+          "Tags": "Node.js, Express, MongoDB, API, Backend",
+          "Instructor_Name": "Robert Wilson",
+          "Price": 1399,
+          "Rating": 4.7,
+          "Enrolled_Students": 2100,
+          "Duration": "12 weeks",
+          "Level": "Intermediate",
+          "Thumbnail_URL": "https://example.com/nodejs.jpg",
+          "Status": "Active",
+          "matchScore": "68",
+          "matchDetails": {
+            "textSimilarity": "58.4",
+            "categoryMatch": false,
+            "tagsSimilarity": "55.0",
+            "levelMatch": true
+          }
+        },
+        {
+          "Course_Id": "WD601",
+          "Title": "Modern CSS & Tailwind CSS",
+          "Description": "Master modern CSS, Flexbox, Grid, and Tailwind CSS framework",
+          "Category": "Web Development",
+          "Tags": "CSS, Tailwind, Frontend, Design, Responsive",
+          "Instructor_Name": "Lisa Anderson",
+          "Price": 899,
+          "Rating": 4.5,
+          "Enrolled_Students": 1420,
+          "Duration": "8 weeks",
+          "Level": "Beginner",
+          "Thumbnail_URL": "https://example.com/css.jpg",
+          "Status": "Active",
+          "matchScore": "65",
+          "matchDetails": {
+            "textSimilarity": "52.7",
+            "categoryMatch": true,
+            "tagsSimilarity": "40.0",
+            "levelMatch": false
+          }
+        }
+      ]
+    }
+  },
+  
+  "frontend_usage": {
+    "description": "How the frontend component uses this data",
+    "component": "RecommendedCourses.jsx",
+    "data_flow": [
+      "1. Component calls fetch API on mount",
+      "2. Gets student ID from localStorage (auth_user)",
+      "3. Fetches from /api/recommendations/student/{studentId}",
+      "4. Transforms data to component format",
+      "5. Displays courses with match scores",
+      "6. Allows navigation to course details on click"
+    ],
+    "transformation": {
+      "Course_Id": "maps to → id",
+      "Title": "maps to → title",
+      "Instructor_Name": "maps to → instructor",
+      "Price": "maps to → price",
+      "Rating": "maps to → rating",
+      "Enrolled_Students": "maps to → students",
+      "Duration": "maps to → duration",
+      "Level": "maps to → level",
+      "matchScore": "displays as → {score}% Match badge",
+      "Thumbnail_URL": "maps to → image",
+      "Tags": "parsed and mapped to → tags array"
+    }
+  },
+
+  "recommendation_logic": {
+    "weights": {
+      "text_similarity": "40% - TF-IDF cosine similarity on title, description, category, tags",
+      "category_match": "30% - Exact match on course category",
+      "tags_similarity": "20% - Jaccard similarity on course tags",
+      "level_match": "10% - Same difficulty level bonus"
+    },
+    "algorithm": "TF-IDF + Cosine Similarity",
+    "library": "natural (Node.js NLP library)",
+    "features": [
+      "Text preprocessing (lowercasing, tokenization, stopword removal)",
+      "TF-IDF vectorization for keyword importance",
+      "Cosine similarity for text comparison",
+      "Jaccard similarity for tag overlap",
+      "Multi-course aggregation for personalized recommendations"
+    ]
+  },
+
+  "sample_scenarios": {
+    "scenario_1": {
+      "description": "Student enrolled in 'React Fundamentals'",
+      "enrolled_course": {
+        "Title": "React Fundamentals",
+        "Category": "Web Development",
+        "Tags": "React, JavaScript, Frontend"
+      },
+      "expected_recommendations": [
+        "Advanced React & TypeScript (95% - same tech, next level)",
+        "Next.js Full Stack (88% - React-based framework)",
+        "GraphQL with React (85% - React ecosystem)",
+        "Vue.js Masterclass (72% - similar category, different framework)"
+      ]
+    },
+    
+    "scenario_2": {
+      "description": "Student enrolled in multiple courses (React + Python)",
+      "enrolled_courses": [
+        {
+          "Title": "React Development",
+          "Category": "Web Development",
+          "Tags": "React, JavaScript"
+        },
+        {
+          "Title": "Python for Data Science",
+          "Category": "Data Science",
+          "Tags": "Python, Pandas, ML"
+        }
+      ],
+      "expected_recommendations": [
+        "Advanced React (high match - React progression)",
+        "Machine Learning with Python (high match - Python + ML)",
+        "Full Stack with React & Django (high match - combines both)",
+        "Node.js Backend (moderate - complements frontend)",
+        "Data Visualization (moderate - data science path)"
+      ]
+    },
+
+    "scenario_3": {
+      "description": "New student (no enrollments)",
+      "enrolled_courses": [],
+      "expected_recommendations": "Falls back to popular courses sorted by rating and enrollment count"
+    }
+  },
+
+  "ui_display": {
+    "match_score_badge": "Top-right corner of each card, gradient background",
+    "course_card_layout": [
+      "Match score badge (top-right)",
+      "Course thumbnail/image (180px height)",
+      "Course title",
+      "Instructor name",
+      "Tags (up to 3 chips)",
+      "Rating stars + student count",
+      "Duration + Level",
+      "Price + Enroll Now button"
+    ],
+    "states": {
+      "loading": "Spinner with 'Finding perfect courses for you...'",
+      "success": "Grid of recommended courses",
+      "error": "Error message with retry option",
+      "empty": "No recommendations message"
+    }
+  },
+
+  "installation_checklist": [
+    "✓ Install 'natural' package: npm install natural",
+    "✓ Backend files created: recommendationEngine.js, recommendationsRoutes.js",
+    "✓ Routes registered in server.js",
+    "✓ Frontend updated: RecommendedCourses.jsx with API integration",
+    "✓ CSS updated: Loading states and image support",
+    "✓ PropTypes: onNavigate prop passed from parent",
+    "✓ Documentation: RECOMMENDATION_SYSTEM_GUIDE.md created"
+  ]
+}

@@ -5,6 +5,25 @@ import QuizPage from './QuizPage';
 import AssignmentViewer from './AssignmentViewer';
 import './CourseLearningPage.css';
 
+// Helper function to remove autoplay from video URLs
+const removeAutoplay = (url) => {
+  if (!url) return url;
+  
+  try {
+    const urlObj = new URL(url);
+    // Remove autoplay parameter
+    urlObj.searchParams.delete('autoplay');
+    // Set autoplay to 0 for YouTube
+    if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+      urlObj.searchParams.set('autoplay', '0');
+    }
+    return urlObj.toString();
+  } catch (e) {
+    // If URL parsing fails, try simple string replacement
+    return url.replace(/[?&]autoplay=1/g, '').replace(/autoplay=1[&]?/g, '');
+  }
+};
+
 const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [currentVideo, setCurrentVideo] = useState(0);
@@ -653,7 +672,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           setSelectedVideo({
             id: firstVideo.Content_Id,
             title: firstVideo.Title,
-            url: firstVideo.File_Url,
+            url: removeAutoplay(firstVideo.File_Url),
             description: firstVideo.Description || firstVideo.Title,
             duration: "15:00",
             transcripts: {
@@ -1691,68 +1710,85 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
                       {/* Action Buttons */}
                       {topicContents.length > 0 ? (
-                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {videos.length > 0 && (
-                            <button style={{
-                              flex: 1,
-                              minWidth: '140px',
-                              padding: '12px 20px',
-                              background: 'linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontSize: '0.95rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              transition: 'all 0.3s ease'
-                            }}
-                            onClick={() => {
-                              const firstVideo = videos[0];
-                              console.log('Selected video:', firstVideo);
-                              const videoData = {
-                                id: firstVideo.Content_Id,
-                                title: firstVideo.Title,
-                                url: firstVideo.File_Url,
-                                description: firstVideo.Description || firstVideo.Title,
-                                duration: "15:00",
-                                transcripts: {
-                                  English: "Transcript not available",
-                                  Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
-                                  Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
-                                }
-                              };
-                              console.log('Setting video data:', videoData);
-                              setSelectedVideo(videoData);
-                              console.log('Video state updated');
-                              // Scroll to video section
-                              setTimeout(() => {
-                                if (videoSectionRef.current) {
-                                  videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }
-                              }, 100);
-                            }}
-                            >
-                              Watch Videos
-                            </button>
+                            <div>
+                              {videos.map((video, vidIndex) => (
+                                <button key={video.Content_Id} style={{
+                                  width: '100%',
+                                  padding: '12px 20px',
+                                  marginBottom: '8px',
+                                  background: 'linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '10px',
+                                  fontSize: '0.95rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s ease',
+                                  textAlign: 'left',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '10px'
+                                }}
+                                onClick={() => {
+                                  console.log('Selected video:', video);
+                                  const videoData = {
+                                    id: video.Content_Id,
+                                    title: video.Title,
+                                    url: removeAutoplay(video.File_Url),
+                                    description: video.Description || video.Title,
+                                    duration: "15:00",
+                                    transcripts: {
+                                      English: "Transcript not available",
+                                      Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
+                                      Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+                                    }
+                                  };
+                                  console.log('Setting video data:', videoData);
+                                  setSelectedVideo(videoData);
+                                  console.log('Video state updated');
+                                  // Scroll to video section
+                                  setTimeout(() => {
+                                    if (videoSectionRef.current) {
+                                      videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                  }, 100);
+                                }}
+                                >
+                                  <span>🎥</span>
+                                  <span>{video.Title}</span>
+                                </button>
+                              ))}
+                            </div>
                           )}
                           {pdfs.length > 0 && (
-                            <button style={{
-                              flex: 1,
-                              minWidth: '140px',
-                              padding: '12px 20px',
-                              background: 'white',
-                              color: '#14b8a6',
-                              border: '2px solid #14b8a6',
-                              borderRadius: '10px',
-                              fontSize: '0.95rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              transition: 'all 0.3s ease'
-                            }}
-                            onClick={() => window.open(pdfs[0].File_Url, '_blank')}
-                            >
-                              View Resources
-                            </button>
+                            <div>
+                              {pdfs.map((pdf, pdfIndex) => (
+                                <button key={pdf.Content_Id} style={{
+                                  width: '100%',
+                                  padding: '12px 20px',
+                                  marginBottom: '8px',
+                                  background: 'white',
+                                  color: '#14b8a6',
+                                  border: '2px solid #14b8a6',
+                                  borderRadius: '10px',
+                                  fontSize: '0.95rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s ease',
+                                  textAlign: 'left',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '10px'
+                                }}
+                                onClick={() => window.open(pdf.File_Url, '_blank')}
+                                >
+                                  <span>📄</span>
+                                  <span>{pdf.Title}</span>
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
                       ) : (

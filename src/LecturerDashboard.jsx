@@ -4029,17 +4029,69 @@ function FeedbackTab() {
           <div className="muted">No feedback available</div>
         ) : (
           feedbackList.map((f) => (
-            <div className="item" key={f.id}>
+            <div className="item" key={f.id} style={{
+              background: 'white',
+              borderRadius: '8px',
+              padding: '16px',
+              border: '1px solid #e0e0e0',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+              marginBottom: '12px'
+            }}>
               <div>
-                <div className="item-title">
-                  {f.studentName} • {Array.from({ length: f.rating }).map((_, i) => '⭐').join('')}
-                  <span style={{ marginLeft: '10px', color: '#666', fontSize: '0.9em' }}>
-                    ({f.courseName})
-                  </span>
+                {/* Student Name and Course Name */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{
+                    fontWeight: '700',
+                    fontSize: '1.05rem',
+                    color: '#1a1a1a'
+                  }}>
+                    {f.studentName}
+                  </div>
+                  <div style={{
+                    fontSize: '0.9rem',
+                    color: '#666',
+                    marginTop: '4px'
+                  }}>
+                    {f.courseName}
+                  </div>
                 </div>
-                <div className="item-sub">{f.comment}</div>
-                <div className="item-sub" style={{ fontSize: '0.85em', color: '#999', marginTop: '4px' }}>
-                  {new Date(f.date).toLocaleDateString()}
+                
+                {/* Comment */}
+                <div style={{
+                  color: '#333',
+                  fontSize: '0.95rem',
+                  lineHeight: '1.5',
+                  marginBottom: '10px',
+                  padding: '10px',
+                  background: '#f8f9fa',
+                  borderRadius: '6px',
+                  borderLeft: '3px solid #14b8a6'
+                }}>
+                  {f.comment}
+                </div>
+                
+                {/* Rating and Date */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  {/* Rating */}
+                  <div style={{ fontSize: '1rem' }}>
+                    {Array.from({ length: f.rating }).map((_, i) => '⭐').join('')}
+                  </div>
+                  
+                  {/* Date */}
+                  <div style={{
+                    fontSize: '0.85rem',
+                    color: '#999'
+                  }}>
+                    {new Date(f.date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

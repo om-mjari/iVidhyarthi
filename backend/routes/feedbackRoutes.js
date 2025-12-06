@@ -65,12 +65,40 @@ router.get("/course/:courseId", async (req, res) => {
   try {
     const feedbacks = await Feedback.find({
       Course_Id: req.params.courseId,
-      Status: "Approved",
     }).sort({ Posted_On: -1 });
+
+    // Get student names and course name for each feedback
+    const Student = require("../models/Tbl_Students");
+    const Course = require("../models/Tbl_Course");
+    
+    const enrichedFeedbacks = await Promise.all(
+      feedbacks.map(async (feedback) => {
+        const student = await Student.findOne({
+          _id: feedback.Student_Id,
+        }).lean();
+        
+        const course = await Course.findOne({
+          Course_Id: feedback.Course_Id,
+        }).lean();
+        
+        return {
+          Feedback_Id: feedback.Feedback_Id,
+          Course_Id: feedback.Course_Id,
+          Course_Name: course ? course.Title : "Unknown Course",
+          Student_Id: feedback.Student_Id,
+          Student_Name: student ? student.Full_Name : "Unknown Student",
+          Rating: feedback.Rating,
+          Comment: feedback.Comment,
+          Status: feedback.Status,
+          Posted_On: feedback.Posted_On,
+          Submission_Date: feedback.Posted_On,
+        };
+      })
+    );
 
     res.json({
       success: true,
-      data: feedbacks,
+      data: enrichedFeedbacks,
     });
   } catch (error) {
     res.status(500).json({

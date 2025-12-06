@@ -186,7 +186,7 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
     setIsProfileOpen(true);
   };
 
-  const handleEnroll = (course) => {
+  const handleEnroll = async (course) => {
     // Normalize course data to ensure consistent field names throughout the flow
     const normalizedCourse = {
       Course_Id: course.Course_Id || course.id, // Keep Course_Id for enrollment
@@ -198,7 +198,49 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
       image: course.image_url || course.image || 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?w=400&h=300&fit=crop',
       rating: course.rating || 4.5
     };
-    console.log('💳 Enrolling in course:', normalizedCourse);
+
+    console.log('🔍 Checking enrollment for course:', normalizedCourse.Course_Id);
+
+    // Check if user is already enrolled in this course
+    try {
+      const authUser = localStorage.getItem('auth_user');
+      if (authUser) {
+        const user = JSON.parse(authUser);
+        const userId = user.id || user._id;
+        
+        console.log('👤 User ID:', userId);
+        
+        // Check enrollment status
+        const response = await fetch(`http://localhost:5000/api/enrollments/student/${userId}`);
+        const result = await response.json();
+        
+        console.log('📊 Enrollment data:', result);
+        
+        if (result.success && result.data) {
+          const isEnrolled = result.data.some(enrollment => {
+            const enrolled = enrollment.Course_Id == normalizedCourse.Course_Id || 
+                           enrollment.Course_Id == normalizedCourse.id;
+            console.log(`Comparing enrollment Course_Id: ${enrollment.Course_Id} with ${normalizedCourse.Course_Id}:`, enrolled);
+            return enrolled;
+          });
+          
+          console.log('✅ Is enrolled:', isEnrolled);
+          
+          if (isEnrolled) {
+            // Already enrolled, redirect to CourseLearningPage
+            console.log('✅ Already enrolled, redirecting to learning page');
+            localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
+            onNavigate && onNavigate('learning');
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking enrollment:', error);
+    }
+
+    // Not enrolled, proceed with enrollment flow
+    console.log('💳 Not enrolled, proceeding to course details');
     localStorage.setItem('selected_course', JSON.stringify(normalizedCourse));
     onNavigate && onNavigate('course');
   };

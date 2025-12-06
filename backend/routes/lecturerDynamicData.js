@@ -39,11 +39,11 @@ router.get("/:lecturerId", async (req, res) => {
     console.log(`   Found ${feedbackRecords.length} feedback records`);
 
     // Enrich feedback with student names and course names
-    const User = getModel("User", "User");
+    const Student = require("../models/Tbl_Students");
     const feedbackList = await Promise.all(
       feedbackRecords.map(async (feedback) => {
-        const student = await User.findOne({
-          User_Id: feedback.Student_Id,
+        const student = await Student.findOne({
+          _id: feedback.Student_Id,
         }).lean();
         const courseId =
           typeof feedback.Course_Id === "string"
@@ -53,7 +53,7 @@ router.get("/:lecturerId", async (req, res) => {
 
         return {
           id: feedback.Feedback_Id || feedback._id,
-          studentName: student ? student.Name : "Unknown Student",
+          studentName: student ? student.Full_Name : "Unknown Student",
           courseName: course ? course.Title : "Unknown Course",
           rating: feedback.Rating || 0,
           comment: feedback.Comments || feedback.Comment || "",

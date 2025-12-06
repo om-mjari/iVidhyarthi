@@ -46,12 +46,16 @@ async function downloadFile(url, outputPath) {
 }
 
 // Transcribe audio using OpenAI Whisper
-async function transcribeAudio(audioFilePath) {
+async function transcribeAudio(audioFilePath, language = 'en') {
   try {
+    if (!openai) {
+      throw new Error('OpenAI client not initialized');
+    }
+
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(audioFilePath),
       model: "whisper-1",
-      language: "en"
+      language: language // Set language for transcription
     });
     
     return transcription.text;
@@ -209,37 +213,50 @@ async function processVideoTranscript(videoUrl, videoTitle, targetLanguage = 'En
     fs.mkdirSync(tempDir, { recursive: true });
   }
   
+  const timestamp = Date.now();
+  const audioFilePath = path.join(tempDir, `audio_${timestamp}.mp3`);
+  
   try {
-    // Simulated transcript for demo purposes
-    // In production with OpenAI API key, this would use actual Whisper transcription
-    let transcript = `Welcome to this educational video on ${videoTitle}. 
+    if (!openai) {
+      throw new Error('OpenAI API key not configured. Please add OPENAI_API_KEY to your .env file.');
+    }
 
-In this lecture, we will explore the fundamental concepts and principles related to this topic. We'll begin by introducing the basic definitions and terminology that are essential for understanding the subject matter.
-
-The main topics covered in this video include:
-1. Introduction to core concepts
-2. Detailed explanation of key principles
-3. Practical examples and applications
-4. Common challenges and solutions
-5. Best practices and recommendations
-
-Throughout this presentation, we will use real-world examples to illustrate how these concepts are applied in practice. We'll also discuss common misconceptions and provide clarity on complex topics.
-
-By the end of this video, you should have a solid understanding of the subject matter and be able to apply these concepts in your own work or studies. Remember to take notes and review the material as needed for better retention.
-
-Thank you for watching, and we hope you find this content valuable for your learning journey.`;
+    console.log('Downloading video from URL:', videoUrl);
     
-    // Translate if needed and OpenAI is available
-    if (targetLanguage !== 'English' && openai) {
-      try {
-        transcript = await translateText(transcript, targetLanguage);
-      } catch (error) {
-        console.log('Translation failed, using English transcript');
-      }
+    // Download the video/audio file
+    await downloadFile(videoUrl, audioFilePath);
+    console.log('Video downloaded successfully');
+    
+    // Map language names to ISO codes for Whisper
+    const languageCodeMap = {
+      'English': 'en',
+      'Hindi': 'hi',
+      'Gujarati': 'gu'
+    };
+    
+    const languageCode = languageCodeMap[targetLanguage] || 'en';
+    
+    // Transcribe audio using Whisper
+    console.log(`Transcribing audio in ${targetLanguage} (${languageCode})...`);
+    let transcript = await transcribeAudio(audioFilePath, languageCode);
+    console.log('Transcription completed');
+    
+    // If target language is not English, translate the transcript
+    if (targetLanguage !== 'English' && languageCode === 'en') {
+      console.log(`Translating to ${targetLanguage}...`);
+      transcript = await translateText(transcript, targetLanguage);
     }
     
-    // Generate summary
+    // Generate summary in the target language
+    console.log('Generating summary...');
     const summary = await generateSummary(transcript, targetLanguage);
+    
+    // Clean up temporary file
+    try {
+      fs.unlinkSync(audioFilePath);
+    } catch (err) {
+      console.log('Error cleaning up temp file:', err);
+    }
     
     return {
       transcript,
@@ -247,6 +264,15 @@ Thank you for watching, and we hope you find this content valuable for your lear
       language: targetLanguage
     };
   } catch (error) {
+    // Clean up temporary file in case of error
+    try {
+      if (fs.existsSync(audioFilePath)) {
+        fs.unlinkSync(audioFilePath);
+      }
+    } catch (err) {
+      console.log('Error cleaning up temp file:', err);
+    }
+    
     console.error('Error processing video transcript:', error);
     throw error;
   }

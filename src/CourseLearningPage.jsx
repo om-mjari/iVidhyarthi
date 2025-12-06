@@ -78,6 +78,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [watchedVideos, setWatchedVideos] = useState([]);
 
   // Track videos currently being watched with timer
+
+  // User feedbacks state
+  const [courseFeedbacks, setCourseFeedbacks] = useState([]);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
   const [watchingVideos, setWatchingVideos] = useState({});
 
   // Store interval IDs to clear them later
@@ -687,6 +691,14 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     }
   }, [courseTopics, courseContents, selectedVideo]);
 
+  // Fetch course feedbacks when course is loaded
+  useEffect(() => {
+    if (selectedCourse?.id || selectedCourse?.Course_Id) {
+      const courseId = selectedCourse.id || selectedCourse.Course_Id;
+      fetchCourseFeedbacks(courseId);
+    }
+  }, [selectedCourse]);
+
   // Fetch progress from backend
   const fetchProgress = async (courseId, userId) => {
     try {
@@ -722,6 +734,23 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setProgress(newProgress);
     } catch (error) {
       console.error('Error updating progress:', error);
+    }
+  };
+
+  // Fetch course feedbacks
+  const fetchCourseFeedbacks = async (courseId) => {
+    try {
+      setLoadingFeedbacks(true);
+      const response = await fetch(`http://localhost:5000/api/feedback/course/${courseId}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setCourseFeedbacks(result.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching feedbacks:', error);
+    } finally {
+      setLoadingFeedbacks(false);
     }
   };
 
@@ -787,6 +816,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (result.success) {
         alert('✅ Thank you for your feedback! Your feedback has been submitted successfully.');
         setFeedbackData({ rating: 5, comment: '' });
+        // Refresh feedbacks after submission
+        fetchCourseFeedbacks(courseId);
       } else {
         alert('Failed to submit feedback: ' + (result.message || 'Unknown error'));
       }
@@ -1919,6 +1950,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
                     className="nptel-video-iframe"
+                    sandbox="allow-scripts allow-same-origin allow-presentation"
                   ></iframe>
                 </div>
                 <div className="video-card-footer">
@@ -2263,6 +2295,152 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               >
                 Submit Feedback
               </button>
+            </div>
+
+            {/* Student Reviews Display */}
+            <div style={{ marginTop: '40px', paddingTop: '30px', borderTop: '2px solid #e0e0e0' }}>
+              <h3 style={{ 
+                fontSize: '1.5rem', 
+                marginBottom: '24px', 
+                color: '#1a1a1a',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}>
+                💬 Student Reviews
+                {courseFeedbacks.length > 0 && (
+                  <span style={{
+                    fontSize: '0.9rem',
+                    color: '#666',
+                    fontWeight: 'normal'
+                  }}>
+                    ({courseFeedbacks.length})
+                  </span>
+                )}
+              </h3>
+              
+              {loadingFeedbacks ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                  <div className="loading-spinner"></div>
+                  <p>Loading reviews...</p>
+                </div>
+              ) : courseFeedbacks.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px 20px',
+                  background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                  borderRadius: '12px',
+                  color: '#666'
+                }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '12px' }}>📝</div>
+                  <h4 style={{ marginBottom: '8px', color: '#333' }}>No Reviews Yet</h4>
+                  <p>Be the first to share your experience with this course!</p>
+                </div>
+              ) : (
+                <div style={{
+                  display: 'grid',
+                  gap: '20px'
+                }}>
+                  {courseFeedbacks.map((feedback, index) => {
+                    const isOwnFeedback = feedback.Student_Id === studentId;
+                    return (
+                      <div key={feedback.Feedback_Id || index} style={{
+                        background: isOwnFeedback ? '#f0f9ff' : 'white',
+                        borderRadius: '8px',
+                        padding: '20px',
+                        border: isOwnFeedback ? '2px solid #3b82f6' : '1px solid #e0e0e0',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                      }}>
+                        {/* Student Name and Course Name */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '12px'
+                        }}>
+                          <div>
+                            <div style={{
+                              fontWeight: '700',
+                              fontSize: '1.1rem',
+                              color: '#1a1a1a',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              {feedback.Student_Name || 'Unknown Student'}
+                              {isOwnFeedback && (
+                                <span style={{
+                                  fontSize: '0.7rem',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  padding: '3px 10px',
+                                  borderRadius: '12px',
+                                  fontWeight: '600'
+                                }}>You</span>
+                              )}
+                            </div>
+                            <div style={{
+                              fontSize: '0.9rem',
+                              color: '#666',
+                              marginTop: '4px'
+                            }}>
+                              {feedback.Course_Name || 'Course'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Comment */}
+                        <div style={{
+                          color: '#333',
+                          fontSize: '0.95rem',
+                          lineHeight: '1.6',
+                          marginBottom: '12px',
+                          padding: '12px',
+                          background: '#f8f9fa',
+                          borderRadius: '6px',
+                          borderLeft: '3px solid #3b82f6'
+                        }}>
+                          {feedback.Comment}
+                        </div>
+                        
+                        {/* Rating and Date */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}>
+                          {/* Rating Stars */}
+                          <div style={{
+                            display: 'flex',
+                            gap: '3px',
+                            fontSize: '1.1rem'
+                          }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span key={star} style={{
+                                color: star <= (feedback.Rating || 0) ? '#ffc107' : '#e0e0e0'
+                              }}>
+                                ★
+                              </span>
+                            ))}
+                          </div>
+                          
+                          {/* Date */}
+                          <div style={{
+                            fontSize: '0.85rem',
+                            color: '#999'
+                          }}>
+                            {feedback.Posted_On ? new Date(feedback.Posted_On).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            }) : 'Recently'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>

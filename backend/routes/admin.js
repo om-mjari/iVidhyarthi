@@ -628,13 +628,13 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
         if (feedback.Course_Id) {
           // Try parsing as number first
           const courseId = parseInt(feedback.Course_Id);
-          
+
           if (!isNaN(courseId)) {
             // Numeric Course_Id
-            const course = await Courses.findOne(
-              { Course_Id: courseId }
-            ).select('Title').lean();
-            
+            const course = await Courses.findOne({ Course_Id: courseId })
+              .select("Title")
+              .lean();
+
             if (course) {
               courseTitle = course.Title;
             }
@@ -642,10 +642,10 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
             // String Course_Id like "COURSE_001" - extract the number
             const match = feedback.Course_Id.match(/COURSE_(\d+)/);
             const extractedId = parseInt(match[1]);
-            const course = await Courses.findOne(
-              { Course_Id: extractedId }
-            ).select('Title').lean();
-            
+            const course = await Courses.findOne({ Course_Id: extractedId })
+              .select("Title")
+              .lean();
+
             if (course) {
               courseTitle = course.Title;
             }

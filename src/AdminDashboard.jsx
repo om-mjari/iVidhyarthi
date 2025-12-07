@@ -31,6 +31,10 @@ const AdminDashboard = ({ onLogout }) => {
   const [viewingUser, setViewingUser] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  
+  // Payment action states
+  const [verifyingTransaction, setVerifyingTransaction] = useState(null);
+  const [refundingTransaction, setRefundingTransaction] = useState(null);
 
   // All university requests (pending, approved, rejected)
   const [pendingUniversities, setPendingUniversities] = useState([]);
@@ -305,6 +309,9 @@ const AdminDashboard = ({ onLogout }) => {
     if (activePanel === 'courses') {
       fetchCourses();
     }
+    if (activePanel === 'payments') {
+      fetchPayments();
+    }
     fetchCategories();
     fetchPendingUniversities();
     fetchCourseCategories();
@@ -319,6 +326,9 @@ const AdminDashboard = ({ onLogout }) => {
       }
       if (activePanel === 'courses') {
         fetchCourses();
+      }
+      if (activePanel === 'payments') {
+        fetchPayments();
       }
       fetchPendingUniversities();
     }, 30000);
@@ -682,27 +692,91 @@ const AdminDashboard = ({ onLogout }) => {
 
   // Course management handlers removed as per requirements
 
-  const [transactions, setTransactions] = useState([
-    { id: 1, user: 'Om Jariwala', course: 'React for Beginners', amount: 799, status: 'Completed', date: '2024-03-15' },
-    { id: 2, user: 'Raj Panchal', course: 'Python Programming', amount: 699, status: 'Pending', date: '2024-03-16' },
-    { id: 3, user: 'Sneh Prjapati', course: 'Machine Learning', amount: 899, status: 'Completed', date: '2024-03-14' }
-  ]);
+  const [transactions, setTransactions] = useState([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [paymentStats, setPaymentStats] = useState({
+    totalRevenue: 0,
+    pendingPayments: 0,
+    failedPayments: 0,
+  });
+
+  // Fetch payments from database
+  const fetchPayments = async () => {
+    try {
+      setTransactionsLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+
+      console.log('💳 Fetching payments from /api/admin/payments...');
+
+      const response = await fetch('http://localhost:5000/api/admin/payments', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch payments');
+      }
+
+      console.log('✅ Fetched payments:', result.data);
+      setTransactions(Array.isArray(result.data) ? result.data : []);
+      
+      if (result.stats) {
+        setPaymentStats({
+          totalRevenue: result.stats.totalRevenue || 0,
+          pendingPayments: result.stats.pendingPayments || 0,
+          failedPayments: result.stats.failedPayments || 0,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error fetching payments:', error);
+      setTransactions([]);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
 
   // Action handlers for Payment & Transactions
   const handleVerifyTransaction = (transactionId) => {
+    const transaction = transactions.find(t => t._id === transactionId);
+    if (transaction) {
+      setVerifyingTransaction(transaction);
+    }
+  };
+
+  const confirmVerifyTransaction = () => {
+    if (!verifyingTransaction) return;
     setTransactions(transactions.map(transaction =>
-      transaction.id === transactionId ? { ...transaction, status: 'Verified' } : transaction
+      transaction._id === verifyingTransaction._id ? { ...transaction, status: 'VERIFIED' } : transaction
     ));
-    alert('Transaction verified successfully!');
+    setVerifyingTransaction(null);
+    console.log('✅ Transaction verified successfully!');
   };
 
   const handleRefundTransaction = (transactionId) => {
-    if (window.confirm('Are you sure you want to process this refund?')) {
-      setTransactions(transactions.map(transaction =>
-        transaction.id === transactionId ? { ...transaction, status: 'Refunded' } : transaction
-      ));
-      alert('Refund processed successfully!');
+    const transaction = transactions.find(t => t._id === transactionId);
+    if (transaction) {
+      setRefundingTransaction(transaction);
     }
+  };
+
+  const confirmRefundTransaction = () => {
+    if (!refundingTransaction) return;
+    setTransactions(transactions.map(transaction =>
+      transaction._id === refundingTransaction._id ? { ...transaction, status: 'REFUNDED' } : transaction
+    ));
+    setRefundingTransaction(null);
+    console.log('✅ Refund processed successfully!');
   };
 
   const [feedback, setFeedback] = useState([
@@ -1334,15 +1408,15 @@ const AdminDashboard = ({ onLogout }) => {
       <div className="payment-stats">
         <div className="payment-stat">
           <h4>Total Revenue</h4>
-          <p>₹{stats.totalRevenue.toLocaleString()}</p>
+          <p>₹{paymentStats.totalRevenue.toLocaleString()}</p>
         </div>
         <div className="payment-stat">
           <h4>Pending Payments</h4>
-          <p>₹12,450</p>
+          <p>₹{paymentStats.pendingPayments.toLocaleString()}</p>
         </div>
         <div className="payment-stat">
-          <h4>Refunds Processed</h4>
-          <p>₹3,200</p>
+          <h4>Failed Payments</h4>
+          <p>₹{paymentStats.failedPayments.toLocaleString()}</p>
         </div>
       </div>
       <div className="transactions-table">
@@ -1359,20 +1433,36 @@ const AdminDashboard = ({ onLogout }) => {
             </tr>
           </thead>
           <tbody>
-            {transactions.map(transaction => (
-              <tr key={transaction.id}>
-                <td>#{transaction.id.toString().padStart(6, '0')}</td>
-                <td>{transaction.user}</td>
-                <td>{transaction.course}</td>
-                <td>₹{transaction.amount}</td>
-                <td><span className={`status-badge ${transaction.status.toLowerCase()}`}>{transaction.status}</span></td>
-                <td>{transaction.date}</td>
-                <td>
-                  <button className="btn-verify" onClick={() => handleVerifyTransaction(transaction.id)}>Verify</button>
-                  <button className="btn-refund" onClick={() => handleRefundTransaction(transaction.id)}>Refund</button>
+            {transactionsLoading ? (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                  <div className="loading-spinner">Loading transactions...</div>
                 </td>
               </tr>
-            ))}
+            ) : transactions.length === 0 ? (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>
+                  <p>No transactions found</p>
+                </td>
+              </tr>
+            ) : (
+              transactions.map(transaction => (
+                <tr key={transaction._id}>
+                  <td>#{transaction.receiptNo || transaction.transactionId}</td>
+                  <td>{transaction.studentName || 'N/A'}</td>
+                  <td>{transaction.courseName || 'N/A'}</td>
+                  <td>₹{transaction.amount}</td>
+                  <td><span className={`status-badge ${transaction.status.toLowerCase()}`}>{transaction.status}</span></td>
+                  <td>{transaction.paymentDate ? new Date(transaction.paymentDate).toLocaleDateString() : 'N/A'}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button className="btn-verify" onClick={() => handleVerifyTransaction(transaction._id)}>VERIFY</button>
+                      <button className="btn-refund" onClick={() => handleRefundTransaction(transaction._id)}>REFUND</button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -2061,6 +2151,65 @@ const AdminDashboard = ({ onLogout }) => {
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button>
               <button className="btn-delete" onClick={confirmDeleteUser}>Delete User</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Transaction Modal */}
+      {verifyingTransaction && (
+        <div className="modal-overlay" onClick={() => setVerifyingTransaction(null)}>
+          <div className="modal-content verify-transaction-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>✅ Verify Transaction</h2>
+              <button className="modal-close" onClick={() => setVerifyingTransaction(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="transaction-verify-info">
+                <div className="verify-icon">✓</div>
+                <p>Verify this transaction as completed?</p>
+                <div className="transaction-info-box">
+                  <p><strong>Transaction ID:</strong> {verifyingTransaction.receiptNo}</p>
+                  <p><strong>Student:</strong> {verifyingTransaction.studentName}</p>
+                  <p><strong>Course:</strong> {verifyingTransaction.courseName}</p>
+                  <p><strong>Amount:</strong> ₹{verifyingTransaction.amount}</p>
+                  <p><strong>Status:</strong> {verifyingTransaction.status}</p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setVerifyingTransaction(null)}>Cancel</button>
+              <button className="btn-verify" onClick={confirmVerifyTransaction}>Verify Transaction</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Transaction Modal */}
+      {refundingTransaction && (
+        <div className="modal-overlay" onClick={() => setRefundingTransaction(null)}>
+          <div className="modal-content refund-transaction-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>💸 Process Refund</h2>
+              <button className="modal-close" onClick={() => setRefundingTransaction(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="transaction-refund-info">
+                <div className="refund-icon">💰</div>
+                <p>Are you sure you want to process this refund?</p>
+                <div className="transaction-info-box">
+                  <p><strong>Transaction ID:</strong> {refundingTransaction.receiptNo}</p>
+                  <p><strong>Student:</strong> {refundingTransaction.studentName}</p>
+                  <p><strong>Course:</strong> {refundingTransaction.courseName}</p>
+                  <p><strong>Refund Amount:</strong> ₹{refundingTransaction.amount}</p>
+                  <p><strong>Current Status:</strong> {refundingTransaction.status}</p>
+                </div>
+                <p className="warning-text">This will initiate a refund to the student's account.</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setRefundingTransaction(null)}>Cancel</button>
+              <button className="btn-refund" onClick={confirmRefundTransaction}>Process Refund</button>
             </div>
           </div>
         </div>

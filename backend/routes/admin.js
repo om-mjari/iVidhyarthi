@@ -271,13 +271,11 @@ router.get("/stats/users", authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching users stats:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error fetching users stats",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users stats",
+      error: error.message,
+    });
   }
 });
 
@@ -304,13 +302,11 @@ router.get("/stats/courses", authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching courses stats:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error fetching courses stats",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching courses stats",
+      error: error.message,
+    });
   }
 });
 
@@ -342,13 +338,11 @@ router.get("/stats/revenue", authenticateAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching revenue stats:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Error fetching revenue stats",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Error fetching revenue stats",
+      error: error.message,
+    });
   }
 });
 
@@ -372,17 +366,23 @@ router.get("/users", authenticateAdmin, async (req, res) => {
         try {
           // Fetch name based on role
           if (user.role === "student") {
-            const student = await Students.findOne({ User_Id: user._id }).select("Full_Name");
+            const student = await Students.findOne({
+              User_Id: user._id,
+            }).select("Full_Name");
             if (student && student.Full_Name) {
               fullName = student.Full_Name;
             }
           } else if (user.role === "instructor" || user.role === "lecturer") {
-            const lecturer = await Lecturers.findOne({ User_Id: user._id }).select("Full_Name");
+            const lecturer = await Lecturers.findOne({
+              User_Id: user._id,
+            }).select("Full_Name");
             if (lecturer && lecturer.Full_Name) {
               fullName = lecturer.Full_Name;
             }
           } else if (user.role === "registrar") {
-            const registrar = await Registrars.findOne({ User_Id: user._id }).select("Contact_No");
+            const registrar = await Registrars.findOne({
+              User_Id: user._id,
+            }).select("Contact_No");
             // For registrar, we'll use the User.name since Registrars table doesn't have Full_Name
             // but we can mark it as verified if found
             if (registrar) {
@@ -502,6 +502,92 @@ router.delete("/users/:userId", authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error deleting user",
+      error: error.message,
+    });
+  }
+});
+
+// Get all payments/transactions
+router.get("/payments", authenticateAdmin, async (req, res) => {
+  try {
+    console.log("💳 Fetching all payments...");
+
+    // Fetch all payments
+    const payments = await Payments.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log(`✅ Found ${payments.length} payments`);
+
+    // Fetch course details for all payments
+    const formattedPayments = await Promise.all(
+      payments.map(async (payment) => {
+        let courseName = payment.courseName || "N/A";
+        
+        // If courseName is not in payment, fetch from Tbl_Courses
+        if (!payment.courseName || payment.courseName === "") {
+          try {
+            // courseId in payment is a string, Course_Id in Tbl_Courses is a number
+            const courseIdNum = parseInt(payment.courseId);
+            const course = await Courses.findOne({ Course_Id: courseIdNum }).select("Title");
+            if (course && course.Title) {
+              courseName = course.Title;
+            }
+          } catch (err) {
+            console.error(`Error fetching course for payment ${payment._id}:`, err);
+          }
+        }
+
+        return {
+          _id: payment._id,
+          transactionId: payment.receiptNo || payment.orderId,
+          studentId: payment.studentId,
+          studentName: payment.studentName || "N/A",
+          courseId: payment.courseId,
+          courseName: courseName,
+          amount: payment.amount,
+          status: payment.status,
+          type: payment.type,
+          paymentDate: payment.paymentDate || payment.createdAt,
+          orderId: payment.orderId,
+          paymentId: payment.paymentId,
+          receiptNo: payment.receiptNo,
+          createdAt: payment.createdAt,
+        };
+      })
+    );
+
+    // Calculate stats
+    const totalRevenue = payments
+      .filter((p) => p.status === "SUCCESS")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const pendingPayments = payments
+      .filter((p) => p.status === "PENDING")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    const failedPayments = payments
+      .filter((p) => p.status === "FAILED")
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    res.json({
+      success: true,
+      data: formattedPayments,
+      stats: {
+        totalRevenue: Math.round(totalRevenue),
+        pendingPayments: Math.round(pendingPayments),
+        failedPayments: Math.round(failedPayments),
+        totalCount: payments.length,
+        successCount: payments.filter((p) => p.status === "SUCCESS").length,
+        pendingCount: payments.filter((p) => p.status === "PENDING").length,
+        failedCount: payments.filter((p) => p.status === "FAILED").length,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching payments:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching payments",
       error: error.message,
     });
   }

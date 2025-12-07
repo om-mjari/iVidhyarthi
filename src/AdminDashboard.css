@@ -2418,6 +2418,94 @@
   font-size: 0.95rem !important;
 }
 
+/* Verify Transaction Modal */
+.verify-transaction-modal {
+  max-width: 550px;
+}
+
+.transaction-verify-info {
+  text-align: center;
+}
+
+.verify-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: pulse 1s ease infinite;
+}
+
+.transaction-verify-info p {
+  font-size: 1.1rem;
+  color: #374151;
+  margin-bottom: 1.5rem;
+}
+
+.transaction-info-box {
+  background: #F0FDF4;
+  padding: 1.5rem;
+  border-radius: 10px;
+  border-left: 4px solid #10B981;
+  margin: 1.5rem 0;
+  text-align: left;
+}
+
+.transaction-info-box p {
+  margin: 0.75rem 0;
+  font-size: 0.95rem;
+  color: #1F2937;
+}
+
+/* Refund Transaction Modal */
+.refund-transaction-modal {
+  max-width: 550px;
+}
+
+.transaction-refund-info {
+  text-align: center;
+}
+
+.refund-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: bounce 1s ease infinite;
+}
+
+.transaction-refund-info p {
+  font-size: 1.1rem;
+  color: #374151;
+  margin-bottom: 1.5rem;
+}
+
+.transaction-refund-info .transaction-info-box {
+  background: #FEF3F2;
+  border-left: 4px solid #9333EA;
+}
+
+.transaction-refund-info .warning-text {
+  font-weight: 600;
+  color: #9333EA !important;
+  font-size: 0.95rem !important;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

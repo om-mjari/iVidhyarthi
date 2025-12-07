@@ -693,4 +693,137 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
   }
 });
 
+// Get all sessions for admin dashboard
+router.get("/sessions", authenticateAdmin, async (req, res) => {
+  try {
+    console.log("📋 Fetching all sessions for admin...");
+
+    const Tbl_Sessions = require("../models/Tbl_Sessions");
+    const Tbl_Courses = require("../models/Tbl_Courses");
+    const Tbl_Lecturers = require("../models/Tbl_Lecturers");
+    const Users = require("../models/User");
+
+    // Fetch all sessions sorted by scheduled date (most recent first)
+    const sessions = await Tbl_Sessions.find()
+      .sort({ Scheduled_At: -1 })
+      .lean();
+
+    console.log(`✅ Found ${sessions.length} sessions`);
+
+    // Enrich sessions with course and instructor information
+    const enrichedSessions = await Promise.all(
+      sessions.map(async (session) => {
+        let courseName = "Unknown Course";
+        let instructorName = "Unknown Instructor";
+
+        try {
+          // Get course details
+          const course = await Tbl_Courses.findOne({
+            Course_Id: session.Course_Id,
+          });
+
+          if (course) {
+            courseName = course.Course_Name || course.Name || courseName;
+
+            // Get lecturer details from course
+            if (course.Lecturer_Id) {
+              const user = await Users.findOne({
+                email: course.Lecturer_Id.toLowerCase(),
+              });
+
+              if (user) {
+                instructorName = user.name || instructorName;
+              }
+            }
+          }
+        } catch (err) {
+          console.error(
+            `Error enriching session ${session.Session_Id}:`,
+            err
+          );
+        }
+
+        return {
+          id: session.Session_Id,
+          session_id: session.Session_Id,
+          title: session.Title,
+          course_name: courseName,
+          instructor: instructorName,
+          participants: session.Participants || 0,
+          status: session.Status,
+          scheduled_at: session.Scheduled_At,
+          duration: session.Duration,
+          session_url: session.Session_Url,
+          description: session.Description,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: enrichedSessions,
+      count: enrichedSessions.length,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching sessions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching sessions",
+      error: error.message,
+    });
+  }
+});
+
+// Get session statistics for admin dashboard
+router.get("/stats/sessions", authenticateAdmin, async (req, res) => {
+  try {
+    console.log("📊 Fetching session stats...");
+
+    const Tbl_Sessions = require("../models/Tbl_Sessions");
+    const now = new Date();
+
+    // Count active (ongoing) sessions
+    const activeSessions = await Tbl_Sessions.countDocuments({
+      Status: "Ongoing",
+    });
+
+    // Count total sessions today
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+
+    const sessionsToday = await Tbl_Sessions.countDocuments({
+      Scheduled_At: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    });
+
+    // Calculate total participants (sum of all participants in ongoing sessions)
+    const ongoingSessions = await Tbl_Sessions.find({
+      Status: "Ongoing",
+    }).lean();
+
+    const totalParticipants = ongoingSessions.reduce(
+      (sum, session) => sum + (session.Participants || 0),
+      0
+    );
+
+    res.json({
+      success: true,
+      data: {
+        active: activeSessions,
+        today: sessionsToday,
+        totalParticipants: totalParticipants,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Error fetching session stats:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching session stats",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

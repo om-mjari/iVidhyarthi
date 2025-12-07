@@ -252,6 +252,62 @@ const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  // Fetch sessions from MongoDB
+  const fetchSessions = async () => {
+    try {
+      setSessionsLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+
+      console.log('🔄 Fetching sessions from /api/admin/sessions...');
+
+      const response = await fetch('http://localhost:5000/api/admin/sessions', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to fetch sessions');
+      }
+
+      console.log('✅ Fetched sessions:', result.data);
+      setLiveSessions(Array.isArray(result.data) ? result.data : []);
+
+      // Update session stats
+      const activeCount = result.data.filter(s => s.status === 'Ongoing').length;
+      const todayCount = result.data.filter(s => {
+        const sessionDate = new Date(s.scheduled_at);
+        const today = new Date();
+        return sessionDate.toDateString() === today.toDateString();
+      }).length;
+      const totalParticipants = result.data
+        .filter(s => s.status === 'Ongoing')
+        .reduce((sum, s) => sum + (s.participants || 0), 0);
+
+      setStats(prev => ({
+        ...prev,
+        liveSessions: activeCount,
+        sessionsToday: todayCount,
+        totalParticipants: totalParticipants
+      }));
+    } catch (error) {
+      console.error('❌ Error fetching sessions:', error);
+      setLiveSessions([]);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
   // Fetch students from MongoDB
   const fetchStudents = async () => {
     try {
@@ -315,6 +371,9 @@ const AdminDashboard = ({ onLogout }) => {
     if (activePanel === 'feedback') {
       fetchFeedback();
     }
+    if (activePanel === 'live') {
+      fetchSessions();
+    }
     fetchCategories();
     fetchPendingUniversities();
     fetchCourseCategories();
@@ -335,6 +394,9 @@ const AdminDashboard = ({ onLogout }) => {
       }
       if (activePanel === 'feedback') {
         fetchFeedback();
+      }
+      if (activePanel === 'live') {
+        fetchSessions();
       }
       fetchPendingUniversities();
     }, 30000);
@@ -857,10 +919,8 @@ const AdminDashboard = ({ onLogout }) => {
     // Implementation: Open feedback edit modal
   };
 
-  const [liveSessions, setLiveSessions] = useState([
-    { id: 1, title: 'React Hooks Deep Dive', instructor: 'Abha Ma\'am', participants: 23, status: 'Live', startTime: '10:00 AM' },
-    { id: 2, title: 'Python Basics Q&A', instructor: 'Rakesh Sir', participants: 15, status: 'Scheduled', startTime: '2:00 PM' }
-  ]);
+  const [liveSessions, setLiveSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
 
   // Action handlers for Live Session Monitor
   const handleMonitorSession = (sessionId) => {
@@ -1044,8 +1104,6 @@ const AdminDashboard = ({ onLogout }) => {
       <div className="user-management-panel">
         <h2>👥 User Management</h2>
         <div className="panel-controls">
-          <button className="btn-primary">Add New User</button>
-          <button className="btn-secondary">Export Users</button>
           <input type="text" placeholder="Search users..." className="search-input" />
         </div>
         <div className="users-table">
@@ -1597,43 +1655,74 @@ const AdminDashboard = ({ onLogout }) => {
     </div>
   );
 
-  const renderLiveSessionMonitor = () => (
-    <div className="live-session-panel">
-      <h2>🎥 Live Session Monitor</h2>
-      <div className="session-stats">
-        <div className="session-stat">
-          <h4>Active Sessions</h4>
-          <p>{stats.liveSessions}</p>
-        </div>
-        <div className="session-stat">
-          <h4>Total Participants</h4>
-          <p>127</p>
-        </div>
-        <div className="session-stat">
-          <h4>Sessions Today</h4>
-          <p>8</p>
-        </div>
-      </div>
-      <div className="sessions-list">
-        {liveSessions.map(session => (
-          <div key={session.id} className="session-card">
-            <div className="session-info">
-              <h4>{session.title}</h4>
-              <p>Instructor: {session.instructor}</p>
-              <p>Participants: {session.participants}</p>
-              <p>Status: <span className={`status-badge ${session.status.toLowerCase()}`}>{session.status}</span></p>
-              <p>Start Time: {session.startTime}</p>
-            </div>
-            <div className="session-actions">
-              <button className="btn-monitor" onClick={() => handleMonitorSession(session.id)}>Monitor</button>
-              <button className="btn-moderate" onClick={() => handleModerateSession(session.id)}>Moderate</button>
-              <button className="btn-end" onClick={() => handleEndSession(session.id)}>End Session</button>
-            </div>
+  const renderLiveSessionMonitor = () => {
+    const formatDateTime = (dateString) => {
+      const date = new Date(dateString);
+      return date.toLocaleString('en-IN', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    return (
+      <div className="live-session-panel">
+        <h2>🎥 Live Session Monitor</h2>
+        <div className="session-stats">
+          <div className="session-stat">
+            <h4>Active Sessions</h4>
+            <p>{stats.liveSessions || 0}</p>
           </div>
-        ))}
+          <div className="session-stat">
+            <h4>Total Participants</h4>
+            <p>{stats.totalParticipants || 0}</p>
+          </div>
+          <div className="session-stat">
+            <h4>Sessions Today</h4>
+            <p>{stats.sessionsToday || 0}</p>
+          </div>
+        </div>
+        <div className="sessions-list">
+          {sessionsLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+              <div className="loading-spinner">Loading sessions...</div>
+            </div>
+          ) : liveSessions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+              <p>No sessions found</p>
+              <button
+                className="btn-primary"
+                onClick={fetchSessions}
+                style={{ marginTop: '10px' }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            liveSessions.map(session => (
+              <div key={session.session_id} className="session-card">
+                <div className="session-info">
+                  <h4>{session.title}</h4>
+                  <p>Instructor: {session.instructor}</p>
+                  <p>Course: {session.course_name}</p>
+                  <p>Participants: {session.participants || 0}</p>
+                  <p>Status: <span className={`status-badge ${session.status.toLowerCase()}`}>{session.status}</span></p>
+                  <p>Start Time: {formatDateTime(session.scheduled_at)}</p>
+                  <p>Duration: {session.duration} minutes</p>
+                </div>
+                <div className="session-actions">
+                  <button className="btn-monitor" onClick={() => handleMonitorSession(session.session_id)}>Monitor</button>
+                  <button className="btn-moderate" onClick={() => handleModerateSession(session.session_id)}>Moderate</button>
+                  <button className="btn-end" onClick={() => handleEndSession(session.session_id)}>End Session</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderChatbotManagement = () => (
     <div className="chatbot-management-panel">
@@ -1653,8 +1742,6 @@ const AdminDashboard = ({ onLogout }) => {
         </div>
       </div>
       <div className="chatbot-actions">
-        <button className="btn-primary" onClick={handleManageFAQ}>Manage FAQ</button>
-        <button className="btn-secondary" onClick={handleTrainBot}>Train Bot</button>
         <button className="btn-info" onClick={handleViewLogs}>View Logs</button>
         <button className="btn-edit" onClick={handleEditChatbot}>Edit Settings</button>
         <button className="btn-delete" onClick={handleDeleteChatbot}>Delete Data</button>

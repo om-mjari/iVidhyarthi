@@ -7,6 +7,7 @@ const Students = require("../models/Tbl_Students");
 const Lecturers = require("../models/Tbl_Lecturers");
 const Courses = require("../models/Tbl_Courses");
 const Payments = require("../models/Payment");
+const Feedback = require("../models/Tbl_Feedback");
 
 const router = express.Router();
 
@@ -513,9 +514,7 @@ router.get("/payments", authenticateAdmin, async (req, res) => {
     console.log("💳 Fetching all payments...");
 
     // Fetch all payments
-    const payments = await Payments.find()
-      .sort({ createdAt: -1 })
-      .lean();
+    const payments = await Payments.find().sort({ createdAt: -1 }).lean();
 
     console.log(`✅ Found ${payments.length} payments`);
 
@@ -523,18 +522,23 @@ router.get("/payments", authenticateAdmin, async (req, res) => {
     const formattedPayments = await Promise.all(
       payments.map(async (payment) => {
         let courseName = payment.courseName || "N/A";
-        
+
         // If courseName is not in payment, fetch from Tbl_Courses
         if (!payment.courseName || payment.courseName === "") {
           try {
             // courseId in payment is a string, Course_Id in Tbl_Courses is a number
             const courseIdNum = parseInt(payment.courseId);
-            const course = await Courses.findOne({ Course_Id: courseIdNum }).select("Title");
+            const course = await Courses.findOne({
+              Course_Id: courseIdNum,
+            }).select("Title");
             if (course && course.Title) {
               courseName = course.Title;
             }
           } catch (err) {
-            console.error(`Error fetching course for payment ${payment._id}:`, err);
+            console.error(
+              `Error fetching course for payment ${payment._id}:`,
+              err
+            );
           }
         }
 
@@ -588,6 +592,102 @@ router.get("/payments", authenticateAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error fetching payments",
+      error: error.message,
+    });
+  }
+});
+
+// GET /api/admin/feedback - Fetch all feedback
+router.get("/feedback", authenticateAdmin, async (req, res) => {
+  try {
+    console.log("📝 Fetching feedback data...");
+
+    const feedbacks = await Feedback.find({}).lean();
+    console.log(`✅ Found ${feedbacks.length} feedback entries`);
+
+    // Populate student and course names
+    const populatedFeedbacks = await Promise.all(
+      feedbacks.map(async (feedback) => {
+        // Fetch student name
+        let studentName = "N/A";
+        if (feedback.Student_Id) {
+          const studentId = parseInt(feedback.Student_Id);
+          if (!isNaN(studentId)) {
+            const student = await Students.findOne(
+              { Student_Id: studentId },
+              { First_Name: 1, Last_Name: 1 }
+            ).lean();
+            if (student) {
+              studentName = `${student.First_Name} ${student.Last_Name}`;
+            }
+          }
+        }
+
+        // Fetch course title
+        let courseTitle = "N/A";
+        if (feedback.Course_Id) {
+          // Try parsing as number first
+          const courseId = parseInt(feedback.Course_Id);
+          
+          if (!isNaN(courseId)) {
+            // Numeric Course_Id
+            const course = await Courses.findOne(
+              { Course_Id: courseId }
+            ).select('Title').lean();
+            
+            if (course) {
+              courseTitle = course.Title;
+            }
+          } else if (/COURSE_(\d+)/.test(feedback.Course_Id)) {
+            // String Course_Id like "COURSE_001" - extract the number
+            const match = feedback.Course_Id.match(/COURSE_(\d+)/);
+            const extractedId = parseInt(match[1]);
+            const course = await Courses.findOne(
+              { Course_Id: extractedId }
+            ).select('Title').lean();
+            
+            if (course) {
+              courseTitle = course.Title;
+            }
+          }
+        }
+
+        return {
+          ...feedback,
+          studentName,
+          courseTitle,
+        };
+      })
+    );
+
+    // Calculate feedback stats
+    const stats = {
+      total: feedbacks.length,
+      pending: feedbacks.filter((f) => f.Status === "Pending").length,
+      approved: feedbacks.filter((f) => f.Status === "Approved").length,
+      rejected: feedbacks.filter((f) => f.Status === "Rejected").length,
+      flagged: feedbacks.filter((f) => f.Status === "Flagged").length,
+      averageRating:
+        feedbacks.length > 0
+          ? (
+              feedbacks.reduce((sum, f) => sum + (f.Rating || 0), 0) /
+              feedbacks.length
+            ).toFixed(2)
+          : 0,
+    };
+
+    console.log("📊 Feedback stats:", stats);
+
+    res.json({
+      success: true,
+      feedbacks: populatedFeedbacks,
+      stats,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching feedback",
       error: error.message,
     });
   }

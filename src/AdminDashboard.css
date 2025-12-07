@@ -974,6 +974,12 @@
   background: linear-gradient(135deg, #FB923C 0%, #F97316 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(251, 146, 60, 0.3);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .btn-approve:hover,
@@ -984,15 +990,37 @@
   background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
 }
 
+.btn-reject,
+.btn-refund {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
 .btn-reject {
   background: linear-gradient(135deg, #FB7185 0%, #F43F5E 100%);
-  color: white;
   box-shadow: 0 4px 15px rgba(251, 113, 133, 0.3);
 }
 
 .btn-reject:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(251, 113, 133, 0.4);
+  background: linear-gradient(135deg, #F43F5E 0%, #E11D48 100%);
+}
+
+.btn-refund {
+  background: linear-gradient(135deg, #D946EF 0%, #9333EA 100%);
+  box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+}
+
+.btn-refund:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(217, 70, 239, 0.4);
+  background: linear-gradient(135deg, #9333EA 0%, #7C3AED 100%);
 }
 
 .btn-approve:disabled,
@@ -1002,16 +1030,20 @@
   transform: none;
 }
 
-.btn-refund,
 .btn-monitor,
 .btn-moderate,
 .btn-certificate {
   background: linear-gradient(135deg, #D946EF 0%, #9333EA 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.btn-refund:hover,
 .btn-monitor:hover,
 .btn-moderate:hover,
 .btn-certificate:hover {

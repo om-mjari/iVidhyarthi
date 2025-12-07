@@ -312,6 +312,9 @@ const AdminDashboard = ({ onLogout }) => {
     if (activePanel === 'payments') {
       fetchPayments();
     }
+    if (activePanel === 'feedback') {
+      fetchFeedback();
+    }
     fetchCategories();
     fetchPendingUniversities();
     fetchCourseCategories();
@@ -329,6 +332,9 @@ const AdminDashboard = ({ onLogout }) => {
       }
       if (activePanel === 'payments') {
         fetchPayments();
+      }
+      if (activePanel === 'feedback') {
+        fetchFeedback();
       }
       fetchPendingUniversities();
     }, 30000);
@@ -584,6 +590,47 @@ const AdminDashboard = ({ onLogout }) => {
     setViewingCourse(null);
   };
 
+  // Fetch all feedback from backend
+  const fetchFeedback = async () => {
+    try {
+      setFeedbackLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+      
+      console.log('📝 Fetching feedback from backend...');
+      
+      const response = await fetch('http://localhost:5000/api/admin/feedback', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('📝 Feedback Response:', result);
+
+      if (result.success) {
+        setFeedback(result.feedbacks || []);
+        setFeedbackStats(result.stats || {
+          total: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          flagged: 0,
+          averageRating: 0
+        });
+        console.log('✅ Feedback loaded:', result.feedbacks.length);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching feedback:', error);
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
   // Get category name from Category_Id
   const getCategoryName = (categoryId) => {
     const category = courseCategories.find(cat => cat.Category_Id === categoryId);
@@ -779,10 +826,16 @@ const AdminDashboard = ({ onLogout }) => {
     console.log('✅ Refund processed successfully!');
   };
 
-  const [feedback, setFeedback] = useState([
-    { id: 1, user: 'Sneh Prjapati', course: 'React for Beginners', rating: 5, comment: 'Excellent course!', status: 'Approved' },
-    { id: 2, user: 'Poorav Shah', course: 'Python Programming', rating: 4, comment: 'Good content, needs improvement', status: 'Pending' }
-  ]);
+  const [feedback, setFeedback] = useState([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackStats, setFeedbackStats] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    flagged: 0,
+    averageRating: 0
+  });
 
   // Action handlers for Feedback Management
   const handleApproveFeedback = (feedbackId) => {
@@ -1475,37 +1528,72 @@ const AdminDashboard = ({ onLogout }) => {
       <div className="feedback-stats">
         <div className="feedback-stat">
           <h4>Total Reviews</h4>
-          <p>{stats.totalFeedback}</p>
+          <p>{feedbackStats.total}</p>
         </div>
         <div className="feedback-stat">
           <h4>Average Rating</h4>
-          <p>4.6 ⭐</p>
+          <p>{feedbackStats.averageRating} ⭐</p>
         </div>
         <div className="feedback-stat">
           <h4>Pending Reviews</h4>
-          <p>12</p>
+          <p>{feedbackStats.pending}</p>
+        </div>
+        <div className="feedback-stat">
+          <h4>Approved</h4>
+          <p>{feedbackStats.approved}</p>
+        </div>
+        <div className="feedback-stat">
+          <h4>Rejected</h4>
+          <p>{feedbackStats.rejected}</p>
         </div>
       </div>
-      <div className="feedback-list">
-        {feedback.map(review => (
-          <div key={review.id} className="feedback-card">
-            <div className="feedback-header">
-              <h4>{review.user}</h4>
-              <div className="rating">
-                {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+
+      {feedbackLoading ? (
+        <div className="loading-container">
+          <div className="spinner"></div>
+          <p>Loading feedback...</p>
+        </div>
+      ) : feedback.length === 0 ? (
+        <div className="no-data">
+          <p>No feedback available</p>
+        </div>
+      ) : (
+        <div className="feedback-list">
+          {feedback.map(review => (
+            <div key={review.Feedback_Id} className="feedback-card">
+              <div className="feedback-header">
+                <h4>{review.studentName || 'Anonymous'}</h4>
+                <div className="rating">
+                  {'★'.repeat(review.Rating || 0)}{'☆'.repeat(5 - (review.Rating || 0))}
+                </div>
+                <span className={`status-badge ${(review.Status || '').toLowerCase()}`}>
+                  {review.Status || 'Pending'}
+                </span>
               </div>
-              <span className={`status-badge ${review.status.toLowerCase()}`}>{review.status}</span>
+              <p><strong>Course:</strong> {review.courseTitle || 'N/A'}</p>
+              <p className="feedback-comment">"{review.Comment || 'No comment provided'}"</p>
+              <p className="feedback-date"><strong>Posted:</strong> {new Date(review.Posted_On).toLocaleDateString()}</p>
+              {review.Response && (
+                <div className="feedback-response">
+                  <p><strong>Admin Response:</strong> {review.Response}</p>
+                  <p className="response-date">{new Date(review.Responded_On).toLocaleDateString()}</p>
+                </div>
+              )}
+              <div className="feedback-actions">
+                <button className="btn-approve" onClick={() => handleApproveFeedback(review.Feedback_Id)}>
+                  Approve
+                </button>
+                <button className="btn-reject" onClick={() => handleRejectFeedback(review.Feedback_Id)}>
+                  Reject
+                </button>
+                <button className="btn-edit" onClick={() => handleEditFeedback(review.Feedback_Id)}>
+                  Respond
+                </button>
+              </div>
             </div>
-            <p><strong>Course:</strong> {review.course}</p>
-            <p className="feedback-comment">"{review.comment}"</p>
-            <div className="feedback-actions">
-              <button className="btn-approve" onClick={() => handleApproveFeedback(review.id)}>Approve</button>
-              <button className="btn-reject" onClick={() => handleRejectFeedback(review.id)}>Reject</button>
-              <button className="btn-edit" onClick={() => handleEditFeedback(review.id)}>Edit</button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 

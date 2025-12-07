@@ -352,4 +352,159 @@ router.get("/stats/revenue", authenticateAdmin, async (req, res) => {
   }
 });
 
+// Get all users (for User Management page)
+router.get("/users", authenticateAdmin, async (req, res) => {
+  try {
+    console.log("📋 Fetching all users for admin dashboard...");
+
+    // Fetch all users from the database
+    const users = await Users.find()
+      .select("name email role status isActive createdAt updatedAt")
+      .sort({ createdAt: -1 });
+
+    console.log(`✅ Found ${users.length} users`);
+
+    // Fetch names from respective tables
+    const formattedUsers = await Promise.all(
+      users.map(async (user) => {
+        let fullName = user.name || "N/A";
+
+        try {
+          // Fetch name based on role
+          if (user.role === "student") {
+            const student = await Students.findOne({ User_Id: user._id }).select("Full_Name");
+            if (student && student.Full_Name) {
+              fullName = student.Full_Name;
+            }
+          } else if (user.role === "instructor" || user.role === "lecturer") {
+            const lecturer = await Lecturers.findOne({ User_Id: user._id }).select("Full_Name");
+            if (lecturer && lecturer.Full_Name) {
+              fullName = lecturer.Full_Name;
+            }
+          } else if (user.role === "registrar") {
+            const registrar = await Registrars.findOne({ User_Id: user._id }).select("Contact_No");
+            // For registrar, we'll use the User.name since Registrars table doesn't have Full_Name
+            // but we can mark it as verified if found
+            if (registrar) {
+              fullName = user.name || "Registrar";
+            }
+          }
+        } catch (err) {
+          console.error(`Error fetching details for user ${user._id}:`, err);
+        }
+
+        return {
+          _id: user._id,
+          id: user._id,
+          name: fullName,
+          email: user.email || "N/A",
+          role: user.role || "user",
+          status: user.isActive ? "active" : "inactive",
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: formattedUsers,
+      count: formattedUsers.length,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching users",
+      error: error.message,
+    });
+  }
+});
+
+// Update user
+router.put("/users/:userId", authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, role, status } = req.body;
+
+    console.log(`📝 Updating user ${userId}...`);
+
+    // Find and update the user
+    const user = await Users.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update user fields
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (role) user.role = role;
+    if (status) user.isActive = status === "active";
+
+    await user.save();
+
+    console.log(`✅ User ${userId} updated successfully`);
+
+    res.json({
+      success: true,
+      message: "User updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("❌ Error updating user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating user",
+      error: error.message,
+    });
+  }
+});
+
+// Delete user
+router.delete("/users/:userId", authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    console.log(`🗑️ Deleting user ${userId}...`);
+
+    // Find the user
+    const user = await Users.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Delete related records based on role
+    if (user.role === "student") {
+      await Students.deleteOne({ User_Id: userId });
+    } else if (user.role === "instructor" || user.role === "lecturer") {
+      await Lecturers.deleteOne({ User_Id: userId });
+    } else if (user.role === "registrar") {
+      await Registrars.deleteOne({ User_Id: userId });
+    }
+
+    // Delete the user
+    await Users.findByIdAndDelete(userId);
+
+    console.log(`✅ User ${userId} deleted successfully`);
+
+    res.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error deleting user:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting user",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

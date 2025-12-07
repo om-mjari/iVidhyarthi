@@ -26,6 +26,11 @@ const AdminDashboard = ({ onLogout }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statsLoading, setStatsLoading] = useState(true);
+  
+  // User view/edit states
+  const [viewingUser, setViewingUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // All university requests (pending, approved, rejected)
   const [pendingUniversities, setPendingUniversities] = useState([]);
@@ -257,7 +262,9 @@ const AdminDashboard = ({ onLogout }) => {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/users', {
+      console.log('🔄 Fetching users from /api/admin/users...');
+
+      const response = await fetch('http://localhost:5000/api/admin/users', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -266,6 +273,8 @@ const AdminDashboard = ({ onLogout }) => {
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -275,16 +284,11 @@ const AdminDashboard = ({ onLogout }) => {
         throw new Error(result.message || 'Failed to fetch users');
       }
 
-      console.log('Fetched users:', result.data);
+      console.log('✅ Fetched users:', result.data);
       setUsers(Array.isArray(result.data) ? result.data : []);
-
-      console.log('Admin Dashboard - Students API Response:', result);
-
-      if (result.success) {
-        setUsers(result.data);
-      }
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('❌ Error fetching students:', error);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -324,15 +328,87 @@ const AdminDashboard = ({ onLogout }) => {
 
 
   // Action handlers for User Management
+  const handleViewUser = (userId) => {
+    const user = users.find(u => u._id === userId || u.id === userId);
+    if (user) {
+      setViewingUser(user);
+    }
+  };
+
   const handleEditUser = (userId) => {
-    alert(`Editing user with ID: ${userId}`);
-    // Implementation: Open edit modal or navigate to edit page
+    const user = users.find(u => u._id === userId || u.id === userId);
+    if (user) {
+      setEditingUser({ ...user });
+    }
   };
 
   const handleDeleteUser = (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      alert('User deleted successfully!');
+    const user = users.find(u => u._id === userId || u.id === userId);
+    if (user) {
+      setDeleteConfirm(user);
+    }
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteConfirm) return;
+
+    try {
+      const token = localStorage.getItem('auth_token') || '';
+      const response = await fetch(`http://localhost:5000/api/admin/users/${deleteConfirm._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUsers(users.filter(u => u._id !== deleteConfirm._id && u.id !== deleteConfirm._id));
+        setDeleteConfirm(null);
+        console.log('✅ User deleted successfully!');
+      } else {
+        console.error('❌ Failed to delete user:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+    }
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    try {
+      const token = localStorage.getItem('auth_token') || '';
+      const response = await fetch(`http://localhost:5000/api/admin/users/${editingUser._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editingUser.name,
+          email: editingUser.email,
+          role: editingUser.role,
+          status: editingUser.status
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUsers(users.map(u => 
+          (u._id === editingUser._id || u.id === editingUser._id) ? { ...u, ...editingUser } : u
+        ));
+        setEditingUser(null);
+        console.log('✅ User updated successfully!');
+      } else {
+        console.error('❌ Failed to update user:', result.message);
+      }
+    } catch (error) {
+      console.error('❌ Error updating user:', error);
     }
   };
 
@@ -387,23 +463,6 @@ const AdminDashboard = ({ onLogout }) => {
       console.error('Error rejecting university:', error);
       alert('Error rejecting university');
     }
-  };
-
-  const handleViewUser = (userId) => {
-    const user = users.find(u => u.id === userId);
-    const details = `
-Student Details:
-Name: ${user.name}
-Email: ${user.email}
-Phone: ${user.phone || 'N/A'}
-Role: ${user.role}
-Status: ${user.status}
-Join Date: ${user.joinDate}
-Institution: ${user.institution}
-Course: ${user.course}
-Semester: ${user.semester}
-`.trim();
-    alert(details);
   };
 
   // Course management state
@@ -901,32 +960,38 @@ Semester: ${user.semester}
                   <tr key={user._id || user.id}>
                     <td>{user.name || 'N/A'}</td>
                     <td>{user.email || 'N/A'}</td>
-                    <td><span className={`role-badge ${(user.role || 'user').toLowerCase()}`}>
-                      {user.role || 'User'}
-                    </span></td>
-                    <td><span className={`status-badge ${(user.status || 'active').toLowerCase()}`}>
-                      {user.status || 'Active'}
-                    </span></td>
+                    <td>
+                      <span className={`role-badge ${(user.role || 'user').toLowerCase()}`}>
+                        {(user.role || 'user').toUpperCase()}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${(user.status || 'active').toLowerCase()}`}>
+                        {user.status || 'Active'}
+                      </span>
+                    </td>
                     <td>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</td>
                     <td>
-                      <button
-                        className="btn-edit"
-                        onClick={() => handleEditUser(user._id || user.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn-delete"
-                        onClick={() => handleDeleteUser(user._id || user.id)}
-                      >
-                        Delete
-                      </button>
-                      <button
-                        className="btn-view"
-                        onClick={() => handleViewUser(user._id || user.id)}
-                      >
-                        View
-                      </button>
+                      <div className="action-buttons">
+                        <button
+                          className="btn-edit"
+                          onClick={() => handleEditUser(user._id || user.id)}
+                        >
+                          EDIT
+                        </button>
+                        <button
+                          className="btn-delete"
+                          onClick={() => handleDeleteUser(user._id || user.id)}
+                        >
+                          DELETE
+                        </button>
+                        <button
+                          className="btn-view"
+                          onClick={() => handleViewUser(user._id || user.id)}
+                        >
+                          VIEW
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -1861,6 +1926,145 @@ Semester: ${user.semester}
           {renderActivePanel()}
         </div>
       </main>
+
+      {/* View User Modal */}
+      {viewingUser && (
+        <div className="modal-overlay" onClick={() => setViewingUser(null)}>
+          <div className="modal-content user-view-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>👤 User Details</h2>
+              <button className="modal-close" onClick={() => setViewingUser(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="user-detail-grid">
+                <div className="detail-item">
+                  <label>Name</label>
+                  <p>{viewingUser.name || 'N/A'}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Email</label>
+                  <p>{viewingUser.email || 'N/A'}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Role</label>
+                  <p><span className={`role-badge ${viewingUser.role}`}>{viewingUser.role?.toUpperCase()}</span></p>
+                </div>
+                <div className="detail-item">
+                  <label>Status</label>
+                  <p><span className={`status-badge ${viewingUser.status}`}>{viewingUser.status?.toUpperCase()}</span></p>
+                </div>
+                <div className="detail-item">
+                  <label>User ID</label>
+                  <p className="user-id">{viewingUser._id || viewingUser.id}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Join Date</label>
+                  <p>{viewingUser.createdAt ? new Date(viewingUser.createdAt).toLocaleString() : 'N/A'}</p>
+                </div>
+                <div className="detail-item">
+                  <label>Last Updated</label>
+                  <p>{viewingUser.updatedAt ? new Date(viewingUser.updatedAt).toLocaleString() : 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setViewingUser(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+          <div className="modal-content user-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>✏️ Edit User</h2>
+              <button className="modal-close" onClick={() => setEditingUser(null)}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateUser} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                <div className="edit-form-container">
+                  <div className="form-group">
+                    <label>Name</label>
+                    <input
+                      type="text"
+                      value={editingUser.name || ''}
+                      onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={editingUser.email || ''}
+                      onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select
+                      value={editingUser.role || 'user'}
+                      onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                    >
+                      <option value="student">Student</option>
+                      <option value="instructor">Instructor</option>
+                      <option value="lecturer">Lecturer</option>
+                      <option value="registrar">Registrar</option>
+                      <option value="admin">Admin</option>
+                      <option value="user">User</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select
+                      value={editingUser.status || 'active'}
+                      onChange={(e) => setEditingUser({ ...editingUser, status: e.target.value })}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button>
+                <button type="submit" className="btn-primary">💾 Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal-content delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Confirm Delete</h2>
+              <button className="modal-close" onClick={() => setDeleteConfirm(null)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="delete-warning">
+                <div className="warning-icon">🗑️</div>
+                <p>Are you sure you want to delete this user?</p>
+                <div className="user-info-delete">
+                  <p><strong>Name:</strong> {deleteConfirm.name}</p>
+                  <p><strong>Email:</strong> {deleteConfirm.email}</p>
+                  <p><strong>Role:</strong> {deleteConfirm.role}</p>
+                </div>
+                <p className="warning-text">This action cannot be undone!</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button className="btn-delete" onClick={confirmDeleteUser}>Delete User</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

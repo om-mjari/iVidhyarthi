@@ -169,7 +169,6 @@ const EnrolledCourses = ({ onNavigate }) => {
     <section className="enrolled-courses-section">
       <div className="section-header-dashboard">
         <h2 className="dashboard-section-title">📚 My Enrolled Courses</h2>
-        <button className="view-all-btn">View All →</button>
       </div>
       
       {loading ? (

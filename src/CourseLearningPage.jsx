@@ -8,7 +8,7 @@ import './CourseLearningPage.css';
 // Helper function to remove autoplay from video URLs
 const removeAutoplay = (url) => {
   if (!url) return url;
-  
+
   try {
     const urlObj = new URL(url);
     // Remove autoplay parameter
@@ -77,6 +77,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Track which videos have been watched (to enable Mark as Complete button)
   const [watchedVideos, setWatchedVideos] = useState([]);
 
+  // Track video watch progress (percentage watched)
+  const [videoWatchProgress, setVideoWatchProgress] = useState({});
+  const [maxWatchedTime, setMaxWatchedTime] = useState({});
+
   // Track videos currently being watched with timer
 
   // User feedbacks state
@@ -98,9 +102,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
   // Selected video state for single player
   const [selectedVideo, setSelectedVideo] = useState(null);
-  
-  // Ref for video section
+
+  // Ref for video section and video player
   const videoSectionRef = React.useRef(null);
+  const videoPlayerRef = React.useRef(null);
 
   // Handle video watching with duration tracking
   const handleWatchVideo = (videoId, durationMinutes) => {
@@ -159,10 +164,107 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     };
   }, []);
 
+  // Track video playback progress and prevent skipping
+  useEffect(() => {
+    if (!selectedVideo) return;
+
+    const videoId = selectedVideo.id;
+    let accumulatedTime = 0;
+    let hasReachedMax = false;
+    let isPageVisible = !document.hidden;
+
+    // Initialize progress for this video if not exists
+    if (videoWatchProgress[videoId] === undefined) {
+      setVideoWatchProgress(prev => ({ ...prev, [videoId]: 0 }));
+      setMaxWatchedTime(prev => ({ ...prev, [videoId]: 0 }));
+    } else {
+      // Resume from previous progress
+      const previousProgress = videoWatchProgress[videoId] || 0;
+      if (previousProgress >= 100) {
+        hasReachedMax = true;
+      }
+    }
+
+    // Parse video duration from MM:SS format to seconds
+    const parseDuration = (durationStr) => {
+      if (!durationStr) return 56; // Default 56 seconds if no duration
+      const parts = durationStr.split(':').map(Number);
+      if (parts.length === 2) {
+        return (parts[0] * 60) + parts[1]; // MM:SS format
+      } else if (parts.length === 3) {
+        return (parts[0] * 3600) + (parts[1] * 60) + parts[2]; // HH:MM:SS format
+      } else if (parts.length === 1) {
+        return parts[0]; // Just seconds
+      }
+      return 56; // Default fallback to 56 seconds
+    };
+
+    const videoDuration = parseDuration(selectedVideo.duration);
+
+    // Get starting accumulated time from current progress - initialize to 0 for fresh tracking
+    if (videoWatchProgress[videoId] && videoWatchProgress[videoId] >= 100) {
+      hasReachedMax = true;
+      accumulatedTime = videoDuration;
+    } else {
+      accumulatedTime = 0; // Always start from 0 for proper tracking
+    }
+
+    // Handle page visibility change
+    const handleVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Update progress every second - only when actively watching
+    const trackingInterval = setInterval(() => {
+
+
+      if (isPageVisible && !hasReachedMax) {
+        // Increment by 1 second
+        accumulatedTime += 1;
+
+        // Check if reached or exceeded video duration
+        if (accumulatedTime >= videoDuration) {
+          hasReachedMax = true;
+          accumulatedTime = videoDuration;
+
+          setVideoWatchProgress(prev => ({
+            ...prev,
+            [videoId]: 100
+          }));
+          setMaxWatchedTime(prev => ({
+            ...prev,
+            [videoId]: 100
+          }));
+          return;
+        }
+
+        // Calculate progress based on actual video duration
+        const progressPercentage = (accumulatedTime / videoDuration) * 100;
+
+        setVideoWatchProgress(prev => ({
+          ...prev,
+          [videoId]: progressPercentage
+        }));
+
+        setMaxWatchedTime(prev => ({
+          ...prev,
+          [videoId]: Math.max(prev[videoId] || 0, progressPercentage)
+        }));
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(trackingInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedVideo]);
+
   // Generate transcript for a video
   const handleGenerateTranscript = async (video) => {
     const videoKey = video.id || video.title;
-    
+
     // Check if transcript already exists
     if (videoTranscripts[videoKey]) {
       setCurrentTranscript({
@@ -196,7 +298,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           summary: result.data.summary,
           language: result.data.language
         };
-        
+
         setVideoTranscripts(prev => ({
           ...prev,
           [videoKey]: transcriptData
@@ -263,7 +365,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
     // Get student ID from token or auth_user
     let userId = '';
-    
+
     // Try getting from auth_user first (for students)
     if (authUser) {
       try {
@@ -277,7 +379,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         console.error('Error parsing auth_user:', e);
       }
     }
-    
+
     // Fallback to auth_token if no userId yet
     if (!userId && authToken) {
       try {
@@ -343,7 +445,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         } else {
           // No progress yet, set defaults
           setVideoProgress({
-            totalVideos: 4,
+            totalVideos: 0,
             completedVideos: 0,
             completionPercentage: 0
           });
@@ -353,7 +455,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         console.error('Error fetching video progress:', error);
         // On error, set defaults
         setVideoProgress({
-          totalVideos: 4,
+          totalVideos: 0,
           completedVideos: 0,
           completionPercentage: 0
         });
@@ -368,7 +470,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       try {
         const parsedCourse = JSON.parse(savedCourse);
         console.log('Setting selected course:', parsedCourse);
-        
+
         // Ensure the course has required fields
         if (!parsedCourse.name || !parsedCourse.instructor) {
           console.warn('Course missing required fields, setting defaults');
@@ -376,7 +478,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           parsedCourse.instructor = parsedCourse.instructor || parsedCourse.Instructor_Name || 'Instructor';
           parsedCourse.image = parsedCourse.image || parsedCourse.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop';
         }
-        
+
         setSelectedCourse(parsedCourse);
         console.log('✅ Course set successfully:', parsedCourse);
 
@@ -556,7 +658,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (result.success) {
         setCourseTopics(result.data);
         console.log('✅ Course topics fetched:', result.data);
-        
+
         // Fetch subtopics for each topic
         const allSubTopics = [];
         for (const topic of result.data) {
@@ -590,13 +692,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       // Fetch course details including lecturer, institute, description
       const courseResponse = await fetch(`http://localhost:5000/api/tbl-courses/${courseId}`);
       const courseResult = await courseResponse.json();
-      
+
       if (courseResult.success && courseResult.data) {
         const course = courseResult.data;
-        
+
         // Set course description
         setCourseDescription(course.Description || 'No description available');
-        
+
         // Fetch lecturer information
         if (course.Lecturer_Id) {
           try {
@@ -604,7 +706,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             const lecturerResult = await lecturerResponse.json();
             if (lecturerResult.success && lecturerResult.data) {
               setLecturerInfo(lecturerResult.data);
-              
+
               // Fetch institute information using lecturer's institute
               if (lecturerResult.data.Institute_Id) {
                 try {
@@ -622,7 +724,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             console.error('Error fetching lecturer info:', error);
           }
         }
-        
+
         // Extract learning objectives from topics
         if (course.Topics && course.Topics.length > 0) {
           const objectives = course.Topics.map(topic => topic.Description || topic.Title).filter(Boolean).slice(0, 5);
@@ -678,7 +780,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             title: firstVideo.Title,
             url: removeAutoplay(firstVideo.File_Url),
             description: firstVideo.Description || firstVideo.Title,
-            duration: "15:00",
+            duration: firstVideo.Duration || "00:56",
             transcripts: {
               English: "Transcript not available",
               Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
@@ -743,7 +845,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setLoadingFeedbacks(true);
       const response = await fetch(`http://localhost:5000/api/feedback/course/${courseId}`);
       const result = await response.json();
-      
+
       if (result.success) {
         setCourseFeedbacks(result.data || []);
       }
@@ -857,7 +959,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     // Session is joinable from scheduled time until end time
     return now >= scheduledTime && now <= endTime && session.session_url;
   };
@@ -867,7 +969,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     if (now < scheduledTime) return 'Upcoming';
     if (now > endTime) return 'Ended';
     return 'Live Now';
@@ -892,7 +994,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     .map((content, index) => ({
       id: index + 1,
       title: content.Title,
-      duration: "15:00", // Default duration, can be enhanced
+      duration: content.Duration || "00:56",
       url: content.File_Url,
       description: content.Title,
       topic_id: content.Topic_Id,
@@ -927,145 +1029,14 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       duration: selectedCourse?.duration || courseInfo?.Duration || "12 Weeks",
       level: courseInfo?.Level || "Beginner to Intermediate"
     },
-    videos: processedVideos.length > 0 ? processedVideos : [
-      {
-        id: 1,
-        title: "Introduction to IoT - Part I",
-        duration: "15:30",
-        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
-        description: "Overview of Internet of Things and its applications",
-        transcripts: {
-          English: "Welcome to Introduction to Internet of Things...",
-          Hindi: "इंटरनेट ऑफ थिंग्स में आपका स्वागत है...",
-          Gujarati: "ઇન્ટરનેટ ઓફ થિંગ્સમાં આપનું સ્વાગત છે..."
-        }
-      },
-      {
-        id: 2,
-        title: "Introduction to IoT - Part II",
-        duration: "22:45",
-        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
-        description: "Deep dive into IoT architecture and components",
-        transcripts: {
-          English: "Let's explore IoT architecture...",
-          Hindi: "आइए IoT आर्किटेक्चर का अन्वेषण करें...",
-          Gujarati: "ચાલો IoT આર્કિટેક્ચર શોધીએ..."
-        }
-      },
-      {
-        id: 3,
-        title: "Sensing and Actuation",
-        duration: "18:20",
-        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
-        description: "Understanding sensors and actuators in IoT",
-        transcripts: {
-          English: "Sensors are the eyes and ears of IoT...",
-          Hindi: "सेंसर IoT की आँखें और कान हैं...",
-          Gujarati: "સેન્સર IoT ની આંખો અને કાન છે..."
-        }
-      },
-      {
-        id: 4,
-        title: "Basics of IoT Networking - Part I",
-        duration: "25:10",
-        url: "https://www.youtube.com/embed/LlhmzVL5bm8",
-        description: "IoT communication protocols and networking",
-        transcripts: {
-          English: "IoT devices communicate using various protocols...",
-          Hindi: "IoT उपकरण विभिन्न प्रोटोकॉल का उपयोग करके संवाद करते हैं...",
-          Gujarati: "IoT ઉપકરણો વિવિધ પ્રોટોકોલનો ઉપયોગ કરીને વાતચીત કરે છે..."
-        }
-      }
-    ],
-    assignments: assignments.length > 0 ? assignments : [
-      {
-        id: 1,
-        title: "Week 01: Assignment",
-        description: "IoT Architecture and Components - Multiple Choice Questions",
-        deadline: "2025-08-06",
-        marks: 100,
-        Assignment_Type: "Quiz"
-      },
-      {
-        id: 2,
-        title: "Week 02: Assignment",
-        description: "Sensor Networks and Communication Protocols",
-        deadline: "2025-08-13",
-        marks: 100,
-        Assignment_Type: "Quiz"
-      },
-      {
-        id: 3,
-        title: "Week 03: Assignment",
-        description: "IoT Application Development Project",
-        deadline: "2025-08-20",
-        marks: 100,
-        Assignment_Type: "Project"
-      },
-      {
-        id: 4,
-        title: "Week 04: Assignment",
-        description: "Cloud Integration and Data Analytics",
-        deadline: "2025-08-27",
-        marks: 100,
-        Assignment_Type: "Quiz"
-      },
-      {
-        id: 5,
-        title: "Week 05: Assignment",
-        description: "Security and Privacy in IoT Systems",
-        deadline: "2025-09-03",
-        marks: 100,
-        Assignment_Type: "Quiz"
-      },
-      {
-        id: 6,
-        title: "Week 06: Assignment",
-        description: "Edge Computing and Real-time Processing",
-        deadline: "2025-09-10",
-        marks: 100,
-        Assignment_Type: "Project"
-      },
-      {
-        id: 7,
-        title: "Week 07: Assignment",
-        description: "Final IoT System Design and Implementation",
-        deadline: "2025-09-17",
-        marks: 100,
-        Assignment_Type: "Project"
-      }
-    ],
-    quizzes: [
-      {
-        id: 1,
-        week: 1,
-        title: "Week 1 Quiz",
-        timeLimit: "30 minutes",
-        marks: 50,
-        questions: 10
-      },
-      {
-        id: 2,
-        week: 2,
-        title: "Week 2 Quiz",
-        timeLimit: "30 minutes",
-        marks: 50,
-        questions: 10
-      },
-      {
-        id: 3,
-        week: 3,
-        title: "Week 3 Quiz",
-        timeLimit: "30 minutes",
-        marks: 50,
-        questions: 10
-      }
-    ]
+    videos: processedVideos.length > 0 ? processedVideos : [],
+    assignments: assignments.length > 0 ? assignments : [],
+    quizzes: []
   };
 
-  const totalVideos = courseContent.videos.length;
-  const totalAssignments = courseContent.assignments.length;
-  const completionPercentage = progress || Math.round((completedVideos.length / totalVideos) * 100);
+  const totalVideos = courseContent.videos.length || 0;
+  const totalAssignments = courseContent.assignments.length || 0;
+  const completionPercentage = totalVideos > 0 ? (progress || Math.round((completedVideos.length / totalVideos) * 100)) : 0;
 
   // Calculate assignment progress (out of 7 weeks)
   const completedAssignmentsCount = completedAssignments.length;
@@ -1441,31 +1412,31 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             )}
 
             {/* Show reflective answers if exists */}
-            {(selectedSubmission.Submission_Data?.learningAnswer || 
-              selectedSubmission.Submission_Data?.challengeAnswer || 
+            {(selectedSubmission.Submission_Data?.learningAnswer ||
+              selectedSubmission.Submission_Data?.challengeAnswer ||
               selectedSubmission.Submission_Data?.applicationAnswer) && (
-              <div style={{ marginTop: '20px' }}>
-                <h3>📝 Reflective Answers</h3>
-                {selectedSubmission.Submission_Data.learningAnswer && (
-                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🎓 What did you learn?</h4>
-                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.learningAnswer}</p>
-                  </div>
-                )}
-                {selectedSubmission.Submission_Data.challengeAnswer && (
-                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🤔 What challenges did you face?</h4>
-                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.challengeAnswer}</p>
-                  </div>
-                )}
-                {selectedSubmission.Submission_Data.applicationAnswer && (
-                  <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
-                    <h4 style={{ marginBottom: '8px', color: '#667eea' }}>💡 How will you apply this?</h4>
-                    <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.applicationAnswer}</p>
-                  </div>
-                )}
-              </div>
-            )}
+                <div style={{ marginTop: '20px' }}>
+                  <h3>📝 Reflective Answers</h3>
+                  {selectedSubmission.Submission_Data.learningAnswer && (
+                    <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                      <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🎓 What did you learn?</h4>
+                      <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.learningAnswer}</p>
+                    </div>
+                  )}
+                  {selectedSubmission.Submission_Data.challengeAnswer && (
+                    <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                      <h4 style={{ marginBottom: '8px', color: '#667eea' }}>🤔 What challenges did you face?</h4>
+                      <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.challengeAnswer}</p>
+                    </div>
+                  )}
+                  {selectedSubmission.Submission_Data.applicationAnswer && (
+                    <div style={{ marginTop: '15px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+                      <h4 style={{ marginBottom: '8px', color: '#667eea' }}>💡 How will you apply this?</h4>
+                      <p style={{ lineHeight: '1.6' }}>{selectedSubmission.Submission_Data.applicationAnswer}</p>
+                    </div>
+                  )}
+                </div>
+              )}
           </div>
 
           <div className="answers-display">
@@ -1558,15 +1529,15 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div>
                   <h4 style={{ marginBottom: '12px' }}>Course Description</h4>
                   <p style={{ lineHeight: '1.6', color: '#555' }}>
-                    {showFullDescription 
-                      ? courseContent.info.description 
-                      : courseContent.info.description.length > 200 
-                        ? `${courseContent.info.description.substring(0, 200)}...` 
+                    {showFullDescription
+                      ? courseContent.info.description
+                      : courseContent.info.description.length > 200
+                        ? `${courseContent.info.description.substring(0, 200)}...`
                         : courseContent.info.description
                     }
                   </p>
                   {courseContent.info.description.length > 200 && (
-                    <button 
+                    <button
                       onClick={() => setShowFullDescription(!showFullDescription)}
                       style={{
                         marginTop: '8px',
@@ -1605,9 +1576,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                               const orderB = parseFloat(b.Order_Number) || 0;
                               return orderA - orderB;
                             });
-                          
+
                           const mainTopicNumber = topicIndex + 1;
-                          
+
                           return (
                             <div key={topic.Topic_Id} style={{ marginBottom: '12px' }}>
                               <div style={{ fontWeight: '600', color: '#000' }}>
@@ -1704,7 +1675,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                             </div>
                           </div>
                         )}
-                        
+
                         {pdfs.length > 0 && (
                           <div style={{ marginBottom: '12px' }}>
                             <div style={{
@@ -1762,30 +1733,30 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                                   alignItems: 'center',
                                   gap: '10px'
                                 }}
-                                onClick={() => {
-                                  console.log('Selected video:', video);
-                                  const videoData = {
-                                    id: video.Content_Id,
-                                    title: video.Title,
-                                    url: removeAutoplay(video.File_Url),
-                                    description: video.Description || video.Title,
-                                    duration: "15:00",
-                                    transcripts: {
-                                      English: "Transcript not available",
-                                      Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
-                                      Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
-                                    }
-                                  };
-                                  console.log('Setting video data:', videoData);
-                                  setSelectedVideo(videoData);
-                                  console.log('Video state updated');
-                                  // Scroll to video section
-                                  setTimeout(() => {
-                                    if (videoSectionRef.current) {
-                                      videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    }
-                                  }, 100);
-                                }}
+                                  onClick={() => {
+                                    console.log('Selected video:', video);
+                                    const videoData = {
+                                      id: video.Content_Id,
+                                      title: video.Title,
+                                      url: removeAutoplay(video.File_Url),
+                                      description: video.Description || video.Title,
+                                      duration: video.Duration || "00:56", // Use actual duration from DB or default to 56 seconds for testing
+                                      transcripts: {
+                                        English: "Transcript not available",
+                                        Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
+                                        Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+                                      }
+                                    };
+                                    console.log('Setting video data:', videoData);
+                                    setSelectedVideo(videoData);
+                                    console.log('Video state updated');
+                                    // Scroll to video section
+                                    setTimeout(() => {
+                                      if (videoSectionRef.current) {
+                                        videoSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                      }
+                                    }, 100);
+                                  }}
                                 >
                                   <span>🎥</span>
                                   <span>{video.Title}</span>
@@ -1813,7 +1784,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                                   alignItems: 'center',
                                   gap: '10px'
                                 }}
-                                onClick={() => window.open(pdf.File_Url, '_blank')}
+                                  onClick={() => window.open(pdf.File_Url, '_blank')}
                                 >
                                   <span>📄</span>
                                   <span>{pdf.Title}</span>
@@ -1874,8 +1845,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             </button>
           </div>
           <div className="progress-stats-grid">
-            <div 
-              className="progress-stat-box" 
+            <div
+              className="progress-stat-box"
               onClick={() => {
                 const videoSection = document.querySelector('.nptel-videos-grid');
                 if (videoSection) {
@@ -1883,10 +1854,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 }
               }}
             >
-              <div className="stat-number">{videoProgress.totalVideos || totalVideos}</div>
+              <div className="stat-number">{videoProgress.totalVideos || totalVideos || 0}</div>
               <div className="stat-label">VIDEOS</div>
             </div>
-            <div 
+            <div
               className="progress-stat-box"
               onClick={() => {
                 const assignmentSection = document.querySelector('.nptel-assignments-grid');
@@ -1895,11 +1866,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 }
               }}
             >
-              <div className="stat-number">{totalAssignments}</div>
+              <div className="stat-number">{totalAssignments || 0}</div>
               <div className="stat-label">ASSIGNMENTS</div>
             </div>
             <div className="progress-stat-box">
-              <div className="stat-number">{videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : completionPercentage}%</div>
+              <div className="stat-number">{videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)}%</div>
               <div className="stat-label">COMPLETE</div>
             </div>
           </div>
@@ -1912,8 +1883,52 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               ></div>
             </div>
             <p className="progress-text">
-              {videoProgress.completedVideos !== undefined ? videoProgress.completedVideos : completedVideos.length} of {videoProgress.totalVideos || totalVideos} videos completed
+              {videoProgress.completedVideos !== undefined ? videoProgress.completedVideos : completedVideos.length} of {videoProgress.totalVideos || totalVideos || 0} videos completed
             </p>
+
+            {/* Attempt Quiz Button - Unlocks at 100% video AND assignment completion */}
+            <button
+              onClick={() => handleQuizStart(1)}
+              disabled={
+                (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) < 100 ||
+                (assignments.length > 0 && (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) < 1)
+              }
+              style={{
+                marginTop: '16px',
+                width: '100%',
+                padding: '12px',
+                background:
+                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
+                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
+                    ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
+                    : '#cbd5e1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor:
+                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
+                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
+                    ? 'pointer' : 'not-allowed',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow:
+                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
+                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
+                    ? '0 4px 15px rgba(139, 92, 246, 0.4)'
+                    : 'none'
+              }}
+            >
+              <span>
+                {(videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
+                  (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
+                  ? '📝' : '🔒'}
+              </span>
+              Attempt Quiz
+            </button>
           </div>
         </div>
 
@@ -1943,6 +1958,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 </div>
                 <div className="nptel-video-container">
                   <iframe
+                    ref={videoPlayerRef}
                     key={selectedVideo.url}
                     src={selectedVideo.url}
                     title={selectedVideo.title}
@@ -1952,6 +1968,128 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     className="nptel-video-iframe"
                     sandbox="allow-scripts allow-same-origin allow-presentation"
                   ></iframe>
+                </div>
+
+                {/* Mark as Completed Button */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '16px',
+                  background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+                  borderRadius: '12px',
+                  border: '2px solid #bae6fd'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '12px'
+                  }}>
+                    <div>
+                      <h4 style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>Video Progress</h4>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#0c4a6e' }}>
+                        Watch at least 80% to mark as completed
+                      </p>
+                    </div>
+                    <div style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      color: (videoWatchProgress[selectedVideo.id] || 0) >= 80 ? '#059669' : '#0369a1'
+                    }}>
+                      {Math.round(videoWatchProgress[selectedVideo.id] || 0)}%
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div style={{
+                    width: '100%',
+                    height: '8px',
+                    background: '#cbd5e1',
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '12px'
+                  }}>
+                    <div style={{
+                      width: `${videoWatchProgress[selectedVideo.id] || 0}%`,
+                      height: '100%',
+                      background: (videoWatchProgress[selectedVideo.id] || 0) >= 80
+                        ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)'
+                        : 'linear-gradient(90deg, #0ea5e9 0%, #0284c7 100%)',
+                      transition: 'width 0.3s ease',
+                      borderRadius: '4px'
+                    }}></div>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      if ((videoWatchProgress[selectedVideo.id] || 0) >= 80) {
+                        // Mark video as completed
+                        await updateVideoProgressInDB(selectedVideo.id, true);
+                        if (!completedVideos.includes(selectedVideo.id)) {
+                          setCompletedVideos(prev => [...prev, selectedVideo.id]);
+                        }
+                        // Recalculate progress locally for immediate UI update
+                        const totalVids = courseContent.videos.length || 1;
+                        const currentCompletedCount = completedVideos.includes(selectedVideo.id) ? completedVideos.length : completedVideos.length + 1;
+                        const newPercentage = Math.round((currentCompletedCount / totalVids) * 100);
+
+                        setVideoProgress(prev => ({
+                          ...prev,
+                          completedVideos: currentCompletedCount,
+                          completionPercentage: newPercentage
+                        }));
+                        setProgress(newPercentage);
+
+                        alert('✅ Video marked as completed!');
+                      }
+                    }}
+                    disabled={(videoWatchProgress[selectedVideo.id] || 0) < 80}
+                    style={{
+                      width: '100%',
+                      padding: '14px 24px',
+                      background: (videoWatchProgress[selectedVideo.id] || 0) >= 80
+                        ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                        : '#cbd5e1',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '1rem',
+                      fontWeight: '700',
+                      cursor: (videoWatchProgress[selectedVideo.id] || 0) >= 80 ? 'pointer' : 'not-allowed',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: (videoWatchProgress[selectedVideo.id] || 0) >= 80
+                        ? '0 4px 15px rgba(16, 185, 129, 0.4)'
+                        : 'none',
+                      opacity: completedVideos.includes(selectedVideo.id) ? 0.6 : 1
+                    }}
+                    onMouseEnter={(e) => {
+                      if ((videoWatchProgress[selectedVideo.id] || 0) >= 80) {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if ((videoWatchProgress[selectedVideo.id] || 0) >= 80) {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)';
+                      }
+                    }}
+                  >
+                    {completedVideos.includes(selectedVideo.id) ? (
+                      <>
+                        <span>✅</span>
+                        <span>Completed</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{(videoWatchProgress[selectedVideo.id] || 0) >= 80 ? '✓' : '🔒'}</span>
+                        <span>Mark as Completed</span>
+                      </>
+                    )}
+                  </button>
                 </div>
                 <div className="video-card-footer">
                   <h4 className="video-title">{selectedVideo.title}</h4>
@@ -2059,7 +2197,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         {/* Assignments Section */}
         <div className="nptel-section">
           <h2 className="nptel-section-title">📝 Assignments</h2>
-          
+
           {/* Assignment Progress Stats */}
           {assignments.length > 0 && (
             <div className="assignment-progress-stats">
@@ -2077,7 +2215,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div className="stat-card">
                   <span className="stat-label">PROGRESS</span>
                   <span className="stat-value">
-                    {assignments.length > 0 
+                    {assignments.length > 0
                       ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100).toFixed(1)
                       : 0}%
                   </span>
@@ -2087,10 +2225,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div className="progress-bar-track">
                   <div
                     className="progress-bar-fill"
-                    style={{ 
-                      width: `${assignments.length > 0 
+                    style={{
+                      width: `${assignments.length > 0
                         ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100)
-                        : 0}%` 
+                        : 0}%`
                     }}
                   ></div>
                 </div>
@@ -2299,9 +2437,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
             {/* Student Reviews Display */}
             <div style={{ marginTop: '40px', paddingTop: '30px', borderTop: '2px solid #e0e0e0' }}>
-              <h3 style={{ 
-                fontSize: '1.5rem', 
-                marginBottom: '24px', 
+              <h3 style={{
+                fontSize: '1.5rem',
+                marginBottom: '24px',
                 color: '#1a1a1a',
                 display: 'flex',
                 alignItems: 'center',
@@ -2318,7 +2456,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   </span>
                 )}
               </h3>
-              
+
               {loadingFeedbacks ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
                   <div className="loading-spinner"></div>
@@ -2388,7 +2526,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Comment */}
                         <div style={{
                           color: '#333',
@@ -2402,7 +2540,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                         }}>
                           {feedback.Comment}
                         </div>
-                        
+
                         {/* Rating and Date */}
                         <div style={{
                           display: 'flex',
@@ -2423,7 +2561,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                               </span>
                             ))}
                           </div>
-                          
+
                           {/* Date */}
                           <div style={{
                             fontSize: '0.85rem',

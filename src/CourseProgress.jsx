@@ -4,7 +4,7 @@ import './CourseProgress.css';
 const CourseProgress = ({ onNavigate }) => {
   const [stats, setStats] = useState({
     completed: 0,
-    pending: 7,
+    pending: 0,
     progressPercentage: 0,
     lateSubmissions: 0
   });
@@ -15,16 +15,99 @@ const CourseProgress = ({ onNavigate }) => {
     // Trigger animation on mount
     setTimeout(() => setIsLoaded(true), 100);
 
-    // In a real app, fetch actual progress data from API
-    // For now using static demo data
+    // Fetch actual progress data from API
     const fetchProgress = async () => {
-      // Simulate API call
-      setStats({
-        completed: 0,
-        pending: 7,
-        progressPercentage: 0,
-        lateSubmissions: 0
-      });
+      try {
+        const selectedCourse = localStorage.getItem('selected_course');
+        const authUser = localStorage.getItem('auth_user');
+        const authToken = localStorage.getItem('auth_token');
+
+        if (!selectedCourse || !authUser) {
+          setStats({
+            completed: 0,
+            pending: 0,
+            progressPercentage: 0,
+            lateSubmissions: 0
+          });
+          return;
+        }
+
+        const courseData = JSON.parse(selectedCourse);
+        const userData = JSON.parse(authUser);
+        const courseId = courseData.Course_Id || courseData.id;
+        const studentId = userData.id || userData._id;
+
+        // Fetch video progress
+        let videoCompletionPercentage = 0;
+        if (authToken && studentId) {
+          try {
+            const videoProgressResponse = await fetch(
+              `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseId}/summary`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${authToken}`
+                }
+              }
+            );
+            
+            if (videoProgressResponse.ok) {
+              const videoResult = await videoProgressResponse.json();
+              if (videoResult.success && videoResult.data) {
+                videoCompletionPercentage = videoResult.data.completionPercentage || 0;
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching video progress:', error);
+          }
+        }
+
+        // Fetch assignments for this course
+        const assignmentsResponse = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
+        const assignmentsResult = await assignmentsResponse.json();
+        
+        const totalAssignments = assignmentsResult.success ? assignmentsResult.data.length : 0;
+
+        // Fetch completed assignments for this student
+        let completedCount = 0;
+        if (authToken && studentId) {
+          const submissionsResponse = await fetch(`http://localhost:5000/api/submissions/student/${studentId}`, {
+            headers: {
+              'Authorization': `Bearer ${authToken}`
+            }
+          });
+          
+          if (submissionsResponse.ok) {
+            const submissionsResult = await submissionsResponse.json();
+            if (submissionsResult.success && submissionsResult.data) {
+              // Count submissions for this specific course
+              completedCount = submissionsResult.data.filter(sub => 
+                sub.Course_Id === courseId || sub.courseId === courseId
+              ).length;
+            }
+          }
+        }
+
+        const pendingCount = totalAssignments - completedCount;
+        const assignmentCompletionPercentage = totalAssignments > 0 ? Math.round((completedCount / totalAssignments) * 100) : 0;
+
+        // Overall completion is average of video and assignment completion
+        const overallPercentage = Math.round((videoCompletionPercentage + assignmentCompletionPercentage) / 2);
+
+        setStats({
+          completed: completedCount,
+          pending: pendingCount,
+          progressPercentage: overallPercentage,
+          lateSubmissions: 0
+        });
+      } catch (error) {
+        console.error('Error fetching progress:', error);
+        setStats({
+          completed: 0,
+          pending: 0,
+          progressPercentage: 0,
+          lateSubmissions: 0
+        });
+      }
     };
 
     fetchProgress();

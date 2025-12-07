@@ -737,10 +737,7 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
             }
           }
         } catch (err) {
-          console.error(
-            `Error enriching session ${session.Session_Id}:`,
-            err
-          );
+          console.error(`Error enriching session ${session.Session_Id}:`, err);
         }
 
         return {

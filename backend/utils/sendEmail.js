@@ -4,7 +4,7 @@ module.exports = async (email, subject, text) => {
   try {
     let transporter;
     const hasSmtpEnvs =
-      process.env.HOST || process.env.SERVICE || process.env.USER;
+      process.env.HOST || process.env.SERVICE || process.env.EMAIL_USER;
 
     if (hasSmtpEnvs) {
       transporter = nodemailer.createTransport({
@@ -13,8 +13,8 @@ module.exports = async (email, subject, text) => {
         port: Number(process.env.EMAIL_PORT || 587),
         secure: Boolean(process.env.SECURE || false),
         auth: {
-          user: process.env.USER,
-          pass: process.env.PASS,
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_APP_PASSWORD,
         },
       });
     } else {
@@ -29,7 +29,7 @@ module.exports = async (email, subject, text) => {
     }
 
     const info = await transporter.sendMail({
-      from: process.env.USER || "no-reply@ividhyarthi.local",
+      from: process.env.EMAIL_USER || "no-reply@ividhyarthi.local",
       to: email,
       subject: subject,
       html: `

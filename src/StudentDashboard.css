@@ -1235,6 +1235,11 @@ body {
   color: #fbbf24;
 }
 
+.star.half {
+  color: #fbbf24;
+  opacity: 0.6;
+}
+
 .star.empty {
   color: #d1d5db;
 }
@@ -2026,6 +2031,13 @@ html {
   height: auto !important;
 }
 
+.course-card-carousel .price-rating-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
 .course-card-carousel .course-price {
   font-size: 1.5rem;
   font-weight: 800;
@@ -2066,8 +2078,27 @@ html {
 
 .course-card-carousel .course-rating .star {
   font-size: 0.875rem;
-  color: #fbbf24;
   filter: drop-shadow(0 1px 2px rgba(251, 191, 36, 0.3));
+}
+
+.course-card-carousel .course-rating .star.filled {
+  color: #fbbf24;
+}
+
+.course-card-carousel .course-rating .star.half {
+  color: #fbbf24;
+  opacity: 0.6;
+}
+
+.course-card-carousel .course-rating .star.empty {
+  color: #d1d5db;
+}
+
+.course-card-carousel .course-rating .rating-number {
+  color: #1f2937;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-left: 0.25rem;
 }
 
 /* Responsive Design for Carousel */

@@ -1,0 +1,63 @@
+/* Auto-scroll animation for Home.jsx only */
+/* This CSS is specific to the Home page and does not affect StudentDashboard */
+
+/* Keyframe animation for smooth right-to-left scrolling */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Apply animation only when auto-scroll class is present */
+.courses-carousel.auto-scroll {
+  animation: scroll-left 40s linear infinite;
+  /* Duration depends on number of courses - adjust if needed */
+}
+
+/* When hovered, pause the animation and maintain static positioning */
+.courses-carousel-wrapper:hover .courses-carousel.auto-scroll {
+  animation-play-state: paused;
+}
+
+/* Smooth transition when pausing/resuming */
+.courses-carousel {
+  transition: transform 0.3s ease;
+}
+
+/* Ensure smooth performance */
+.courses-carousel.auto-scroll {
+  will-change: transform;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .courses-carousel.auto-scroll {
+    animation-duration: 35s;
+  }
+}
+
+@media (max-width: 1200px) {
+  .courses-carousel.auto-scroll {
+    animation-duration: 30s;
+  }
+}
+
+@media (max-width: 768px) {
+  .courses-carousel.auto-scroll {
+    animation-duration: 25s;
+  }
+}
+
+/* Additional hover effect - slightly lift cards on hover */
+.courses-carousel-wrapper:hover .course-card-carousel {
+  cursor: pointer;
+}
+
+/* Ensure the wrapper doesn't show overflow during animation */
+.courses-carousel-wrapper {
+  overflow: hidden;
+  position: relative;
+}

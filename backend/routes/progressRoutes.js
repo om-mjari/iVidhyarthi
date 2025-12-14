@@ -100,6 +100,8 @@ router.post("/calculate", async (req, res) => {
   try {
     const { courseId, studentId } = req.body;
 
+    console.log('📊 Progress calculation request:', { courseId, studentId });
+
     if (!courseId || !studentId) {
       return res.status(400).json({
         success: false,
@@ -114,8 +116,13 @@ router.post("/calculate", async (req, res) => {
     const Tbl_Courses = require("../models/Tbl_Courses");
     const Tbl_CourseContent = require("../models/Tbl_CourseContent");
 
-    const course = await Tbl_Courses.findOne({ Course_Id: courseId });
+    const course = await Tbl_Courses.findOne({ Course_Id: courseId }).catch(err => {
+      console.error('Error finding course:', err);
+      return null;
+    });
+    
     if (!course) {
+      console.log('⚠️ Course not found for courseId:', courseId);
       return res.status(404).json({
         success: false,
         message: "Course not found",
@@ -123,6 +130,7 @@ router.post("/calculate", async (req, res) => {
     }
 
     // Calculate video completion percentage - count actual videos from Tbl_CourseContent
+    console.log('🔍 Querying videos with courseId:', courseId, 'Type:', typeof courseId);
     const totalVideos = await Tbl_CourseContent.countDocuments({
       Course_Id: courseId,
       Content_Type: "video"
@@ -134,9 +142,18 @@ router.post("/calculate", async (req, res) => {
     });
     const videoCompletionPercentage = totalVideos > 0 ? (completedVideos / totalVideos) * 100 : 0;
 
-    // Calculate assignment completion percentage
-    const assignments = await Tbl_Assignments.find({ Course_Id: courseId });
+    console.log('📹 Video Progress:', {
+      totalVideos,
+      completedVideos,
+      percentage: videoCompletionPercentage
+    });
+
+    // Calculate assignment completion percentage - ensure courseId is string for assignments
+    console.log('🔍 Querying assignments with courseId:', String(courseId), 'Type: String');
+    const assignments = await Tbl_Assignments.find({ Course_Id: String(courseId) });
     const totalAssignments = assignments.length;
+    
+    console.log('📝 Found assignments:', assignments.map(a => ({ id: a.Assignment_Id, courseId: a.Course_Id })));
     
     // Get assignment IDs for this course
     const assignmentIds = assignments.map(a => a.Assignment_Id);
@@ -149,7 +166,7 @@ router.post("/calculate", async (req, res) => {
     
     const assignmentCompletionPercentage = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
     
-    console.log('Assignment Progress:', {
+    console.log('📊 Assignment Progress:', {
       totalAssignments,
       completedAssignments,
       assignmentIds,

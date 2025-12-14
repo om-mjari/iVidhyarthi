@@ -63,44 +63,24 @@ router.post("/create", async (req, res) => {
 // Get feedback for a course
 router.get("/course/:courseId", async (req, res) => {
   try {
-    const feedbacks = await Feedback.find({
-      Course_Id: req.params.courseId,
-    }).sort({ Posted_On: -1 });
-
-    // Get student names and course name for each feedback
-    const Student = require("../models/Tbl_Students");
-    const Course = require("../models/Tbl_Course");
+    console.log('📋 Fetching feedbacks for courseId:', req.params.courseId);
     
-    const enrichedFeedbacks = await Promise.all(
-      feedbacks.map(async (feedback) => {
-        const student = await Student.findOne({
-          _id: feedback.Student_Id,
-        }).lean();
-        
-        const course = await Course.findOne({
-          Course_Id: feedback.Course_Id,
-        }).lean();
-        
-        return {
-          Feedback_Id: feedback.Feedback_Id,
-          Course_Id: feedback.Course_Id,
-          Course_Name: course ? course.Title : "Unknown Course",
-          Student_Id: feedback.Student_Id,
-          Student_Name: student ? student.Full_Name : "Unknown Student",
-          Rating: feedback.Rating,
-          Comment: feedback.Comment,
-          Status: feedback.Status,
-          Posted_On: feedback.Posted_On,
-          Submission_Date: feedback.Posted_On,
-        };
-      })
-    );
+    const feedbacks = await Feedback.find({
+      Course_Id: req.params.courseId.toString(),
+    }).sort({ Posted_On: -1 }).lean().catch(err => {
+      console.error('Database query error:', err);
+      return [];
+    });
+
+    console.log('✅ Found', feedbacks.length, 'feedbacks');
 
     res.json({
       success: true,
-      data: enrichedFeedbacks,
+      data: feedbacks || [],
     });
   } catch (error) {
+    console.error('❌ Error fetching feedback:', error);
+    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: "Error fetching feedback",
@@ -146,6 +126,123 @@ router.put("/update/:feedbackId", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Error updating feedback",
+      error: error.message,
+    });
+  }
+});
+
+// Update user's own comment (within 24 hours)
+router.put("/update-comment/:feedbackId", async (req, res) => {
+  try {
+    const { Student_Id, Comment, Rating } = req.body;
+
+    if (!Student_Id || !Comment) {
+      return res.status(400).json({
+        success: false,
+        message: "Student_Id and Comment are required",
+      });
+    }
+
+    // Find the feedback
+    const feedback = await Feedback.findOne({ Feedback_Id: req.params.feedbackId });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    // Check if the user owns this feedback
+    if (feedback.Student_Id.toString() !== Student_Id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update your own feedback",
+      });
+    }
+
+    // Check if feedback was posted within last 24 hours
+    const hoursSincePosted = (new Date() - new Date(feedback.Posted_On)) / (1000 * 60 * 60);
+    if (hoursSincePosted > 24) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only update feedback within 24 hours of posting",
+      });
+    }
+
+    // Update the feedback
+    feedback.Comment = Comment.trim();
+    if (Rating) {
+      feedback.Rating = Number(Rating);
+    }
+    await feedback.save();
+
+    res.json({
+      success: true,
+      message: "Feedback updated successfully",
+      data: feedback,
+    });
+  } catch (error) {
+    console.error("Error updating feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error updating feedback",
+      error: error.message,
+    });
+  }
+});
+
+// Delete user's own comment (within 24 hours)
+router.delete("/delete/:feedbackId", async (req, res) => {
+  try {
+    const { Student_Id } = req.body;
+
+    if (!Student_Id) {
+      return res.status(400).json({
+        success: false,
+        message: "Student_Id is required",
+      });
+    }
+
+    // Find the feedback
+    const feedback = await Feedback.findOne({ Feedback_Id: req.params.feedbackId });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    // Check if the user owns this feedback
+    if (feedback.Student_Id.toString() !== Student_Id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete your own feedback",
+      });
+    }
+
+    // Check if feedback was posted within last 24 hours
+    const hoursSincePosted = (new Date() - new Date(feedback.Posted_On)) / (1000 * 60 * 60);
+    if (hoursSincePosted > 24) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete feedback within 24 hours of posting",
+      });
+    }
+
+    // Delete the feedback
+    await Feedback.deleteOne({ Feedback_Id: req.params.feedbackId });
+
+    res.json({
+      success: true,
+      message: "Feedback deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting feedback",
       error: error.message,
     });
   }

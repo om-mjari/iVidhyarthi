@@ -725,10 +725,18 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               // Fetch institute information using lecturer's institute
               if (lecturerResult.data.Institute_Id) {
                 try {
-                  const instituteResponse = await fetch(`http://localhost:5000/api/institutes/${lecturerResult.data.Institute_Id}`);
-                  const instituteResult = await instituteResponse.json();
-                  if (instituteResult.success && instituteResult.data) {
-                    setInstituteInfo(instituteResult.data);
+                  // Extract institute ID properly (handle if it's an object)
+                  let instituteId = lecturerResult.data.Institute_Id;
+                  if (typeof instituteId === 'object') {
+                    instituteId = instituteId._id || instituteId.Institute_Id || instituteId.id;
+                  }
+                  
+                  if (instituteId) {
+                    const instituteResponse = await fetch(`http://localhost:5000/api/institutes/${instituteId}`);
+                    const instituteResult = await instituteResponse.json();
+                    if (instituteResult.success && instituteResult.data) {
+                      setInstituteInfo(instituteResult.data);
+                    }
                   }
                 } catch (error) {
                   console.error('Error fetching institute info:', error);
@@ -1493,7 +1501,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Show Submission Viewer
   if (viewingSubmission && selectedSubmission) {
     return (
-      <div className="submission-viewer-page">
+      <div className="submission-viewer-page" style={{ height: '100vh', overflow: 'auto' }}>
         <div className="submission-viewer-header">
           <button className="back-btn" onClick={handleAssignmentBack}>
             ← Back to Course
@@ -1506,18 +1514,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <div className="submission-stats">
               <div className="stat-item">
                 <span className="stat-label">Score:</span>
-                <span className="stat-value">{selectedSubmission.Submission_Data?.Score || 0} / {selectedSubmission.Marks}</span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Time Spent:</span>
-                <span className="stat-value">
-                  {Math.floor(selectedSubmission.Submission_Data?.Time_Spent / 60)}m {selectedSubmission.Submission_Data?.Time_Spent % 60}s
-                </span>
+                <span className="stat-value">{selectedSubmission.Submission_Data?.Score || selectedSubmission.Score || 0} / {selectedSubmission.Marks || 10}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Submitted:</span>
                 <span className="stat-value">
-                  {new Date(selectedSubmission.Submission_Data?.Submitted_On).toLocaleString()}
+                  {new Date(selectedSubmission.Submission_Data?.Submitted_On || selectedSubmission.Submitted_On).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -2202,10 +2204,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                           // Refresh all progress data from database (single source of truth)
                           console.log('🔄 Refreshing progress from database...');
                           await refreshVideoProgress();
-
-                          alert('✅ Video marked as completed!');
-                        } else {
-                          alert('❌ Failed to save progress. Please try again.');
                         }
                       }
                     }}

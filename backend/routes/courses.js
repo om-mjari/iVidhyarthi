@@ -81,7 +81,19 @@ router.get('/', async (req, res) => {
 // Get single course by ID
 router.get('/:id', async (req, res) => {
   try {
-    const course = await Course.findById(req.params.id);
+    const mongoose = require('mongoose');
+    let course = null;
+    
+    // Try to find by MongoDB _id first
+    if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+      course = await Course.findById(req.params.id);
+    }
+    
+    // If not found, try to find by Course_Id in Tbl_Courses collection
+    if (!course) {
+      const Tbl_Courses = require('../models/Tbl_Courses');
+      course = await Tbl_Courses.findOne({ Course_Id: req.params.id });
+    }
     
     if (!course) {
       return res.status(404).json({
@@ -90,8 +102,10 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    // Increment view count
-    await course.incrementViews();
+    // Increment view count if method exists
+    if (course.incrementViews) {
+      await course.incrementViews();
+    }
 
     res.json({
       success: true,
@@ -99,6 +113,7 @@ router.get('/:id', async (req, res) => {
     });
 
   } catch (error) {
+    console.error('Error fetching course:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching course',

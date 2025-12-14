@@ -14,17 +14,27 @@ const RecommendedCourses = ({ onNavigate }) => {
       setLoading(true);
       setError(null);
 
-      // Get student ID from localStorage
+      // Get student ID and current course from localStorage
       const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
       const studentId = authUser.Student_Id || authUser.id;
+      const selectedCourse = JSON.parse(localStorage.getItem('selected_course') || 'null');
+      const currentCourseId = selectedCourse?.id || selectedCourse?.Course_Id;
 
       let response;
       
-      if (studentId) {
-        // Personalized recommendations based on enrolled courses
+      // Priority 1: If user is viewing a course, show co-enrolled courses
+      if (currentCourseId) {
+        console.log('🎯 Fetching co-enrolled courses for course:', currentCourseId);
+        response = await fetch(`http://localhost:5000/api/recommendations/also-enrolled/${currentCourseId}?limit=6`);
+      }
+      // Priority 2: If user is logged in, show personalized recommendations
+      else if (studentId) {
+        console.log('👤 Fetching personalized recommendations for student:', studentId);
         response = await fetch(`http://localhost:5000/api/recommendations/student/${studentId}?limit=6`);
-      } else {
-        // Popular courses for non-logged-in users
+      }
+      // Priority 3: Show popular courses for non-logged-in users
+      else {
+        console.log('🌟 Fetching popular courses');
         response = await fetch('http://localhost:5000/api/recommendations/popular?limit=6');
       }
 

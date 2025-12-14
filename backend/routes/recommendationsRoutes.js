@@ -5,6 +5,24 @@ const Tbl_Enrollments = require("../models/Tbl_Enrollments");
 const recommendationEngine = require("../utils/recommendationEngine");
 
 /**
+ * GET /api/recommendations/test
+ * Test endpoint to verify routes are working
+ */
+router.get("/test", (req, res) => {
+  res.json({
+    success: true,
+    message: "Recommendations API is working",
+    routes: [
+      "/api/recommendations/student/:studentId",
+      "/api/recommendations/course/:courseId",
+      "/api/recommendations/also-enrolled/:courseId",
+      "/api/recommendations/popular",
+      "/api/recommendations/bulk"
+    ]
+  });
+});
+
+/**
  * GET /api/recommendations/student/:studentId
  * Get personalized course recommendations for a student
  */
@@ -186,6 +204,119 @@ router.get("/popular", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch popular courses",
+      error: error.message,
+    });
+  }
+});
+
+/**
+ * GET /api/recommendations/also-enrolled/:courseId
+ * Get courses that students who enrolled in this course also enrolled in
+ * Collaborative filtering approach
+ */
+router.get("/also-enrolled/:courseId", async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const limit = parseInt(req.query.limit) || 6;
+
+    console.log('🔍 Finding co-enrolled courses for courseId:', courseId);
+
+    // 1. Find all students who enrolled in this course
+    const enrollmentsInTargetCourse = await Tbl_Enrollments.find({
+      Course_Id: courseId.toString(),
+    }).lean();
+
+    if (enrollmentsInTargetCourse.length === 0) {
+      console.log('⚠️ No enrollments found for this course');
+      return res.json({
+        success: true,
+        count: 0,
+        data: [],
+        message: "No enrollments found for this course yet"
+      });
+    }
+
+    const studentIds = enrollmentsInTargetCourse.map(e => e.Student_Id);
+    console.log('👥 Found', studentIds.length, 'students enrolled in this course');
+
+    // 2. Find all courses these students have also enrolled in
+    const otherEnrollments = await Tbl_Enrollments.find({
+      Student_Id: { $in: studentIds },
+      Course_Id: { $ne: courseId.toString() }
+    }).lean();
+
+    console.log('📚 Found', otherEnrollments.length, 'other enrollments');
+
+    // 3. Count frequency of each course
+    const courseFrequency = {};
+    otherEnrollments.forEach(enrollment => {
+      const cId = enrollment.Course_Id;
+      courseFrequency[cId] = (courseFrequency[cId] || 0) + 1;
+    });
+
+    // 4. Sort by frequency and get top courses
+    const sortedCourses = Object.entries(courseFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([courseId, count]) => ({ courseId, enrollmentCount: count }));
+
+    console.log('📊 Top co-enrolled courses:', sortedCourses);
+
+    if (sortedCourses.length === 0) {
+      console.log('⚠️ No co-enrolled courses found');
+      return res.json({
+        success: true,
+        count: 0,
+        data: [],
+        message: "Students haven't enrolled in other courses yet"
+      });
+    }
+
+    // 5. Fetch course details
+    const courseIds = sortedCourses.map(c => c.courseId);
+    const courses = await Tbl_Courses.find({
+      Course_Id: { $in: courseIds },
+      Status: "Active"
+    }).lean();
+
+    // 6. Merge course details with enrollment counts
+    const recommendations = sortedCourses
+      .map(item => {
+        const course = courses.find(c => c.Course_Id.toString() === item.courseId.toString());
+        if (!course) return null;
+        
+        const percentage = Math.round((item.enrollmentCount / studentIds.length) * 100);
+        
+        return {
+          ...course,
+          coEnrollmentCount: item.enrollmentCount,
+          coEnrollmentPercentage: percentage,
+          matchScore: Math.min(percentage, 95).toString(),
+          matchDetails: {
+            reason: `${percentage}% of students also enrolled in this course`,
+            enrolledStudents: item.enrollmentCount
+          }
+        };
+      })
+      .filter(Boolean);
+
+    console.log('✅ Returning', recommendations.length, 'recommendations');
+
+    res.json({
+      success: true,
+      count: recommendations.length,
+      basedOn: {
+        courseId: courseId,
+        totalStudents: studentIds.length
+      },
+      data: recommendations,
+    });
+
+  } catch (error) {
+    console.error("❌ Error generating co-enrollment recommendations:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate recommendations",
       error: error.message,
     });
   }

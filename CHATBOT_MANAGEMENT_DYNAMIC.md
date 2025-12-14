@@ -5,6 +5,7 @@
 ### What Was Added:
 
 #### 1. **State Management** (AdminDashboard.jsx)
+
 ```javascript
 // New state for chatbot data
 const [chatHistory, setChatHistory] = useState([]);
@@ -12,7 +13,7 @@ const [chatStats, setChatStats] = useState({
   totalChats: 0,
   totalUsers: 0,
   averageResponseTime: 0,
-  helpfulChats: 0
+  helpfulChats: 0,
 });
 const [chatLoading, setChatLoading] = useState(false);
 const [chatPage, setChatPage] = useState(1);
@@ -20,23 +21,28 @@ const [chatTotalPages, setChatTotalPages] = useState(1);
 ```
 
 #### 2. **Data Fetching Function**
+
 ```javascript
 const fetchChatbotData = async () => {
   // Fetches statistics from /api/chat-history/stats/overview
   // Fetches chat history from /api/chat-history/all?limit=10&page={chatPage}
   // Updates state with real data from MongoDB
-}
+};
 ```
 
 #### 3. **Dynamic Statistics Display**
+
 The chatbot stats now show **REAL DATA** from database:
+
 - **Total Conversations**: Total chats from `Tbl_ChatHistory`
 - **Unique Users**: Number of unique users who chatted
 - **Avg Response Time**: Average bot response time in milliseconds
 - **Helpful Responses**: Count of responses marked as helpful
 
 #### 4. **Chat History List**
+
 Displays recent conversations with:
+
 - User name, email, timestamp
 - Question and answer
 - Response time
@@ -46,12 +52,14 @@ Displays recent conversations with:
 - Delete functionality for each chat entry
 
 #### 5. **Pagination**
+
 - Shows 10 chats per page
 - Previous/Next buttons
 - Page indicator (Page X of Y)
 - Automatically fetches new data when page changes
 
 #### 6. **Auto-Refresh**
+
 - Data refreshes every 30 seconds when on Chatbot Management panel
 - Manual refresh via "Refresh Data" button
 - Loads fresh data when panel opens
@@ -61,12 +69,14 @@ Displays recent conversations with:
 ## 🎯 Features
 
 ### Real-Time Data
+
 ✅ Fetches live data from MongoDB `Tbl_ChatHistory` table
 ✅ Shows actual user conversations
 ✅ Real statistics (not hardcoded)
 ✅ Auto-refresh every 30 seconds
 
 ### User-Friendly Display
+
 ✅ Beautiful gradient cards for stats
 ✅ Color-coded Q&A sections (orange for questions, blue for answers)
 ✅ Helpful/Not helpful badges with emojis
@@ -74,6 +84,7 @@ Displays recent conversations with:
 ✅ Feedback comments display
 
 ### Interactions
+
 ✅ View Session button - Shows session ID
 ✅ Delete button - Removes chat entry from database
 ✅ Pagination - Navigate through chat history
@@ -108,6 +119,7 @@ Auto-refreshes every 30 seconds
 ## 🔧 API Endpoints Used
 
 ### 1. Statistics
+
 ```
 GET http://localhost:5000/api/chat-history/stats/overview
 
@@ -126,6 +138,7 @@ Response:
 ```
 
 ### 2. Chat History
+
 ```
 GET http://localhost:5000/api/chat-history/all?limit=10&page=1
 
@@ -157,6 +170,7 @@ Response:
 ```
 
 ### 3. Delete Chat Entry
+
 ```
 DELETE http://localhost:5000/api/chat-history/{chatId}
 
@@ -172,6 +186,7 @@ Response:
 ## 🎨 CSS Styling Added
 
 ### New Classes:
+
 - `.chat-history-list` - Container for chat list
 - `.chat-item` - Individual chat card with gradient background
 - `.chat-header` - User info and metadata
@@ -189,6 +204,7 @@ Response:
 - `.response-time` - Purple badge for timing
 
 ### Animations:
+
 - Hover effects on chat cards
 - Pulse animation for loading state
 - Smooth transitions on all elements
@@ -199,6 +215,7 @@ Response:
 ## 🧪 Testing
 
 ### Test 1: View Chat History
+
 1. Go to Admin Dashboard
 2. Click "Chatbot Management" in sidebar
 3. Click "Refresh Data" button
@@ -206,29 +223,34 @@ Response:
 5. Should see: List of recent conversations with Q&A
 
 ### Test 2: Pagination
+
 1. If you have more than 10 chats in database
 2. Click "Next" button at bottom
 3. Should load next page of conversations
 4. Click "Previous" to go back
 
 ### Test 3: Delete Chat
+
 1. Click "Delete" button on any chat entry
 2. Confirm deletion
 3. Chat should be removed from database
 4. List should refresh automatically
 
 ### Test 4: Auto-Refresh
+
 1. Stay on Chatbot Management panel
 2. In another browser, use chatbot to ask questions
 3. Wait 30 seconds
 4. Dashboard should automatically update with new conversations
 
 ### Test 5: Loading States
+
 1. Click "Refresh Data"
 2. Should see "Loading chat history..." message
 3. Once loaded, should see actual data
 
 ### Test 6: Empty State
+
 1. If no chats in database
 2. Should see message: "No chat history found. Users haven't started conversations yet."
 
@@ -248,6 +270,7 @@ Response:
 **✅ Running on:** `http://localhost:5000`
 
 **✅ Chat Routes Loaded:**
+
 - `/api/chat-history/save` - Save conversation
 - `/api/chat-history/all` - Get all chats
 - `/api/chat-history/user/:userId` - Get user chats
@@ -263,6 +286,7 @@ Response:
 ## ✨ Key Improvements
 
 ### Before:
+
 ❌ Hardcoded static data (156 FAQs, 89 queries)
 ❌ Fake Q&A examples
 ❌ No real database connection
@@ -270,6 +294,7 @@ Response:
 ❌ No user information
 
 ### After:
+
 ✅ **100% Dynamic Data** from MongoDB
 ✅ Real user conversations with timestamps
 ✅ Actual statistics calculated from database
@@ -290,6 +315,7 @@ Response:
 The Chatbot Management panel now displays **LIVE DATA** from the `Tbl_ChatHistory` table!
 
 Every time a student asks the chatbot a question:
+
 1. Question & answer saved to database
 2. Admin can view it in Chatbot Management
 3. Statistics update automatically

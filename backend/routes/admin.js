@@ -801,7 +801,10 @@ router.put("/feedback/:id/respond", authenticateAdmin, async (req, res) => {
         User_Id: studentId,
         Type: "Feedback Response",
         Title: "Admin Responded to Your Feedback",
-        Message: `Admin has responded to your feedback: "${response.substring(0, 100)}${response.length > 100 ? '...' : ''}"`,
+        Message: `Admin has responded to your feedback: "${response.substring(
+          0,
+          100
+        )}${response.length > 100 ? "..." : ""}"`,
         Link: `/student/feedback`,
         Is_Read: false,
         Created_At: new Date(),

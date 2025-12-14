@@ -41,7 +41,10 @@ router.post("/save", async (req, res) => {
 
     await chatHistory.save();
 
-    console.log("✅ Chat conversation saved successfully:", chatHistory.Chat_Id);
+    console.log(
+      "✅ Chat conversation saved successfully:",
+      chatHistory.Chat_Id
+    );
 
     res.json({
       success: true,
@@ -76,7 +79,9 @@ router.get("/user/:userId", async (req, res) => {
 
     const total = await ChatHistory.countDocuments({ User_Id: userId });
 
-    console.log(`✅ Found ${chatHistory.length} chat records for user ${userId}`);
+    console.log(
+      `✅ Found ${chatHistory.length} chat records for user ${userId}`
+    );
 
     res.json({
       success: true,

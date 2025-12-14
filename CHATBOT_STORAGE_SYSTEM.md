@@ -1,6 +1,7 @@
 # 🤖 Chatbot Q&A Storage System - Complete Guide
 
 ## 📋 Overview
+
 This system stores all chatbot conversations in MongoDB database, allowing you to track user interactions, analyze questions, and improve responses.
 
 ---
@@ -8,9 +9,11 @@ This system stores all chatbot conversations in MongoDB database, allowing you t
 ## ✅ Implementation Complete
 
 ### 1. **Database Model** - `Tbl_ChatHistory.js`
+
 Location: `backend/models/Tbl_ChatHistory.js`
 
 **Schema Fields:**
+
 ```javascript
 {
   Chat_Id: String (Unique ID: CHAT_timestamp_random)
@@ -28,6 +31,7 @@ Location: `backend/models/Tbl_ChatHistory.js`
 ```
 
 **Indexes:**
+
 - User_Id (find all chats by user)
 - Session_Id (find all chats in session)
 - Timestamp (sort by time)
@@ -35,12 +39,15 @@ Location: `backend/models/Tbl_ChatHistory.js`
 ---
 
 ### 2. **API Routes** - `chatHistoryRoutes.js`
+
 Location: `backend/routes/chatHistoryRoutes.js`
 
 #### Available Endpoints:
 
 #### 📝 **POST /api/chat-history/save**
+
 Save a new chat conversation
+
 ```javascript
 // Request Body
 {
@@ -62,7 +69,9 @@ Save a new chat conversation
 ```
 
 #### 📋 **GET /api/chat-history/user/:userId**
+
 Get all chat history for a specific user
+
 ```javascript
 // Query Parameters
 ?limit=50      // Number of records per page (default: 50)
@@ -82,7 +91,9 @@ Get all chat history for a specific user
 ```
 
 #### 📊 **GET /api/chat-history/all**
+
 Get all chat history (for admin)
+
 ```javascript
 // Query Parameters
 ?limit=100     // Records per page
@@ -98,7 +109,9 @@ Get all chat history (for admin)
 ```
 
 #### 👍 **PUT /api/chat-history/:chatId/feedback**
+
 Update user feedback on chat response
+
 ```javascript
 // Request Body
 {
@@ -115,7 +128,9 @@ Update user feedback on chat response
 ```
 
 #### 🗑️ **DELETE /api/chat-history/:chatId**
+
 Delete a chat record
+
 ```javascript
 // Response
 {
@@ -125,7 +140,9 @@ Delete a chat record
 ```
 
 #### 📈 **GET /api/chat-history/stats/overview**
+
 Get chat statistics
+
 ```javascript
 // Response
 {
@@ -144,11 +161,13 @@ Get chat statistics
 ---
 
 ### 3. **Frontend Integration** - `ChatbotAssistant.jsx`
+
 Location: `src/components/ChatbotAssistant.jsx`
 
 #### New Functions Added:
 
 **`saveChatToDatabase(question, answer, responseTimeMs)`**
+
 ```javascript
 // Automatically called after each bot response
 // - Retrieves user session from localStorage
@@ -158,6 +177,7 @@ Location: `src/components/ChatbotAssistant.jsx`
 ```
 
 **Modified `handleSendMessage()`**
+
 ```javascript
 // Now async function
 // - Tracks response time (Date.now() - startTime)
@@ -166,12 +186,14 @@ Location: `src/components/ChatbotAssistant.jsx`
 ```
 
 #### Session Management:
+
 - **Session ID**: Stored in `localStorage.getItem('chatSessionId')`
 - **Format**: `session_1234567890_abc123xyz`
 - **Lifetime**: Persists across page reloads until cleared
 - **New Session**: Created when not found in localStorage
 
 #### User Identification:
+
 ```javascript
 // Uses localStorage.getItem('userSession')
 {
@@ -191,12 +213,14 @@ userEmail: null
 ## 🚀 Testing the System
 
 ### Test 1: Ask a Question
+
 1. Open chatbot on student dashboard
 2. Type: "What courses do you offer?"
 3. Wait for bot response
 4. Check browser console for: `✅ Chat saved to database: CHAT_xxx`
 
 ### Test 2: Check Database
+
 ```javascript
 // In MongoDB Compass or CLI
 use iVidhyarthi
@@ -211,16 +235,18 @@ db.tbl_chathistories.find().limit(5).sort({Timestamp: -1})
 ```
 
 ### Test 3: View User History
+
 ```javascript
 // Make API call
-fetch('http://localhost:5000/api/chat-history/user/USER_123')
-  .then(res => res.json())
-  .then(data => console.log(data))
+fetch("http://localhost:5000/api/chat-history/user/USER_123")
+  .then((res) => res.json())
+  .then((data) => console.log(data));
 
 // Should return all chats for that user
 ```
 
 ### Test 4: Session Grouping
+
 1. Ask multiple questions in same session
 2. Check database - all should have same Session_Id
 3. Refresh page, ask another question
@@ -231,29 +257,33 @@ fetch('http://localhost:5000/api/chat-history/user/USER_123')
 ## 🔍 Monitoring & Analytics
 
 ### View Recent Conversations
+
 ```javascript
 // Last 10 chats
-fetch('http://localhost:5000/api/chat-history/all?limit=10&page=1')
+fetch("http://localhost:5000/api/chat-history/all?limit=10&page=1");
 ```
 
 ### Search for Keywords
+
 ```javascript
 // Find all Python-related questions
-fetch('http://localhost:5000/api/chat-history/all?search=python')
+fetch("http://localhost:5000/api/chat-history/all?search=python");
 ```
 
 ### Get User's Full History
+
 ```javascript
 // All chats by specific user
-fetch('http://localhost:5000/api/chat-history/user/USER_123?limit=100')
+fetch("http://localhost:5000/api/chat-history/user/USER_123?limit=100");
 ```
 
 ### View Statistics Dashboard
+
 ```javascript
 // Overall stats
-fetch('http://localhost:5000/api/chat-history/stats/overview')
-  .then(res => res.json())
-  .then(stats => console.log(stats))
+fetch("http://localhost:5000/api/chat-history/stats/overview")
+  .then((res) => res.json())
+  .then((stats) => console.log(stats));
 
 // Shows:
 // - Total conversations
@@ -269,6 +299,7 @@ fetch('http://localhost:5000/api/chat-history/stats/overview')
 **✅ Server Running on:** `http://localhost:5000`
 
 **✅ Routes Registered:**
+
 - `/api/auth`
 - `/api/admin`
 - `/api/notifications` ← Notification system
@@ -321,34 +352,39 @@ MongoDB: Tbl_ChatHistory collection
 ## 🎯 Use Cases
 
 ### 1. **Analyze Popular Questions**
+
 ```javascript
 // Find most common questions
 db.tbl_chathistories.aggregate([
   { $group: { _id: "$Question", count: { $sum: 1 } } },
   { $sort: { count: -1 } },
-  { $limit: 10 }
-])
+  { $limit: 10 },
+]);
 ```
 
 ### 2. **Track User Engagement**
+
 ```javascript
 // Find most active users
 db.tbl_chathistories.aggregate([
   { $group: { _id: "$User_Id", totalChats: { $sum: 1 } } },
   { $sort: { totalChats: -1 } },
-  { $limit: 20 }
-])
+  { $limit: 20 },
+]);
 ```
 
 ### 3. **Improve Bot Responses**
+
 ```javascript
 // Find unhelpful responses
-db.tbl_chathistories.find({ Is_Helpful: false })
+db.tbl_chathistories
+  .find({ Is_Helpful: false })
   .sort({ Timestamp: -1 })
-  .limit(20)
+  .limit(20);
 ```
 
 ### 4. **Monitor Response Quality**
+
 ```javascript
 // Average response time by day
 db.tbl_chathistories.aggregate([
@@ -356,11 +392,11 @@ db.tbl_chathistories.aggregate([
     $group: {
       _id: { $dateToString: { format: "%Y-%m-%d", date: "$Timestamp" } },
       avgResponseTime: { $avg: "$Response_Time_Ms" },
-      totalChats: { $sum: 1 }
-    }
+      totalChats: { $sum: 1 },
+    },
   },
-  { $sort: { _id: -1 } }
-])
+  { $sort: { _id: -1 } },
+]);
 ```
 
 ---
@@ -368,11 +404,13 @@ db.tbl_chathistories.aggregate([
 ## 🔧 Configuration
 
 ### Backend
+
 - **File**: `backend/server.js`
 - **Route Mount**: `app.use("/api/chat-history", chatHistoryRoutes)`
 - **Model Import**: `require("./models/Tbl_ChatHistory")`
 
 ### Frontend
+
 - **File**: `src/components/ChatbotAssistant.jsx`
 - **API URL**: `http://localhost:5000/api/chat-history/save`
 - **Session Storage**: `localStorage.getItem('chatSessionId')`
@@ -398,6 +436,7 @@ A: Not yet implemented in UI, but API endpoint exists: `GET /api/chat-history/us
 A: MongoDB document limit is 16MB. Typical Q&A is < 1KB. No practical limit.
 
 **Q: How to export all chat data?**
+
 ```javascript
 // Export to JSON
 mongoexport --db=iVidhyarthi --collection=tbl_chathistories --out=chats.json
@@ -424,12 +463,14 @@ All chatbot questions and answers are now being saved to the database!
 ## 📞 Support
 
 For issues or questions:
+
 1. Check browser console for error logs
 2. Check backend terminal for save confirmations
 3. Verify MongoDB connection in server logs
 4. Test API endpoints directly with Postman/curl
 
 **Backend Logs to Watch:**
+
 - `💬 Saving chat conversation:` - Save initiated
 - `✅ Chat conversation saved successfully:` - Save completed
 - `❌ Error saving chat conversation:` - Save failed

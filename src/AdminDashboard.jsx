@@ -59,6 +59,13 @@ const AdminDashboard = ({ onLogout }) => {
   const [chatTotalPages, setChatTotalPages] = useState(1);
   const [deletingChatId, setDeletingChatId] = useState(null);
 
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState({
+    userGrowth: [],
+    courseSales: 0
+  });
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   // Fetch all universities with registrar contact from MongoDB
   const fetchPendingUniversities = async () => {
     try {
@@ -393,6 +400,9 @@ const AdminDashboard = ({ onLogout }) => {
     if (activePanel === 'live') {
       fetchSessions();
     }
+    if (activePanel === 'analytics') {
+      fetchAnalyticsData();
+    }
     fetchCategories();
     fetchPendingUniversities();
     fetchCourseCategories();
@@ -419,6 +429,9 @@ const AdminDashboard = ({ onLogout }) => {
       }
       if (activePanel === 'live') {
         fetchSessions();
+      }
+      if (activePanel === 'analytics') {
+        fetchAnalyticsData();
       }
       fetchPendingUniversities();
     }, 30000);
@@ -876,6 +889,84 @@ const AdminDashboard = ({ onLogout }) => {
       setTransactions([]);
     } finally {
       setTransactionsLoading(false);
+    }
+  };
+
+  // Fetch analytics data
+  const fetchAnalyticsData = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const token = localStorage.getItem('auth_token') || '';
+
+      // Fetch user growth data
+      const usersResponse = await fetch('http://localhost:5000/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const usersResult = await usersResponse.json();
+
+      // Process user growth by month (last 6 months)
+      const userGrowthData = [];
+      if (usersResult.success && usersResult.data) {
+        const users = usersResult.data;
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const last6Months = [];
+        const now = new Date();
+        
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          last6Months.push({
+            month: monthNames[date.getMonth()],
+            year: date.getFullYear(),
+            count: 0
+          });
+        }
+
+        users.forEach(user => {
+          const createdDate = new Date(user.Created_At || user.createdAt);
+          const monthIndex = last6Months.findIndex(m => 
+            m.month === monthNames[createdDate.getMonth()] && 
+            m.year === createdDate.getFullYear()
+          );
+          if (monthIndex !== -1) {
+            last6Months[monthIndex].count++;
+          }
+        });
+
+        userGrowthData.push(...last6Months);
+      }
+
+      // Fetch revenue data from payments
+      const paymentsResponse = await fetch('http://localhost:5000/api/admin/payments', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const paymentsResult = await paymentsResponse.json();
+
+      let courseSales = 0;
+
+      if (paymentsResult.success && paymentsResult.data) {
+        // Sum up all successful payments
+        paymentsResult.data.forEach(payment => {
+          if (payment.status === 'SUCCESS' || payment.status === 'success' || payment.status === 'VERIFIED') {
+            courseSales += parseFloat(payment.amount || payment.Amount || 0);
+          }
+        });
+      }
+
+      setAnalyticsData({
+        userGrowth: userGrowthData,
+        courseSales: courseSales
+      });
+
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -2281,72 +2372,55 @@ const AdminDashboard = ({ onLogout }) => {
     </div>
   );
 
-  const renderAnalytics = () => (
-    <div className="analytics-panel">
-      <h2>📈 Reports & Analytics</h2>
-      <div className="analytics-grid">
-        <div className="analytics-card">
-          <h3>User Growth</h3>
-          <div className="chart-placeholder">
-            <p>📊 User registration trends over time</p>
-            <div className="mock-chart">
-              <div className="chart-bar" style={{ height: '60%' }}></div>
-              <div className="chart-bar" style={{ height: '80%' }}></div>
-              <div className="chart-bar" style={{ height: '70%' }}></div>
-              <div className="chart-bar" style={{ height: '90%' }}></div>
-              <div className="chart-bar" style={{ height: '100%' }}></div>
-            </div>
-          </div>
-        </div>
-        <div className="analytics-card">
-          <h3>Revenue Analytics</h3>
-          <div className="chart-placeholder">
-            <p>💰 Monthly revenue breakdown</p>
-            <div className="revenue-breakdown">
-              <div className="revenue-item">
-                <span>Course Sales</span>
-                <span>₹67,890</span>
-              </div>
-              <div className="revenue-item">
-                <span>Certifications</span>
-                <span>₹15,670</span>
-              </div>
-              <div className="revenue-item">
-                <span>Live Sessions</span>
-                <span>₹5,890</span>
+  const renderAnalytics = () => {
+    const maxUserCount = Math.max(...analyticsData.userGrowth.map(m => m.count), 1);
+    
+    return (
+      <div className="analytics-panel">
+        <h2>📈 Reports & Analytics</h2>
+        {analyticsLoading ? (
+          <div className="loading-state">Loading analytics data...</div>
+        ) : (
+          <div className="analytics-grid">
+            <div className="analytics-card">
+              <h3>User Growth</h3>
+              <div className="chart-placeholder">
+                <p>📊 User registration trends over time</p>
+                {analyticsData.userGrowth.length > 0 ? (
+                  <div className="mock-chart">
+                    {analyticsData.userGrowth.map((monthData, index) => (
+                      <div key={index} className="chart-bar-container">
+                        <div 
+                          className="chart-bar" 
+                          style={{ height: `${(monthData.count / maxUserCount) * 100}%` }}
+                          title={`${monthData.month}: ${monthData.count} users`}
+                        ></div>
+                        <span className="chart-label">{monthData.month}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ textAlign: 'center', color: '#999', padding: '20px' }}>No user data available</p>
+                )}
               </div>
             </div>
-          </div>
-        </div>
-        <div className="analytics-card">
-          <h3>Course Performance</h3>
-          <div className="chart-placeholder">
-            <p>📚 Most popular courses</p>
-            <div className="course-performance">
-              <div className="performance-item">
-                <span>React for Beginners</span>
-                <div className="progress-bar">
-                  <div className="progress" style={{ width: '90%' }}></div>
-                </div>
-              </div>
-              <div className="performance-item">
-                <span>Python Programming</span>
-                <div className="progress-bar">
-                  <div className="progress" style={{ width: '75%' }}></div>
-                </div>
-              </div>
-              <div className="performance-item">
-                <span>Machine Learning</span>
-                <div className="progress-bar">
-                  <div className="progress" style={{ width: '85%' }}></div>
+            <div className="analytics-card">
+              <h3>Revenue Analytics</h3>
+              <div className="chart-placeholder">
+                <p>💰 Monthly revenue breakdown</p>
+                <div className="revenue-breakdown">
+                  <div className="revenue-item">
+                    <span>Course Sales</span>
+                    <span>₹{analyticsData.courseSales.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
   const [searchTerm, setSearchTerm] = useState('');

@@ -1,54 +1,110 @@
 import React, { useState, useEffect } from 'react';
 
+// Avatar emojis pool - defined outside component for stability
+const avatarEmojis = ['👩‍🎓', '👨‍💼', '👩‍💻', '👨‍🔬', '👩‍🏫', '👨‍🎓', '👩‍💼', '👨‍💻', '👩‍🔬', '👨‍🏫'];
+
+// Testimonial templates - defined outside component for stability
+const reviewTemplates = [
+    'Outstanding educator! The teaching methodology is exceptional and easy to understand. Highly recommended for anyone looking to master {subject}.',
+    'Excellent instructor with deep knowledge. The course content is comprehensive and well-structured. Great learning experience!',
+    'Best learning experience I\'ve had! The explanations are clear and the practical examples make complex topics simple to grasp.',
+    'Exceptional teaching quality! The instructor\'s expertise and dedication truly make a difference in understanding {subject}.',
+    'Great instructor with excellent communication skills. The course helped me build strong foundations and practical skills.',
+    'Highly knowledgeable and passionate educator. The interactive sessions and real-world examples enhanced my learning journey.',
+    'Wonderful teaching approach! Made complex concepts easy to understand. Highly recommend for serious learners.',
+    'Professional and engaging instructor. The structured curriculum and hands-on projects were incredibly valuable.'
+];
+
 const Testimonials = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  const testimonials = [
-    {
-      id: 1,
-      name: 'Priya Sharma',
-      image: '👩‍🎓',
-      rating: 5,
-      review: 'iVidhyarthi transformed my career! The courses are comprehensive and the instructors are exceptional. Highly recommended for anyone looking to upskill.',
-      course: 'Full Stack Development',
-      role: 'Software Engineer'
-    },
-    {
-      id: 2,
-      name: 'Rahul Kumar',
-      image: '👨‍💼',
-      rating: 5,
-      review: 'Outstanding learning experience! The platform is user-friendly, and the course content is up-to-date with industry standards.',
-      course: 'Data Science & AI',
-      role: 'Data Analyst'
-    },
-    {
-      id: 3,
-      name: 'Anita Patel',
-      image: '👩‍💻',
-      rating: 5,
-      review: 'Best online learning platform I\'ve used. The flexibility and quality of education is unmatched. Got certified and landed my dream job!',
-      course: 'Cloud Computing',
-      role: 'Cloud Architect'
-    },
-    {
-      id: 4,
-      name: 'Vikram Singh',
-      image: '👨‍🔬',
-      rating: 4,
-      review: 'Great courses with practical knowledge. The projects helped me build a strong portfolio that impressed employers.',
-      course: 'Machine Learning',
-      role: 'ML Engineer'
-    }
-  ];
+  const [testimonials, setTestimonials] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
-    }, 5000);
+    const fetchLecturers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/tbl-lecturers');
+        const result = await response.json();
+        
+        if (result.success && Array.isArray(result.data)) {
+          // Transform lecturer data into testimonials
+          const lecturerTestimonials = result.data.map((lecturer, index) => {
+            const randomReview = reviewTemplates[index % reviewTemplates.length];
+            const subject = lecturer.Specialization || lecturer.specialization || 'their field';
+            const designation = lecturer.Designation || lecturer.designation || 'Instructor';
+            
+            return {
+              id: lecturer._id || lecturer.Lecturer_Id || index + 1,
+              name: lecturer.Full_Name || lecturer.name || 'Anonymous',
+              image: avatarEmojis[index % avatarEmojis.length],
+              rating: 5, // Default 5 stars for all lecturers
+              review: randomReview.replace('{subject}', subject),
+              course: lecturer.Specialization || lecturer.specialization || 'Various Courses',
+              role: designation,
+              qualification: lecturer.Highest_Qualification || lecturer.qualification || '',
+              experience: lecturer.Experience_Years ? `${lecturer.Experience_Years} years experience` : ''
+            };
+          });
 
-    return () => clearInterval(interval);
-  }, [testimonials.length]);
+          setTestimonials(lecturerTestimonials);
+        } else {
+          // Fallback testimonials if API fails
+          setTestimonials([
+            {
+              id: 1,
+              name: 'Expert Instructor',
+              image: '👩‍🎓',
+              rating: 5,
+              review: 'iVidhyarthi provides exceptional learning experiences with dedicated instructors.',
+              course: 'Various Courses',
+              role: 'Instructor'
+            }
+          ]);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching lecturers:', error);
+        // Fallback testimonials on error
+        setTestimonials([
+          {
+            id: 1,
+            name: 'Expert Instructor',
+            image: '👩‍🎓',
+            rating: 5,
+            review: 'iVidhyarthi provides exceptional learning experiences with dedicated instructors.',
+            course: 'Various Courses',
+            role: 'Instructor'
+          }
+        ]);
+        setLoading(false);
+      }
+    };
+
+    fetchLecturers();
+  }, []);
+
+  // Auto-carousel effect - runs when testimonials are loaded
+  useEffect(() => {
+    if (testimonials.length === 0 || loading) {
+      console.log('Carousel not starting:', { testimonialsLength: testimonials.length, loading });
+      return;
+    }
+
+    console.log('Starting auto-carousel with', testimonials.length, 'testimonials');
+    
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => {
+        const nextIndex = (prevIndex + 1) % testimonials.length;
+        console.log('Auto-carousel: moving from index', prevIndex, 'to', nextIndex);
+        return nextIndex;
+      });
+    }, 5000); // Change slide every 5 seconds
+
+    return () => {
+      console.log('Clearing carousel interval');
+      clearInterval(interval);
+    };
+  }, [testimonials.length, loading]);
 
   const nextTestimonial = () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
@@ -61,6 +117,28 @@ const Testimonials = () => {
   const renderStars = (rating) => {
     return '⭐'.repeat(rating);
   };
+
+  if (loading) {
+    return (
+      <section className="testimonials-section">
+        <div className="section-header-center">
+          <h2 className="section-title">What Our Students Say</h2>
+          <p className="section-subtitle">Loading testimonials...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (testimonials.length === 0) {
+    return (
+      <section className="testimonials-section">
+        <div className="section-header-center">
+          <h2 className="section-title">What Our Students Say</h2>
+          <p className="section-subtitle">No testimonials available at the moment.</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="testimonials-section">

@@ -468,12 +468,39 @@ NEW SECTIONS - COMPREHENSIVE STYLING
   border: 2px solid #f1f5f9;
   transition: all 0.3s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.partner-card.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.partner-card.clickable::after {
+  content: '↗';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.2rem;
+  color: #14b8a6;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.partner-card.clickable:hover::after {
+  opacity: 1;
 }
 
 .partner-card:hover {
   border-color: #14b8a6;
   transform: translateY(-5px);
   box-shadow: 0 8px 24px rgba(20, 184, 166, 0.15);
+}
+
+.partner-card:active {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(20, 184, 166, 0.2);
 }
 
 .partner-logo {

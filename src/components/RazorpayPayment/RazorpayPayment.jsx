@@ -144,9 +144,17 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
             });
 
             if (verifyRes.data.success) {
+              // Get course details from localStorage
+              const selectedCourse = JSON.parse(localStorage.getItem('selected_course') || '{}');
+              const courseName = selectedCourse.Title || selectedCourse.title || selectedCourse.name || 'Course Enrollment';
+              
               setPaymentDetails({
                 amount: totalAmount,
                 paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id,
+                studentEmail: userDetails.email,
+                studentName: userDetails.name,
+                courseName: courseName,
                 date: new Date()
               });
               

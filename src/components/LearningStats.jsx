@@ -47,9 +47,11 @@ const LearningStats = () => {
       
       if (enrollmentsResult.success && enrollmentsResult.data) {
         // Count courses with 100% progress or completed status
-        coursesCompleted = enrollmentsResult.data.filter(enrollment => 
-          enrollment.Progress === 100 || enrollment.Status === 'Completed'
-        ).length;
+        coursesCompleted = enrollmentsResult.data.filter(enrollment => {
+          const progress = enrollment.Progress || 0;
+          const status = enrollment.Status || '';
+          return progress >= 95 || status.toLowerCase() === 'completed';
+        }).length;
 
         // Calculate total learning hours (estimate: 10 hours per course)
         totalLearningHours = enrollmentsResult.data.length * 10;
@@ -67,7 +69,7 @@ const LearningStats = () => {
       
       if (videoProgressResult.success && videoProgressResult.data) {
         // Calculate actual learning hours from completed videos (assuming average 20 min per video)
-        const completedVideos = videoProgressResult.data.filter(v => v.completed).length;
+        const completedVideos = videoProgressResult.data.filter(v => v.Is_Completed === true || v.completed === true).length;
         totalLearningHours = Math.round(completedVideos * 0.33); // 20 min = 0.33 hours
       }
 
@@ -85,40 +87,112 @@ const LearningStats = () => {
         newBadges: Math.min(3, Math.floor(coursesCompleted / 2)) // New badges
       });
 
-      // Fetch skill progress (based on course categories)
-      if (enrollmentsResult.success && enrollmentsResult.data) {
+      // Fetch skill progress (based on actual video completion per course)
+      if (enrollmentsResult.success && enrollmentsResult.data && enrollmentsResult.data.length > 0) {
         const skillMap = {};
         
-        enrollmentsResult.data.forEach(enrollment => {
-          const course = enrollment.courseDetails;
-          if (course && course.Category) {
-            const category = course.Category;
-            if (!skillMap[category]) {
-              skillMap[category] = { total: 0, completed: 0 };
+        // Fetch video progress for detailed calculation
+        const videoProgressResponse = await fetch(`http://localhost:5000/api/video-progress/student/${studentId}/all`);
+        const videoProgressResult = await videoProgressResponse.json();
+        
+        // Map video progress by course ID
+        const progressMap = {};
+        if (videoProgressResult.success && videoProgressResult.data) {
+          videoProgressResult.data.forEach(progress => {
+            const courseId = progress.Course_Id || progress.courseId;
+            if (!progressMap[courseId]) {
+              progressMap[courseId] = [];
             }
-            skillMap[category].total += 1;
-            if (enrollment.Progress === 100) {
-              skillMap[category].completed += 1;
+            progressMap[courseId].push(progress);
+          });
+        }
+
+        // Calculate progress for each enrolled course
+        for (const enrollment of enrollmentsResult.data) {
+          const course = enrollment.courseDetails;
+          if (course) {
+            const skillName = course.Title || course.name || course.Category || 'General';
+            const courseId = enrollment.Course_Id;
+            
+            // Fetch course content to count total videos
+            try {
+              const courseContentResponse = await fetch(`http://localhost:5000/api/course-content/course/${courseId}`);
+              const courseContentResult = await courseContentResponse.json();
+              
+              let totalVideos = 0;
+              let completedVideos = 0;
+              
+              if (courseContentResult.success && courseContentResult.data) {
+                // Count total videos
+                courseContentResult.data.forEach(content => {
+                  if (content.Content_Type === 'video' || content.Content_Type === 'Video') {
+                    totalVideos++;
+                  }
+                });
+                
+                // Count completed videos
+                if (progressMap[courseId]) {
+                  completedVideos = progressMap[courseId].filter(vp => vp.Is_Completed === true || vp.completed === true).length;
+                }
+              }
+              
+              const progress = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
+              
+              if (!skillMap[skillName]) {
+                skillMap[skillName] = { 
+                  totalProgress: 0, 
+                  count: 0,
+                  avgProgress: 0 
+                };
+              }
+              
+              skillMap[skillName].totalProgress += progress;
+              skillMap[skillName].count += 1;
+              skillMap[skillName].avgProgress = Math.round(skillMap[skillName].totalProgress / skillMap[skillName].count);
+              
+            } catch (error) {
+              console.error(`Error calculating progress for course ${courseId}:`, error);
             }
           }
-        });
+        }
 
-        const skills = Object.keys(skillMap).map((category, index) => {
-          const colors = ['#14b8a6', '#0891b2', '#06b6d4', '#8b5cf6', '#f59e0b'];
-          const progress = Math.round((skillMap[category].completed / skillMap[category].total) * 100);
-          
-          return {
-            skill: category,
-            progress: progress || 0,
-            color: colors[index % colors.length]
-          };
-        });
+        // Sort by progress and take top skills
+        const skills = Object.keys(skillMap)
+          .map((skillName, index) => {
+            const colors = [
+              '#14b8a6', // Teal
+              '#0891b2', // Cyan
+              '#06b6d4', // Sky
+              '#8b5cf6', // Purple
+              '#f59e0b', // Amber
+              '#ef4444', // Red
+              '#10b981', // Green
+              '#3b82f6'  // Blue
+            ];
+            
+            return {
+              skill: skillName,
+              progress: skillMap[skillName].avgProgress,
+              color: colors[index % colors.length],
+              courseCount: skillMap[skillName].count
+            };
+          })
+          .sort((a, b) => b.progress - a.progress) // Sort by progress descending
+          .slice(0, 8); // Take top 8 skills
 
         setSkillProgress(skills.length > 0 ? skills : [
-          { skill: 'Web Development', progress: 0, color: '#14b8a6' },
-          { skill: 'Data Science', progress: 0, color: '#0891b2' },
-          { skill: 'Cloud Computing', progress: 0, color: '#06b6d4' },
-          { skill: 'Machine Learning', progress: 0, color: '#8b5cf6' }
+          { skill: 'Web Development', progress: 0, color: '#14b8a6', courseCount: 0 },
+          { skill: 'Data Science', progress: 0, color: '#0891b2', courseCount: 0 },
+          { skill: 'Cloud Computing', progress: 0, color: '#06b6d4', courseCount: 0 },
+          { skill: 'Machine Learning', progress: 0, color: '#8b5cf6', courseCount: 0 }
+        ]);
+      } else {
+        // Default empty state
+        setSkillProgress([
+          { skill: 'Web Development', progress: 0, color: '#14b8a6', courseCount: 0 },
+          { skill: 'Data Science', progress: 0, color: '#0891b2', courseCount: 0 },
+          { skill: 'Cloud Computing', progress: 0, color: '#06b6d4', courseCount: 0 },
+          { skill: 'Machine Learning', progress: 0, color: '#8b5cf6', courseCount: 0 }
         ]);
       }
 
@@ -203,25 +277,43 @@ const LearningStats = () => {
       {/* Skill Progress Bars */}
       <div className="skills-progress-container">
         <h3 className="skills-title">Skill Proficiency</h3>
-        <div className="skills-list">
-          {skillProgress.map((skill, index) => (
-            <div key={index} className="skill-item">
-              <div className="skill-header">
-                <span className="skill-name">{skill.skill}</span>
-                <span className="skill-percentage">{skill.progress}%</span>
+        {skillProgress.length === 0 ? (
+          <div className="no-skills-message">
+            <p>🎯 Start enrolling in courses to track your skill progress!</p>
+          </div>
+        ) : (
+          <div className="skills-list">
+            {skillProgress.map((skill, index) => (
+              <div key={index} className="skill-item">
+                <div className="skill-header">
+                  <span className="skill-name">
+                    {skill.skill}
+                    {skill.courseCount > 0 && (
+                      <span className="skill-course-count"> ({skill.courseCount} course{skill.courseCount > 1 ? 's' : ''})</span>
+                    )}
+                  </span>
+                  <span className="skill-percentage" style={{ color: skill.color }}>
+                    {skill.progress}%
+                  </span>
+                </div>
+                <div className="skill-progress-bar">
+                  <div 
+                    className="skill-progress-fill" 
+                    style={{ 
+                      width: `${skill.progress}%`,
+                      background: skill.color,
+                      boxShadow: `0 2px 8px ${skill.color}40`
+                    }}
+                  >
+                    {skill.progress > 5 && (
+                      <span className="progress-label">{skill.progress}%</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="skill-progress-bar">
-                <div 
-                  className="skill-progress-fill" 
-                  style={{ 
-                    width: `${skill.progress}%`,
-                    background: skill.color
-                  }}
-                ></div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -626,9 +626,6 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
             {/* My Enrolled Courses with Progress */}
             <EnrolledCourses onNavigate={onNavigate} />
 
-            {/* Learning Statistics & Skill Progress */}
-            <LearningStats />
-
             {/* AI-Powered Recommended Courses */}
             <RecommendedCourses onNavigate={onNavigate} />
 

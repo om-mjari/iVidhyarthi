@@ -250,6 +250,34 @@ router.post("/mark-complete", async (req, res) => {
 });
 
 /**
+ * GET /api/video-progress/student/:studentId/all
+ * Get all video progress for a student across all courses
+ */
+router.get("/student/:studentId/all", async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Get all video progress for this student
+    const videoProgress = await Tbl_VideoProgress.find({
+      Student_Id: studentId,
+    }).sort({ Last_Watched: -1 });
+
+    res.json({
+      success: true,
+      data: videoProgress,
+      count: videoProgress.length,
+    });
+  } catch (error) {
+    console.error("Error fetching all video progress:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching video progress",
+      error: error.message,
+    });
+  }
+});
+
+/**
  * DELETE /api/video-progress/student/:studentId/course/:courseId
  * Reset progress for a course (optional - for testing)
  */

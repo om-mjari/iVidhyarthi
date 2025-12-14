@@ -4,6 +4,7 @@ const EnrolledCourses = ({ onNavigate }) => {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [videoProgressData, setVideoProgressData] = useState({});
 
   // Fetch enrolled courses from API
   useEffect(() => {
@@ -41,28 +42,52 @@ const EnrolledCourses = ({ onNavigate }) => {
 
         console.log('Enrollments fetched:', result.data);
 
-        // Transform data to match component structure
-        const transformedCourses = result.data
-          .filter(enrollment => enrollment.courseDetails) // Only include if course details exist
-          .map(enrollment => {
-            const course = enrollment.courseDetails;
-            return {
-              id: enrollment._id,
-              enrollmentId: enrollment.Enrollment_Id,
-              courseId: enrollment.Course_Id,
-              title: course.Title || course.title || 'Untitled Course',
-              instructor: course.Instructor_Name || course.instructorName || 'Instructor',
-              progress: calculateProgress(enrollment),
-              image: course.image_url || getCourseIcon(course.Category || course.category),
-              imageUrl: course.image_url || null,
-              nextLesson: getNextLesson(course),
-              dueDate: getDueDate(enrollment),
-              lastAccessed: getLastAccessed(enrollment),
-              enrolledOn: enrollment.Enrolled_On,
-              status: enrollment.Status,
-              fullCourseData: course // Store full course data for navigation
-            };
+        // Fetch video progress for all courses
+        const videoProgressResponse = await fetch(`http://localhost:5000/api/video-progress/student/${studentId}/all`);
+        const videoProgressResult = await videoProgressResponse.json();
+        
+        // Map video progress by course ID
+        const progressMap = {};
+        if (videoProgressResult.success && videoProgressResult.data) {
+          videoProgressResult.data.forEach(progress => {
+            const courseId = progress.Course_Id || progress.courseId;
+            if (!progressMap[courseId]) {
+              progressMap[courseId] = [];
+            }
+            progressMap[courseId].push(progress);
           });
+        }
+        setVideoProgressData(progressMap);
+
+        // Transform data to match component structure
+        const transformedCourses = await Promise.all(
+          result.data
+            .filter(enrollment => enrollment.courseDetails) // Only include if course details exist
+            .map(async (enrollment) => {
+              const course = enrollment.courseDetails;
+              const courseId = enrollment.Course_Id;
+              
+              // Calculate progress based on video completion
+              const progress = await calculateCourseProgress(courseId, progressMap[courseId]);
+              
+              return {
+                id: enrollment._id,
+                enrollmentId: enrollment.Enrollment_Id,
+                courseId: courseId,
+                title: course.Title || course.title || 'Untitled Course',
+                instructor: course.Instructor_Name || course.instructorName || 'Instructor',
+                progress: progress,
+                image: course.image_url || getCourseIcon(course.Category || course.category),
+                imageUrl: course.image_url || null,
+                nextLesson: getNextLesson(course),
+                dueDate: getDueDate(enrollment),
+                lastAccessed: getLastAccessed(enrollment),
+                enrolledOn: enrollment.Enrolled_On,
+                status: enrollment.Status,
+                fullCourseData: course // Store full course data for navigation
+              };
+            })
+        );
 
         setEnrolledCourses(transformedCourses);
       } catch (err) {
@@ -77,9 +102,43 @@ const EnrolledCourses = ({ onNavigate }) => {
   }, []);
 
   // Helper functions
-  const calculateProgress = (enrollment) => {
-    // TODO: Implement actual progress calculation from course completion data
-    return Math.floor(Math.random() * 100); // Temporary random progress
+  const calculateCourseProgress = async (courseId, videoProgress) => {
+    try {
+      // Fetch total videos for this course
+      const courseContentResponse = await fetch(`http://localhost:5000/api/course-content/course/${courseId}`);
+      const courseContentResult = await courseContentResponse.json();
+      
+      if (!courseContentResult.success || !courseContentResult.data) {
+        return 0;
+      }
+
+      // Count total videos in the course
+      let totalVideos = 0;
+      courseContentResult.data.forEach(content => {
+        if (content.Content_Type === 'video' || content.Content_Type === 'Video') {
+          totalVideos++;
+        }
+      });
+
+      if (totalVideos === 0) {
+        return 0; // No videos in course
+      }
+
+      // Count completed videos
+      let completedVideos = 0;
+      if (videoProgress && Array.isArray(videoProgress)) {
+        completedVideos = videoProgress.filter(vp => vp.Is_Completed === true || vp.completed === true).length;
+      }
+
+      // Calculate percentage
+      const progressPercentage = Math.round((completedVideos / totalVideos) * 100);
+      console.log(`Course ${courseId}: ${completedVideos}/${totalVideos} videos = ${progressPercentage}%`);
+      
+      return progressPercentage;
+    } catch (error) {
+      console.error('Error calculating course progress:', error);
+      return 0;
+    }
   };
 
   const getCourseIcon = (category) => {

@@ -693,6 +693,143 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
   }
 });
 
+// Approve feedback
+router.put("/feedback/:id/approve", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`✅ Approving feedback: ${id}`);
+
+    const Feedback = require("../models/Tbl_Feedback");
+    const feedback = await Feedback.findOne({ Feedback_Id: id });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    feedback.Status = "Approved";
+    await feedback.save();
+
+    console.log(`✅ Feedback ${id} approved successfully`);
+
+    res.json({
+      success: true,
+      message: "Feedback approved successfully",
+      data: feedback,
+    });
+  } catch (error) {
+    console.error("❌ Error approving feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error approving feedback",
+      error: error.message,
+    });
+  }
+});
+
+// Reject feedback
+router.put("/feedback/:id/reject", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`❌ Rejecting feedback: ${id}`);
+
+    const Feedback = require("../models/Tbl_Feedback");
+    const feedback = await Feedback.findOne({ Feedback_Id: id });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    feedback.Status = "Rejected";
+    await feedback.save();
+
+    console.log(`❌ Feedback ${id} rejected successfully`);
+
+    res.json({
+      success: true,
+      message: "Feedback rejected successfully",
+      data: feedback,
+    });
+  } catch (error) {
+    console.error("❌ Error rejecting feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error rejecting feedback",
+      error: error.message,
+    });
+  }
+});
+
+// Respond to feedback
+router.put("/feedback/:id/respond", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { response, studentId } = req.body;
+
+    console.log(`💬 Responding to feedback: ${id}`);
+
+    if (!response || !response.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Response message is required",
+      });
+    }
+
+    const Feedback = require("../models/Tbl_Feedback");
+    const feedback = await Feedback.findOne({ Feedback_Id: id });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    feedback.Response = response.trim();
+    feedback.Responded_On = new Date();
+    await feedback.save();
+
+    // Create notification for student
+    const Notification = require("../models/Tbl_Notifications");
+    try {
+      const notification = new Notification({
+        User_Id: studentId,
+        Type: "Feedback Response",
+        Title: "Admin Responded to Your Feedback",
+        Message: `Admin has responded to your feedback: "${response.substring(0, 100)}${response.length > 100 ? '...' : ''}"`,
+        Link: `/student/feedback`,
+        Is_Read: false,
+        Created_At: new Date(),
+      });
+      await notification.save();
+      console.log(`🔔 Notification created for student ${studentId}`);
+    } catch (notifError) {
+      console.warn("⚠️ Failed to create notification:", notifError.message);
+      // Don't fail the request if notification fails
+    }
+
+    console.log(`💬 Response sent successfully to feedback ${id}`);
+
+    res.json({
+      success: true,
+      message: "Response sent successfully. Student has been notified.",
+      data: feedback,
+    });
+  } catch (error) {
+    console.error("❌ Error responding to feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error sending response",
+      error: error.message,
+    });
+  }
+});
+
 // Get all sessions for admin dashboard
 router.get("/sessions", authenticateAdmin, async (req, res) => {
   try {

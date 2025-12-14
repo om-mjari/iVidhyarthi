@@ -48,6 +48,11 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
   });
   const [isProfileDirty, setIsProfileDirty] = useState(false);
 
+  // Notification state
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+
   // Auto-populate profile with logged-in user data
   useEffect(() => {
     const authUser = localStorage.getItem('auth_user');
@@ -102,7 +107,27 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
     }
   }, []);
 
-  // Fetch courses from API on mount
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+      const userId = authUser._id || authUser.id;
+      
+      if (!userId) return;
+
+      const response = await fetch(`http://localhost:5000/api/notifications/user/${userId}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setNotifications(result.notifications || []);
+        setUnreadCount(result.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  // Fetch courses and notifications on mount
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -124,6 +149,11 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
       }
     };
     fetchCourses();
+    fetchNotifications();
+
+    // Poll for new notifications every 30 seconds
+    const notificationInterval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(notificationInterval);
   }, []);
 
   // Voice search setup
@@ -368,9 +398,56 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
   // Get user from local storage for header
   const user = JSON.parse(localStorage.getItem('auth_user') || '{}');
 
+  // Notification handlers
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${notificationId}/read`, {
+        method: 'PUT'
+      });
+      setNotifications(notifications.map(n => 
+        n.Notification_Id === notificationId ? { ...n, Is_Read: true } : n
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      const userId = user._id || user.id;
+      await fetch(`http://localhost:5000/api/notifications/user/${userId}/read-all`, {
+        method: 'PUT'
+      });
+      setNotifications(notifications.map(n => ({ ...n, Is_Read: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId) => {
+    try {
+      await fetch(`http://localhost:5000/api/notifications/${notificationId}`, {
+        method: 'DELETE'
+      });
+      setNotifications(notifications.filter(n => n.Notification_Id !== notificationId));
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   return (
     <div className="dashboard">
-      <DashboardHeader user={user} onNavigate={onNavigate} onLogout={onLogout} />
+      <DashboardHeader 
+        user={user} 
+        onNavigate={onNavigate} 
+        onLogout={onLogout}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onShowNotifications={() => setShowNotifications(true)}
+      />
 
       <div className="dashboard-content">
         {/* Search and Controls */}
@@ -772,6 +849,79 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
 
       {/* Chatbot Component */}
       <ChatbotAssistant />
+
+      {/* Notification Panel */}
+      {showNotifications && (
+        <div className="notification-overlay" onClick={() => setShowNotifications(false)}>
+          <div className="notification-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="notification-header">
+              <h2>🔔 Notifications</h2>
+              <div className="notification-header-actions">
+                {unreadCount > 0 && (
+                  <button className="mark-all-read-btn" onClick={handleMarkAllAsRead}>
+                    Mark All Read
+                  </button>
+                )}
+                <button className="close-notifications-btn" onClick={() => setShowNotifications(false)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="notification-body">
+              {notifications.length === 0 ? (
+                <div className="no-notifications">
+                  <span style={{ fontSize: '3rem', opacity: 0.5 }}>📭</span>
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                <div className="notification-list">
+                  {notifications.map((notification) => (
+                    <div 
+                      key={notification.Notification_Id} 
+                      className={`notification-item ${notification.Is_Read ? 'read' : 'unread'}`}
+                    >
+                      <div className="notification-content">
+                        <div className="notification-type-badge">
+                          {notification.Type === 'Feedback Response' ? '💬' : '📢'}
+                          <span>{notification.Type}</span>
+                        </div>
+                        <h4>{notification.Title}</h4>
+                        <p>{notification.Message}</p>
+                        <div className="notification-footer">
+                          <span className="notification-date">
+                            {new Date(notification.Created_At).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                          <div className="notification-actions">
+                            {!notification.Is_Read && (
+                              <button 
+                                className="notification-action-btn"
+                                onClick={() => handleMarkAsRead(notification.Notification_Id)}
+                              >
+                                Mark Read
+                              </button>
+                            )}
+                            <button 
+                              className="notification-action-btn delete"
+                              onClick={() => handleDeleteNotification(notification.Notification_Id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

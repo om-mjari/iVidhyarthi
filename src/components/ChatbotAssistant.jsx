@@ -72,9 +72,10 @@ const ChatbotAssistant = () => {
     };
   }, []);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputText.trim() === '') return;
 
+    const userQuestion = inputText;
     const userMessage = {
       type: 'user',
       text: inputText,
@@ -86,8 +87,11 @@ const ChatbotAssistant = () => {
     setIsTyping(true);
 
     // Simulate bot response
-    setTimeout(() => {
-      const botResponseText = getBotResponse(inputText);
+    const startTime = Date.now();
+    setTimeout(async () => {
+      const botResponseText = getBotResponse(userQuestion);
+      const responseTime = Date.now() - startTime;
+      
       const botResponse = {
         type: 'bot',
         text: botResponseText,
@@ -98,7 +102,51 @@ const ChatbotAssistant = () => {
       
       // Speak the bot response
       speakText(botResponseText);
+
+      // Save to database
+      await saveChatToDatabase(userQuestion, botResponseText, responseTime);
     }, 1500);
+  };
+
+  const saveChatToDatabase = async (question, answer, responseTimeMs) => {
+    try {
+      const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
+      const userId = userSession.userId || 'guest';
+      const userName = userSession.userName || 'Guest User';
+      const userEmail = userSession.userEmail || null;
+
+      // Generate session ID if not exists
+      let sessionId = localStorage.getItem('chatSessionId');
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('chatSessionId', sessionId);
+      }
+
+      const response = await fetch('http://localhost:5000/api/chat-history/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          userName,
+          userEmail,
+          question,
+          answer,
+          sessionId,
+          responseTimeMs
+        })
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        console.error('Failed to save chat history:', data.message);
+      } else {
+        console.log('✅ Chat saved to database:', data.data.Chat_Id);
+      }
+    } catch (error) {
+      console.error('❌ Error saving chat to database:', error);
+    }
   };
 
   const speakText = (text) => {

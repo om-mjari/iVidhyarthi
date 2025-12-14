@@ -36,9 +36,28 @@ const AdminDashboard = ({ onLogout }) => {
   const [verifyingTransaction, setVerifyingTransaction] = useState(null);
   const [refundingTransaction, setRefundingTransaction] = useState(null);
 
+  // Confirmation modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [confirmData, setConfirmData] = useState(null);
+
   // All university requests (pending, approved, rejected)
   const [pendingUniversities, setPendingUniversities] = useState([]);
   const [universitiesLoading, setUniversitiesLoading] = useState(false);
+
+  // Chatbot history state
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatStats, setChatStats] = useState({
+    totalChats: 0,
+    totalUsers: 0,
+    averageResponseTime: 0,
+    helpfulChats: 0
+  });
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatPage, setChatPage] = useState(1);
+  const [chatTotalPages, setChatTotalPages] = useState(1);
+  const [deletingChatId, setDeletingChatId] = useState(null);
 
   // Fetch all universities with registrar contact from MongoDB
   const fetchPendingUniversities = async () => {
@@ -392,6 +411,9 @@ const AdminDashboard = ({ onLogout }) => {
       if (activePanel === 'payments') {
         fetchPayments();
       }
+      if (activePanel === 'chatbot') {
+        fetchChatbotData();
+      }
       if (activePanel === 'feedback') {
         fetchFeedback();
       }
@@ -403,7 +425,6 @@ const AdminDashboard = ({ onLogout }) => {
 
     return () => clearInterval(interval);
   }, [activePanel]);
-
 
   // Action handlers for User Management
   const handleViewUser = (userId) => {
@@ -491,7 +512,14 @@ const AdminDashboard = ({ onLogout }) => {
   };
 
   // Action handlers for University Approval
-  const handleApproveUniversity = async (universityId) => {
+  const handleApproveUniversity = (universityId) => {
+    setConfirmMessage('Are you sure you want to Approve this university?');
+    setConfirmData(universityId);
+    setConfirmAction('approve');
+    setShowConfirmModal(true);
+  };
+
+  const confirmApproveUniversity = async (universityId) => {
     try {
       // Use stored token if present else fallback to mock admin token accepted by backend
       const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
@@ -506,18 +534,23 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        alert('University approved successfully!');
         fetchPendingUniversities(); // Refresh the list
       } else {
-        alert('Failed to approve university: ' + result.message);
+        console.error('Failed to approve university:', result.message);
       }
     } catch (error) {
       console.error('Error approving university:', error);
-      alert('Error approving university');
     }
   };
 
-  const handleRejectUniversity = async (universityId) => {
+  const handleRejectUniversity = (universityId) => {
+    setConfirmMessage('Are you sure you want to Reject this university?');
+    setConfirmData(universityId);
+    setConfirmAction('reject');
+    setShowConfirmModal(true);
+  };
+
+  const confirmRejectUniversity = async (universityId) => {
     try {
       // Use stored token if present else fallback to mock admin token accepted by backend
       const token = localStorage.getItem('auth_token') || `admin_mock_token_${Date.now()}`;
@@ -532,14 +565,12 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        alert('University rejected successfully!');
         fetchPendingUniversities(); // Refresh the list
       } else {
-        alert('Failed to reject university: ' + result.message);
+        console.error('Failed to reject university:', result.message);
       }
     } catch (error) {
       console.error('Error rejecting university:', error);
-      alert('Error rejecting university');
     }
   };
 
@@ -605,14 +636,12 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        alert('✓ Course approved successfully!');
         fetchCourses(); // Refresh course list
       } else {
-        alert('Failed to approve course: ' + result.message);
+        console.error('Failed to approve course:', result.message);
       }
     } catch (error) {
       console.error('Error approving course:', error);
-      alert('Error approving course. Please try again.');
     }
   };
 
@@ -633,14 +662,12 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
-        alert('✓ Course rejected!');
         fetchCourses(); // Refresh course list
       } else {
-        alert('Failed to reject course: ' + result.message);
+        console.error('Failed to reject course:', result.message);
       }
     } catch (error) {
       console.error('Error rejecting course:', error);
-      alert('Error rejecting course. Please try again.');
     }
   };
 
@@ -733,7 +760,6 @@ const AdminDashboard = ({ onLogout }) => {
       }
     } catch (error) {
       console.error('Error adding category:', error);
-      alert('Error adding category. Please try again.');
     }
   };
 
@@ -765,13 +791,12 @@ const AdminDashboard = ({ onLogout }) => {
         ));
         setEditingCategory(null);
         setEditCategoryName('');
-        alert('Category updated successfully!');
+        // Category updated successfully
       } else {
-        alert(result.message || 'Failed to update category');
+        console.error('Failed to update category:', result.message);
       }
     } catch (error) {
       console.error('Error updating category:', error);
-      alert('Error updating category. Please try again.');
     }
   };
 
@@ -789,13 +814,12 @@ const AdminDashboard = ({ onLogout }) => {
 
       if (result.success) {
         setCategories(categories.filter(cat => cat._id !== categoryId));
-        alert('Category deleted successfully!');
+        // Category deleted successfully
       } else {
-        alert(result.message || 'Failed to delete category');
+        console.error('Failed to delete category:', result.message);
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Error deleting category. Please try again.');
     }
   };
 
@@ -899,24 +923,134 @@ const AdminDashboard = ({ onLogout }) => {
     averageRating: 0
   });
 
+  // Modal states for feedback management
+  const [showFeedbackDetail, setShowFeedbackDetail] = useState(false);
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+  const [showRespondModal, setShowRespondModal] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [respondMessage, setRespondMessage] = useState('');
+  const [feedbackFilter, setFeedbackFilter] = useState('all'); // 'all', 'pending', 'approved', 'rejected'
+
   // Action handlers for Feedback Management
-  const handleApproveFeedback = (feedbackId) => {
-    setFeedback(feedback.map(fb =>
-      fb.id === feedbackId ? { ...fb, status: 'Approved' } : fb
-    ));
-    alert('Feedback approved!');
+  const handleApproveFeedback = async (feedbackId) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/feedback/${feedbackId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setFeedback(feedback.map(fb =>
+          fb.Feedback_Id === feedbackId ? { ...fb, Status: 'Approved' } : fb
+        ));
+        // Update stats
+        setFeedbackStats(prev => ({
+          ...prev,
+          pending: prev.pending - 1,
+          approved: prev.approved + 1
+        }));
+        fetchFeedback(); // Refresh data
+      } else {
+        console.error('Failed to approve feedback:', result.message);
+      }
+    } catch (error) {
+      console.error('Error approving feedback:', error);
+      alert('Error approving feedback');
+    }
   };
 
-  const handleRejectFeedback = (feedbackId) => {
-    setFeedback(feedback.map(fb =>
-      fb.id === feedbackId ? { ...fb, status: 'Rejected' } : fb
-    ));
-    alert('Feedback rejected!');
+  const handleRejectFeedback = (feedbackItem) => {
+    setSelectedFeedback(feedbackItem);
+    setShowRejectConfirm(true);
   };
 
-  const handleEditFeedback = (feedbackId) => {
-    alert(`Editing feedback with ID: ${feedbackId}`);
-    // Implementation: Open feedback edit modal
+  const confirmRejectFeedback = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/feedback/${selectedFeedback.Feedback_Id}/reject`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setFeedback(feedback.map(fb =>
+          fb.Feedback_Id === selectedFeedback.Feedback_Id ? { ...fb, Status: 'Rejected' } : fb
+        ));
+        // Update stats
+        setFeedbackStats(prev => ({
+          ...prev,
+          pending: prev.pending - 1,
+          rejected: prev.rejected + 1
+        }));
+        setShowRejectConfirm(false);
+        setSelectedFeedback(null);
+        fetchFeedback(); // Refresh data
+      } else {
+        console.error('Failed to reject feedback:', result.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting feedback:', error);
+      alert('Error rejecting feedback');
+    }
+  };
+
+  const handleRespondFeedback = (feedbackItem) => {
+    setSelectedFeedback(feedbackItem);
+    setRespondMessage(feedbackItem.Response || '');
+    setShowRespondModal(true);
+  };
+
+  const submitFeedbackResponse = async () => {
+    if (!respondMessage.trim()) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/admin/feedback/${selectedFeedback.Feedback_Id}/respond`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({ 
+          response: respondMessage,
+          studentId: selectedFeedback.Student_Id
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Update local state
+        setFeedback(feedback.map(fb =>
+          fb.Feedback_Id === selectedFeedback.Feedback_Id 
+            ? { ...fb, Response: respondMessage, Responded_On: new Date() } 
+            : fb
+        ));
+        setShowRespondModal(false);
+        setSelectedFeedback(null);
+        setRespondMessage('');
+        fetchFeedback(); // Refresh data
+      } else {
+        console.error('Failed to send response:', result.message);
+      }
+    } catch (error) {
+      console.error('Error sending response:', error);
+      alert('Error sending response');
+    }
+  };
+
+  const viewFeedbackDetail = (feedbackItem) => {
+    setSelectedFeedback(feedbackItem);
+    setShowFeedbackDetail(true);
   };
 
   const [liveSessions, setLiveSessions] = useState([]);
@@ -953,21 +1087,90 @@ const AdminDashboard = ({ onLogout }) => {
     // Implementation: Navigate to bot training
   };
 
-  const handleViewLogs = () => {
-    alert('Opening chatbot logs...');
-    // Implementation: Navigate to logs viewer
-  };
+  // Fetch chatbot history and stats
+  const fetchChatbotData = async () => {
+    try {
+      setChatLoading(true);
+      
+      // Fetch chat statistics
+      const statsResponse = await fetch('http://localhost:5000/api/chat-history/stats/overview');
+      const statsData = await statsResponse.json();
+      
+      if (statsData.success) {
+        setChatStats({
+          totalChats: statsData.data.totalChats || 0,
+          totalUsers: statsData.data.totalUsers || 0,
+          averageResponseTime: Math.round(statsData.data.averageResponseTimeMs || 0),
+          helpfulChats: statsData.data.helpfulChats || 0
+        });
+      }
 
-  const handleEditChatbot = () => {
-    alert('Opening chatbot configuration...');
-    // Implementation: Navigate to chatbot settings
-  };
-
-  const handleDeleteChatbot = () => {
-    if (window.confirm('Are you sure you want to delete chatbot data?')) {
-      alert('Chatbot data deleted!');
+      // Fetch chat history
+      const historyResponse = await fetch(`http://localhost:5000/api/chat-history/all?limit=10&page=${chatPage}`);
+      const historyData = await historyResponse.json();
+      
+      if (historyData.success) {
+        setChatHistory(historyData.data);
+        setChatTotalPages(historyData.pagination.pages);
+      }
+    } catch (error) {
+      console.error('Error fetching chatbot data:', error);
+    } finally {
+      setChatLoading(false);
     }
   };
+
+  const handleViewLogs = () => {
+    fetchChatbotData();
+  };
+
+  const handleDeleteChatEntry = async (chatId) => {
+    // Show confirmation modal
+    setDeletingChatId(chatId);
+  };
+
+  const confirmDeleteChatEntry = async () => {
+    if (deletingChatId) {
+      try {
+        const response = await fetch(`http://localhost:5000/api/chat-history/${deletingChatId}`, {
+          method: 'DELETE'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('Chat entry deleted successfully');
+          setDeletingChatId(null); // Close modal
+          fetchChatbotData(); // Refresh data
+        }
+      } catch (error) {
+        console.error('Error deleting chat entry:', error);
+        setDeletingChatId(null); // Close modal on error too
+      }
+    }
+  };
+
+  const cancelDeleteChatEntry = () => {
+    setDeletingChatId(null);
+  };
+
+  const handleNextPage = () => {
+    if (chatPage < chatTotalPages) {
+      setChatPage(prev => prev + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (chatPage > 1) {
+      setChatPage(prev => prev - 1);
+    }
+  };
+
+  // Fetch chatbot data when activePanel is chatbot or page changes
+  useEffect(() => {
+    if (activePanel === 'chatbot') {
+      fetchChatbotData();
+    }
+  }, [activePanel, chatPage]);
 
   const [exams, setExams] = useState([
     { id: 1, title: 'React Final Assessment', course: 'React for Beginners', participants: 45, status: 'Active', passRate: '87%' },
@@ -1580,80 +1783,274 @@ const AdminDashboard = ({ onLogout }) => {
     </div>
   );
 
-  const renderFeedbackManagement = () => (
-    <div className="feedback-management-panel">
-      <h2>⭐ Feedback & Review Management</h2>
-      <div className="feedback-stats">
-        <div className="feedback-stat">
-          <h4>Total Reviews</h4>
-          <p>{feedbackStats.total}</p>
-        </div>
-        <div className="feedback-stat">
-          <h4>Average Rating</h4>
-          <p>{feedbackStats.averageRating} ⭐</p>
-        </div>
-        <div className="feedback-stat">
-          <h4>Pending Reviews</h4>
-          <p>{feedbackStats.pending}</p>
-        </div>
-        <div className="feedback-stat">
-          <h4>Approved</h4>
-          <p>{feedbackStats.approved}</p>
-        </div>
-        <div className="feedback-stat">
-          <h4>Rejected</h4>
-          <p>{feedbackStats.rejected}</p>
-        </div>
-      </div>
+  const renderFeedbackManagement = () => {
+    const filteredFeedback = feedback.filter(fb => {
+      if (feedbackFilter === 'all') return true;
+      if (feedbackFilter === 'pending') return fb.Status === 'Pending';
+      if (feedbackFilter === 'approved') return fb.Status === 'Approved';
+      if (feedbackFilter === 'rejected') return fb.Status === 'Rejected';
+      return true;
+    });
 
-      {feedbackLoading ? (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading feedback...</p>
+    return (
+      <div className="feedback-management-panel">
+        <div className="feedback-header-section">
+          <h2>⭐ Feedback & Review Management</h2>
+          <div className="feedback-filter-tabs">
+            <button 
+              className={`filter-tab ${feedbackFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setFeedbackFilter('all')}
+            >
+              All ({feedbackStats.total})
+            </button>
+            <button 
+              className={`filter-tab ${feedbackFilter === 'pending' ? 'active' : ''}`}
+              onClick={() => setFeedbackFilter('pending')}
+            >
+              Pending ({feedbackStats.pending})
+            </button>
+            <button 
+              className={`filter-tab ${feedbackFilter === 'approved' ? 'active' : ''}`}
+              onClick={() => setFeedbackFilter('approved')}
+            >
+              Approved ({feedbackStats.approved})
+            </button>
+            <button 
+              className={`filter-tab ${feedbackFilter === 'rejected' ? 'active' : ''}`}
+              onClick={() => setFeedbackFilter('rejected')}
+            >
+              Rejected ({feedbackStats.rejected})
+            </button>
+          </div>
         </div>
-      ) : feedback.length === 0 ? (
-        <div className="no-data">
-          <p>No feedback available</p>
+
+        <div className="feedback-stats">
+          <div className="feedback-stat">
+            <h4>Total Reviews</h4>
+            <p>{feedbackStats.total}</p>
+          </div>
+          <div className="feedback-stat">
+            <h4>Average Rating</h4>
+            <p>{feedbackStats.averageRating} ⭐</p>
+          </div>
+          <div className="feedback-stat">
+            <h4>Pending Reviews</h4>
+            <p>{feedbackStats.pending}</p>
+          </div>
+          <div className="feedback-stat">
+            <h4>Approved</h4>
+            <p>{feedbackStats.approved}</p>
+          </div>
+          <div className="feedback-stat">
+            <h4>Rejected</h4>
+            <p>{feedbackStats.rejected}</p>
+          </div>
         </div>
-      ) : (
-        <div className="feedback-list">
-          {feedback.map(review => (
-            <div key={review.Feedback_Id} className="feedback-card">
-              <div className="feedback-header">
-                <h4>{review.studentName || 'Anonymous'}</h4>
-                <div className="rating">
-                  {'★'.repeat(review.Rating || 0)}{'☆'.repeat(5 - (review.Rating || 0))}
+
+        {feedbackLoading ? (
+          <div className="loading-container">
+            <div className="spinner"></div>
+            <p>Loading feedback...</p>
+          </div>
+        ) : filteredFeedback.length === 0 ? (
+          <div className="no-data">
+            <p>No feedback available in this section</p>
+          </div>
+        ) : (
+          <div className="feedback-list">
+            {filteredFeedback.map(review => (
+              <div 
+                key={review.Feedback_Id} 
+                className="feedback-card clickable"
+                onClick={() => viewFeedbackDetail(review)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="feedback-header">
+                  <h4>{review.studentName || 'Anonymous'}</h4>
+                  <div className="rating">
+                    {'★'.repeat(review.Rating || 0)}{'☆'.repeat(5 - (review.Rating || 0))}
+                  </div>
+                  <span className={`status-badge ${(review.Status || '').toLowerCase()}`}>
+                    {review.Status || 'Pending'}
+                  </span>
                 </div>
-                <span className={`status-badge ${(review.Status || '').toLowerCase()}`}>
-                  {review.Status || 'Pending'}
-                </span>
+                <p><strong>Course:</strong> {review.courseTitle || 'N/A'}</p>
+                <p className="feedback-comment">"{review.Comment ? review.Comment.substring(0, 100) + '...' : 'No comment provided'}"</p>
+                <p className="feedback-date"><strong>Posted:</strong> {new Date(review.Posted_On).toLocaleDateString()}</p>
+                {review.Response && (
+                  <div className="feedback-response">
+                    <p><strong>Admin Response:</strong> {review.Response.substring(0, 80)}...</p>
+                  </div>
+                )}
+                <div className="feedback-actions" onClick={(e) => e.stopPropagation()}>
+                  {review.Status === 'Pending' && (
+                    <button className="btn-approve" onClick={() => handleApproveFeedback(review.Feedback_Id)}>
+                      APPROVE
+                    </button>
+                  )}
+                  {review.Status !== 'Rejected' && (
+                    <button className="btn-reject" onClick={() => handleRejectFeedback(review)}>
+                      REJECT
+                    </button>
+                  )}
+                  <button className="btn-edit" onClick={() => handleRespondFeedback(review)}>
+                    RESPOND
+                  </button>
+                </div>
               </div>
-              <p><strong>Course:</strong> {review.courseTitle || 'N/A'}</p>
-              <p className="feedback-comment">"{review.Comment || 'No comment provided'}"</p>
-              <p className="feedback-date"><strong>Posted:</strong> {new Date(review.Posted_On).toLocaleDateString()}</p>
-              {review.Response && (
-                <div className="feedback-response">
-                  <p><strong>Admin Response:</strong> {review.Response}</p>
-                  <p className="response-date">{new Date(review.Responded_On).toLocaleDateString()}</p>
+            ))}
+          </div>
+        )}
+
+        {/* Feedback Detail Modal */}
+        {showFeedbackDetail && selectedFeedback && (
+          <div className="modal-overlay" onClick={() => setShowFeedbackDetail(false)}>
+            <div className="modal-content feedback-detail-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>📝 Feedback Details</h2>
+                <button className="modal-close" onClick={() => setShowFeedbackDetail(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <div className="feedback-detail-section">
+                  <h3>Student Information</h3>
+                  <p><strong>Name:</strong> {selectedFeedback.studentName || 'Anonymous'}</p>
+                  <p><strong>Course:</strong> {selectedFeedback.courseTitle || 'N/A'}</p>
+                  <p><strong>Posted On:</strong> {new Date(selectedFeedback.Posted_On).toLocaleString()}</p>
                 </div>
-              )}
-              <div className="feedback-actions">
-                <button className="btn-approve" onClick={() => handleApproveFeedback(review.Feedback_Id)}>
-                  Approve
+                <div className="feedback-detail-section">
+                  <h3>Rating</h3>
+                  <div className="rating" style={{ fontSize: '2rem', color: '#FFD700' }}>
+                    {'★'.repeat(selectedFeedback.Rating || 0)}{'☆'.repeat(5 - (selectedFeedback.Rating || 0))}
+                  </div>
+                </div>
+                <div className="feedback-detail-section">
+                  <h3>Comment</h3>
+                  <p className="full-comment">{selectedFeedback.Comment || 'No comment provided'}</p>
+                </div>
+                {selectedFeedback.Response && (
+                  <div className="feedback-detail-section">
+                    <h3>Admin Response</h3>
+                    <p>{selectedFeedback.Response}</p>
+                    <p className="response-date"><strong>Responded On:</strong> {new Date(selectedFeedback.Responded_On).toLocaleString()}</p>
+                  </div>
+                )}
+                <div className="feedback-detail-section">
+                  <h3>Status</h3>
+                  <span className={`status-badge ${(selectedFeedback.Status || '').toLowerCase()}`}>
+                    {selectedFeedback.Status || 'Pending'}
+                  </span>
+                </div>
+              </div>
+              <div className="modal-footer">
+                {selectedFeedback.Status === 'Pending' && (
+                  <button className="btn-approve" onClick={() => {
+                    setShowFeedbackDetail(false);
+                    handleApproveFeedback(selectedFeedback.Feedback_Id);
+                  }}>
+                    APPROVE
+                  </button>
+                )}
+                {selectedFeedback.Status !== 'Rejected' && (
+                  <button className="btn-reject" onClick={() => {
+                    setShowFeedbackDetail(false);
+                    handleRejectFeedback(selectedFeedback);
+                  }}>
+                    REJECT
+                  </button>
+                )}
+                <button className="btn-edit" onClick={() => {
+                  setShowFeedbackDetail(false);
+                  handleRespondFeedback(selectedFeedback);
+                }}>
+                  RESPOND
                 </button>
-                <button className="btn-reject" onClick={() => handleRejectFeedback(review.Feedback_Id)}>
-                  Reject
+                <button className="btn-modal-close" onClick={() => setShowFeedbackDetail(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Reject Confirmation Modal */}
+        {showRejectConfirm && selectedFeedback && (
+          <div className="modal-overlay" onClick={() => setShowRejectConfirm(false)}>
+            <div className="modal-content reject-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>⚠️ Confirm Rejection</h2>
+                <button className="modal-close" onClick={() => setShowRejectConfirm(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <p style={{ fontSize: '1.1rem', textAlign: 'center', marginBottom: '1rem' }}>
+                  Are you sure you want to reject this feedback?
+                </p>
+                <div className="reject-preview">
+                  <p><strong>Student:</strong> {selectedFeedback.studentName || 'Anonymous'}</p>
+                  <p><strong>Course:</strong> {selectedFeedback.courseTitle || 'N/A'}</p>
+                  <p><strong>Rating:</strong> {'★'.repeat(selectedFeedback.Rating || 0)}</p>
+                  <p><strong>Comment:</strong> "{selectedFeedback.Comment}"</p>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn-reject" onClick={confirmRejectFeedback}>
+                  Yes, Reject
                 </button>
-                <button className="btn-edit" onClick={() => handleEditFeedback(review.Feedback_Id)}>
-                  Respond
+                <button className="btn-modal-close" onClick={() => setShowRejectConfirm(false)}>
+                  Cancel
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+          </div>
+        )}
+
+        {/* Respond Modal */}
+        {showRespondModal && selectedFeedback && (
+          <div className="modal-overlay" onClick={() => setShowRespondModal(false)}>
+            <div className="modal-content respond-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>💬 Send Response to Student</h2>
+                <button className="modal-close" onClick={() => setShowRespondModal(false)}>✕</button>
+              </div>
+              <div className="modal-body">
+                <div className="respond-context">
+                  <p><strong>Student:</strong> {selectedFeedback.studentName || 'Anonymous'}</p>
+                  <p><strong>Course:</strong> {selectedFeedback.courseTitle || 'N/A'}</p>
+                  <p><strong>Their Comment:</strong> "{selectedFeedback.Comment}"</p>
+                </div>
+                <div className="respond-input-section">
+                  <label htmlFor="respondMessage"><strong>Your Response:</strong></label>
+                  <textarea
+                    id="respondMessage"
+                    rows="6"
+                    placeholder="Type your response here... The student will receive a notification."
+                    value={respondMessage}
+                    onChange={(e) => setRespondMessage(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      fontSize: '1rem',
+                      marginTop: '0.5rem',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn-approve" onClick={submitFeedbackResponse}>
+                  Send Response
+                </button>
+                <button className="btn-modal-close" onClick={() => setShowRespondModal(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderLiveSessionMonitor = () => {
     const formatDateTime = (dateString) => {
@@ -1729,41 +2126,114 @@ const AdminDashboard = ({ onLogout }) => {
       <h2>🤖 Chatbot Management</h2>
       <div className="chatbot-stats">
         <div className="chatbot-stat">
-          <h4>Total FAQs</h4>
-          <p>156</p>
+          <h4>Total Conversations</h4>
+          <p>{chatLoading ? '...' : chatStats.totalChats}</p>
         </div>
         <div className="chatbot-stat">
-          <h4>Queries Today</h4>
-          <p>89</p>
+          <h4>Unique Users</h4>
+          <p>{chatLoading ? '...' : chatStats.totalUsers}</p>
         </div>
         <div className="chatbot-stat">
-          <h4>Response Rate</h4>
-          <p>94%</p>
+          <h4>Avg Response Time</h4>
+          <p>{chatLoading ? '...' : `${chatStats.averageResponseTime}ms`}</p>
+        </div>
+        <div className="chatbot-stat">
+          <h4>Helpful Responses</h4>
+          <p>{chatLoading ? '...' : chatStats.helpfulChats}</p>
         </div>
       </div>
-      <div className="chatbot-actions">
-        <button className="btn-info" onClick={handleViewLogs}>View Logs</button>
-        <button className="btn-edit" onClick={handleEditChatbot}>Edit Settings</button>
-        <button className="btn-delete" onClick={handleDeleteChatbot}>Delete Data</button>
-      </div>
-      <div className="faq-list">
-        <div className="faq-item">
-          <h4>How to enroll in a course?</h4>
-          <p>Click on the "Enroll Now" button on any course card and complete the payment process.</p>
-          <div className="faq-actions">
-            <button className="btn-edit">Edit</button>
-            <button className="btn-delete">Delete</button>
+      
+      {chatLoading ? (
+        <div className="loading-state">Loading chat history...</div>
+      ) : chatHistory.length === 0 ? (
+        <div className="empty-state">
+          <p>No chat history found. Users haven't started conversations yet.</p>
+        </div>
+      ) : (
+        <>
+          <div className="chat-history-list">
+            <h3>Recent Conversations</h3>
+            {chatHistory.map((chat) => (
+              <div key={chat.Chat_Id} className="chat-item">
+                <div className="chat-header">
+                  <div className="chat-user-info">
+                    <strong>{chat.User_Name}</strong>
+                    <span className="chat-email">{chat.User_Email || 'No email'}</span>
+                    <span className="chat-time">{new Date(chat.Timestamp).toLocaleString()}</span>
+                  </div>
+                  <div className="chat-meta">
+                    <span className="response-time">{chat.Response_Time_Ms}ms</span>
+                    {chat.Is_Helpful !== null && (
+                      <span className={`helpful-badge ${chat.Is_Helpful ? 'helpful' : 'not-helpful'}`}>
+                        {chat.Is_Helpful ? '👍 Helpful' : '👎 Not Helpful'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="chat-content">
+                  <div className="question">
+                    <strong>Q:</strong> {chat.Question}
+                  </div>
+                  <div className="answer">
+                    <strong>A:</strong> {chat.Answer}
+                  </div>
+                  {chat.Feedback_Comment && (
+                    <div className="feedback-comment">
+                      <strong>Feedback:</strong> {chat.Feedback_Comment}
+                    </div>
+                  )}
+                </div>
+                <div className="chat-actions">
+                  <button className="btn-delete" onClick={() => handleDeleteChatEntry(chat.Chat_Id)}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="pagination-controls">
+            <button 
+              className="btn-secondary" 
+              onClick={handlePrevPage} 
+              disabled={chatPage === 1}
+            >
+              Previous
+            </button>
+            <span className="page-info">Page {chatPage} of {chatTotalPages}</span>
+            <button 
+              className="btn-secondary" 
+              onClick={handleNextPage} 
+              disabled={chatPage === chatTotalPages}
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingChatId && (
+        <div className="modal-overlay" onClick={cancelDeleteChatEntry}>
+          <div className="confirmation-alert-modal modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>⚠️ Confirm Deletion</h3>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this chat entry?</p>
+              <p style={{ color: '#dc2626', fontSize: '0.9rem', marginTop: '0.5rem' }}>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={cancelDeleteChatEntry}>
+                Cancel
+              </button>
+              <button className="btn-confirm-delete" onClick={confirmDeleteChatEntry}>
+                Yes, Delete
+              </button>
+            </div>
           </div>
         </div>
-        <div className="faq-item">
-          <h4>What payment methods are accepted?</h4>
-          <p>We accept all major credit cards, debit cards, UPI, and net banking.</p>
-          <div className="faq-actions">
-            <button className="btn-edit">Edit</button>
-            <button className="btn-delete">Delete</button>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 
@@ -2385,6 +2855,53 @@ const AdminDashboard = ({ onLogout }) => {
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setRefundingTransaction(null)}>Cancel</button>
               <button className="btn-refund" onClick={confirmRefundTransaction}>Process Refund</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Alert Modal */}
+      {showConfirmModal && (
+        <div className="modal-overlay" onClick={() => setShowConfirmModal(false)}>
+          <div className="modal-content confirmation-alert-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Confirmation Required</h2>
+              <button className="modal-close" onClick={() => setShowConfirmModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div className="confirmation-message">
+                <div className="confirmation-icon">
+                  {confirmAction === 'approve' ? '✅' : '❌'}
+                </div>
+                <p>{confirmMessage}</p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary" 
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setConfirmAction(null);
+                  setConfirmData(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className={confirmAction === 'approve' ? 'btn-approve' : 'btn-reject'}
+                onClick={() => {
+                  if (confirmAction === 'approve') {
+                    confirmApproveUniversity(confirmData);
+                  } else if (confirmAction === 'reject') {
+                    confirmRejectUniversity(confirmData);
+                  }
+                  setShowConfirmModal(false);
+                  setConfirmAction(null);
+                  setConfirmData(null);
+                }}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>

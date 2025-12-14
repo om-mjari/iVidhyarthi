@@ -135,12 +135,16 @@ const recommendationsRoutes = require("./routes/recommendationsRoutes");
 const lecturerDynamicDataRoutes = require("./routes/lecturerDynamicData");
 const instituteRoutes = require("./routes/instituteRoutes");
 const transcriptionRoutes = require("./routes/transcriptionRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
    ============================ */
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/chat-history", chatHistoryRoutes);
 app.use("/api/registrar", registrarRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/tbl-courses", tblCoursesRoutes);
@@ -171,6 +175,8 @@ app.use("/api/institutes", instituteRoutes);
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");
 console.log("   - /api/admin");
+console.log("   - /api/notifications");
+console.log("   - /api/chat-history");
 console.log("   - /api/registrar");
 console.log("   - /api/courses");
 console.log("   - /api/tbl-courses");

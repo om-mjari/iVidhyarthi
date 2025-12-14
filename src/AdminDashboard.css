@@ -2615,3 +2615,471 @@
     padding: 0;
   }
 }
+
+/* ============================================
+   FEEDBACK MODALS & FILTERS
+============================================ */
+.feedback-header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.feedback-filter-tabs {
+  display: flex;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem;
+  border-radius: 12px;
+  border: 1px solid rgba(217, 70, 239, 0.15);
+}
+
+.filter-tab {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #6B7280;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-tab:hover {
+  background: rgba(217, 70, 239, 0.1);
+  color: #9333EA;
+}
+
+.filter-tab.active {
+  background: linear-gradient(135deg, #D946EF 0%, #9333EA 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(217, 70, 239, 0.3);
+}
+
+.feedback-card.clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.feedback-card.clickable:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(217, 70, 239, 0.25);
+}
+
+/* Feedback Detail Modal */
+.feedback-detail-modal {
+  max-width: 700px;
+}
+
+.feedback-detail-modal .modal-body {
+  max-height: 60vh;
+}
+
+.feedback-detail-section {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(217, 70, 239, 0.05);
+  border-radius: 12px;
+  border-left: 4px solid #D946EF;
+}
+
+.feedback-detail-section h3 {
+  margin: 0 0 0.75rem 0;
+  color: #1F2937;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.feedback-detail-section p {
+  margin: 0.5rem 0;
+  color: #4B5563;
+  line-height: 1.6;
+  font-size: 1rem;
+}
+
+.full-comment {
+  font-style: italic;
+  color: #374151;
+  line-height: 1.8;
+  font-size: 1.05rem;
+}
+
+/* Reject Confirmation Modal */
+.reject-confirm-modal {
+  max-width: 500px;
+}
+
+.reject-confirm-modal .modal-header {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+.reject-preview {
+  background: rgba(239, 68, 68, 0.1);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 2px solid rgba(239, 68, 68, 0.2);
+  margin-top: 1rem;
+}
+
+.reject-preview p {
+  margin: 0.75rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+}
+
+.reject-preview strong {
+  color: #1F2937;
+  font-weight: 700;
+}
+
+/* Respond Modal */
+.respond-modal {
+  max-width: 650px;
+}
+
+.respond-modal .modal-header {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.respond-context {
+  background: rgba(16, 185, 129, 0.1);
+  padding: 1.25rem;
+  border-radius: 12px;
+  border: 2px solid rgba(16, 185, 129, 0.2);
+  margin-bottom: 1.5rem;
+}
+
+.respond-context p {
+  margin: 0.75rem 0;
+  color: #374151;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.respond-context strong {
+  color: #1F2937;
+  font-weight: 700;
+}
+
+.respond-input-section {
+  margin-top: 1.5rem;
+}
+
+.respond-input-section label {
+  display: block;
+  color: #1F2937;
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Modal Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Confirmation Alert Modal */
+.confirmation-alert-modal {
+  max-width: 450px;
+}
+
+.confirmation-alert-modal .modal-header {
+  background: linear-gradient(135deg, #F59E0B 0%, #F97316 100%);
+}
+
+.confirmation-message {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.confirmation-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: scaleIn 0.4s ease;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.confirmation-message p {
+  font-size: 1.15rem;
+  color: #1F2937;
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.confirmation-alert-modal .modal-footer {
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.confirmation-alert-modal .modal-footer button {
+  min-width: 120px;
+  padding: 0.85rem 2rem;
+  font-size: 1rem;
+}
+
+/* ============================================
+   CHATBOT MANAGEMENT - CHAT HISTORY
+============================================ */
+.chat-history-list {
+  margin-top: 2rem;
+}
+
+.chat-history-list h3 {
+  margin: 0 0 1.5rem 0;
+  color: #1F2937;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.chat-item {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 245, 247, 0.9) 100%);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(217, 70, 239, 0.15);
+  box-shadow: 0 4px 15px rgba(217, 70, 239, 0.08);
+  transition: all 0.3s ease;
+}
+
+.chat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(217, 70, 239, 0.15);
+  border-color: rgba(217, 70, 239, 0.25);
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(217, 70, 239, 0.1);
+}
+
+.chat-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chat-user-info strong {
+  color: #1F2937;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.chat-email {
+  color: #6B7280;
+  font-size: 0.875rem;
+}
+
+.chat-time {
+  color: #9CA3AF;
+  font-size: 0.8rem;
+}
+
+.chat-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.response-time {
+  background: linear-gradient(135deg, #E0E7FF 0%, #DDD6FE 100%);
+  color: #5B21B6;
+  padding: 0.35rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.helpful-badge {
+  padding: 0.35rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.helpful-badge.helpful {
+  background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+  color: #065F46;
+}
+
+.helpful-badge.not-helpful {
+  background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+  color: #991B1B;
+}
+
+.chat-content {
+  margin: 1rem 0;
+}
+
+.chat-content .question,
+.chat-content .answer {
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.chat-content .question {
+  background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
+  border-left: 4px solid #FB923C;
+}
+
+.chat-content .answer {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border-left: 4px solid #3B82F6;
+}
+
+.chat-content .feedback-comment {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  border-left: 4px solid #F59E0B;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #92400E;
+}
+
+.chat-content strong {
+  font-weight: 700;
+  margin-right: 0.5rem;
+  color: #1F2937;
+}
+
+.chat-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(254, 243, 226, 0.8) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(217, 70, 239, 0.15);
+}
+
+.pagination-controls button {
+  min-width: 100px;
+}
+
+.pagination-controls .page-info {
+  font-weight: 600;
+  color: #4B5563;
+  font-size: 0.95rem;
+}
+
+.loading-state,
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(254, 243, 226, 0.8) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(217, 70, 239, 0.15);
+  margin-top: 2rem;
+}
+
+.loading-state {
+  color: #9333EA;
+  font-weight: 600;
+  font-size: 1.1rem;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.empty-state p {
+  color: #6B7280;
+  font-size: 1rem;
+  margin: 0;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Responsive Modal Styles */
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    max-width: none;
+  }
+
+  .feedback-filter-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filter-tab {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .confirmation-alert-modal .modal-footer {
+    flex-direction: row;
+  }
+
+  .confirmation-alert-modal .modal-footer button {
+    flex: 1;
+  }
+
+  .chat-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .chat-meta {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .chat-actions {
+    flex-wrap: wrap;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+}

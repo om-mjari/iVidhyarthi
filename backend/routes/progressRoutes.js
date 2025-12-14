@@ -95,4 +95,130 @@ router.get("/student/:studentId", async (req, res) => {
   }
 });
 
+// Calculate and update overall course progress (videos + assignments)
+router.post("/calculate", async (req, res) => {
+  try {
+    const { courseId, studentId } = req.body;
+
+    if (!courseId || !studentId) {
+      return res.status(400).json({
+        success: false,
+        message: "courseId and studentId are required",
+      });
+    }
+
+    // Get video progress
+    const Tbl_VideoProgress = require("../models/Tbl_VideoProgress");
+    const Tbl_Submissions = require("../models/Tbl_Submissions");
+    const Tbl_Assignments = require("../models/Tbl_Assignments");
+    const Tbl_Courses = require("../models/Tbl_Courses");
+    const Tbl_CourseContent = require("../models/Tbl_CourseContent");
+
+    const course = await Tbl_Courses.findOne({ Course_Id: courseId });
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    // Calculate video completion percentage - count actual videos from Tbl_CourseContent
+    const totalVideos = await Tbl_CourseContent.countDocuments({
+      Course_Id: courseId,
+      Content_Type: "video"
+    });
+    const completedVideos = await Tbl_VideoProgress.countDocuments({
+      Student_Id: studentId,
+      Course_Id: courseId,
+      Is_Completed: true,
+    });
+    const videoCompletionPercentage = totalVideos > 0 ? (completedVideos / totalVideos) * 100 : 0;
+
+    // Calculate assignment completion percentage
+    const assignments = await Tbl_Assignments.find({ Course_Id: courseId });
+    const totalAssignments = assignments.length;
+    
+    // Get assignment IDs for this course
+    const assignmentIds = assignments.map(a => a.Assignment_Id);
+    
+    // Count submissions for these assignments by this student
+    const completedAssignments = await Tbl_Submissions.countDocuments({
+      Student_Id: studentId,
+      Assignment_Id: { $in: assignmentIds }
+    });
+    
+    const assignmentCompletionPercentage = totalAssignments > 0 ? (completedAssignments / totalAssignments) * 100 : 0;
+    
+    console.log('Assignment Progress:', {
+      totalAssignments,
+      completedAssignments,
+      assignmentIds,
+      percentage: assignmentCompletionPercentage
+    });
+
+    // Calculate overall progress (based on total completed items out of total items)
+    const totalItems = totalVideos + totalAssignments;
+    const completedItems = completedVideos + completedAssignments;
+    const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    console.log('Overall Progress Calculation:', {
+      totalVideos,
+      completedVideos,
+      totalAssignments,
+      completedAssignments,
+      totalItems,
+      completedItems,
+      overallProgress
+    });
+
+    // Update progress in Tbl_ProgressTracking
+    let progress = await Progress.findOne({
+      Course_Id: courseId,
+      Student_Id: studentId,
+    });
+
+    if (progress) {
+      progress.Progress_Percent = overallProgress;
+      progress.Last_Accessed = new Date();
+      progress.Status =
+        overallProgress === 0
+          ? "Not Started"
+          : overallProgress === 100
+          ? "Completed"
+          : "In Progress";
+      await progress.save();
+    } else {
+      progress = new Progress({
+        Course_Id: courseId,
+        Student_Id: studentId,
+        Progress_Percent: overallProgress,
+        Status: overallProgress === 0 ? "Not Started" : "In Progress",
+      });
+      await progress.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        overallProgress,
+        videoProgress: Math.round(videoCompletionPercentage),
+        assignmentProgress: Math.round(assignmentCompletionPercentage),
+        completedVideos,
+        totalVideos,
+        completedAssignments,
+        totalAssignments,
+      },
+    });
+  } catch (error) {
+    console.error("Error calculating progress:", error);
+    console.error("Request body:", req.body);
+    console.error("Error stack:", error.stack);
+    res.status(500).json({
+      success: false,
+      message: "Error calculating progress",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

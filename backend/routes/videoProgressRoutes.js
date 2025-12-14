@@ -104,6 +104,38 @@ router.get("/student/:studentId/course/:courseId/summary", async (req, res) => {
 });
 
 /**
+ * GET /api/video-progress/student/:studentId/course/:courseId/completed
+ * Get list of completed video IDs for a student in a course
+ */
+router.get("/student/:studentId/course/:courseId/completed", async (req, res) => {
+  try {
+    const { studentId, courseId } = req.params;
+
+    // Get all completed videos for this student and course
+    const completedVideos = await Tbl_VideoProgress.find({
+      Student_Id: studentId,
+      Course_Id: courseId,
+      Is_Completed: true,
+    }).select('Video_Id Video_Title -_id');
+
+    res.json({
+      success: true,
+      data: completedVideos.map(v => ({
+        videoId: v.Video_Id,
+        videoTitle: v.Video_Title
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching completed videos:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error fetching completed videos",
+      error: error.message,
+    });
+  }
+});
+
+/**
  * POST /api/video-progress/update
  * Update or create video watch progress
  */
@@ -148,14 +180,16 @@ router.post("/update", async (req, res) => {
 
       if (videoTitle) videoProgress.Video_Title = videoTitle;
       if (courseName) videoProgress.Course_Name = courseName;
-      if (studentEmail) videoProgress.Student_Email = studentEmail;
+      if (studentEmail && studentEmail !== '') videoProgress.Student_Email = studentEmail;
+      // Handle case where studentEmail is an empty string
+      else if (studentEmail === '') videoProgress.Student_Email = undefined;
 
       await videoProgress.save();
     } else {
       // Create new progress record
       videoProgress = new Tbl_VideoProgress({
         Student_Id: studentId,
-        Student_Email: studentEmail,
+        Student_Email: studentEmail || undefined,
         Course_Id: courseId,
         Course_Name: courseName,
         Video_Id: videoId,
@@ -187,6 +221,9 @@ router.post("/update", async (req, res) => {
  * Mark a video as completed
  */
 router.post("/mark-complete", async (req, res) => {
+  console.log('🎯 POST /api/video-progress/mark-complete');
+  console.log('📥 Request body:', req.body);
+
   try {
     const {
       studentId,
@@ -198,13 +235,22 @@ router.post("/mark-complete", async (req, res) => {
       totalDuration,
     } = req.body;
 
+    // Validate required fields
     if (!studentId || !courseId || !videoId) {
+      console.error('❌ Missing required fields:', { studentId, courseId, videoId });
       return res.status(400).json({
         success: false,
-        message: "Missing required fields",
+        message: "Missing required fields: studentId, courseId, videoId",
       });
     }
 
+    // Provide defaults for required schema fields
+    // Student_Email is optional
+    const safeCourseName = courseName || courseId;
+    const safeVideoTitle = videoTitle || `Video ${videoId}`;
+    const safeTotalDuration = totalDuration || 1800;
+
+    console.log('🔍 Looking for existing video progress...');
     let videoProgress = await Tbl_VideoProgress.findOne({
       Student_Id: studentId,
       Course_Id: courseId,
@@ -212,26 +258,38 @@ router.post("/mark-complete", async (req, res) => {
     });
 
     if (videoProgress) {
-      videoProgress.Watch_Duration =
-        totalDuration || videoProgress.Total_Duration;
+      console.log('📝 Updating existing video progress:', videoProgress.Progress_Id);
+      videoProgress.Watch_Duration = safeTotalDuration;
       videoProgress.Is_Completed = true;
       videoProgress.Completion_Percentage = 100;
       videoProgress.Last_Watched = new Date();
+
+
+
       await videoProgress.save();
+      console.log('✅ Video progress updated successfully');
     } else {
-      videoProgress = new Tbl_VideoProgress({
+      console.log('➕ Creating new video progress record');
+      const progressData = {
         Student_Id: studentId,
-        Student_Email: studentEmail,
         Course_Id: courseId,
-        Course_Name: courseName,
+        Course_Name: safeCourseName,
         Video_Id: videoId,
-        Video_Title: videoTitle,
-        Watch_Duration: totalDuration || 0,
-        Total_Duration: totalDuration || 0,
+        Video_Title: safeVideoTitle,
+        Watch_Duration: safeTotalDuration,
+        Total_Duration: safeTotalDuration,
         Is_Completed: true,
         Completion_Percentage: 100,
-      });
+      };
+      
+      // Only add Student_Email if it exists
+      if (studentEmail) {
+        progressData.Student_Email = studentEmail;
+      }
+      
+      videoProgress = new Tbl_VideoProgress(progressData);
       await videoProgress.save();
+      console.log('✅ New video progress created:', videoProgress.Progress_Id);
     }
 
     res.json({
@@ -240,11 +298,16 @@ router.post("/mark-complete", async (req, res) => {
       data: videoProgress,
     });
   } catch (error) {
-    console.error("Error marking video complete:", error);
+    console.error("❌ ERROR marking video complete:", error.message);
+    console.error("❌ Error name:", error.name);
+    console.error("❌ Error stack:", error.stack);
+    console.error("❌ Request body:", req.body);
+
     res.status(500).json({
       success: false,
       message: "Error marking video complete",
       error: error.message,
+      errorName: error.name,
     });
   }
 });

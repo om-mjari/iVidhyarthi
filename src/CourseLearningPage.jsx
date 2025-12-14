@@ -106,6 +106,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Ref for video section and video player
   const videoSectionRef = React.useRef(null);
   const videoPlayerRef = React.useRef(null);
+  
+  // Timer for tracking video watch time
+  const trackingIntervalRef = React.useRef(null);
 
   // Handle video watching with duration tracking
   const handleWatchVideo = (videoId, durationMinutes) => {
@@ -164,30 +167,45 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     };
   }, []);
 
-  // Track video playback progress and prevent skipping
+  // Load videoWatchProgress from localStorage on mount
+  useEffect(() => {
+    const savedProgress = localStorage.getItem('videoWatchProgress');
+    if (savedProgress) {
+      try {
+        setVideoWatchProgress(JSON.parse(savedProgress));
+      } catch (e) {
+        console.error('Error loading video watch progress:', e);
+      }
+    }
+  }, []);
+
+  // Save videoWatchProgress to localStorage whenever it changes
+  useEffect(() => {
+    if (Object.keys(videoWatchProgress).length > 0) {
+      localStorage.setItem('videoWatchProgress', JSON.stringify(videoWatchProgress));
+    }
+  }, [videoWatchProgress]);
+
+  // Track video watch time (80% rule - based on elapsed time, not actual playback)
   useEffect(() => {
     if (!selectedVideo) return;
 
     const videoId = selectedVideo.id;
-    let accumulatedTime = 0;
-    let hasReachedMax = false;
-    let isPageVisible = !document.hidden;
 
     // Initialize progress for this video if not exists
     if (videoWatchProgress[videoId] === undefined) {
       setVideoWatchProgress(prev => ({ ...prev, [videoId]: 0 }));
-      setMaxWatchedTime(prev => ({ ...prev, [videoId]: 0 }));
-    } else {
-      // Resume from previous progress
-      const previousProgress = videoWatchProgress[videoId] || 0;
-      if (previousProgress >= 100) {
-        hasReachedMax = true;
-      }
+    }
+
+    // Cleanup previous interval
+    if (trackingIntervalRef.current) {
+      clearInterval(trackingIntervalRef.current);
+      trackingIntervalRef.current = null;
     }
 
     // Parse video duration from MM:SS format to seconds
     const parseDuration = (durationStr) => {
-      if (!durationStr) return 56; // Default 56 seconds if no duration
+      if (!durationStr) return 1800; // Default 30 minutes if no duration
       const parts = durationStr.split(':').map(Number);
       if (parts.length === 2) {
         return (parts[0] * 60) + parts[1]; // MM:SS format
@@ -196,18 +214,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       } else if (parts.length === 1) {
         return parts[0]; // Just seconds
       }
-      return 56; // Default fallback to 56 seconds
+      return 1800; // Default fallback to 30 minutes
     };
 
     const videoDuration = parseDuration(selectedVideo.duration);
-
-    // Get starting accumulated time from current progress - initialize to 0 for fresh tracking
-    if (videoWatchProgress[videoId] && videoWatchProgress[videoId] >= 100) {
-      hasReachedMax = true;
-      accumulatedTime = videoDuration;
-    } else {
-      accumulatedTime = 0; // Always start from 0 for proper tracking
-    }
+    const timeRequired80Percent = videoDuration * 0.8; // 80% of duration
+    let accumulatedTime = 0;
+    let isPageVisible = !document.hidden;
 
     // Handle page visibility change
     const handleVisibilityChange = () => {
@@ -216,47 +229,30 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Update progress every second - only when actively watching
-    const trackingInterval = setInterval(() => {
-
-
-      if (isPageVisible && !hasReachedMax) {
-        // Increment by 1 second
+    // Update progress every second when page is visible
+    trackingIntervalRef.current = setInterval(() => {
+      if (isPageVisible) {
         accumulatedTime += 1;
-
-        // Check if reached or exceeded video duration
-        if (accumulatedTime >= videoDuration) {
-          hasReachedMax = true;
-          accumulatedTime = videoDuration;
-
-          setVideoWatchProgress(prev => ({
-            ...prev,
-            [videoId]: 100
-          }));
-          setMaxWatchedTime(prev => ({
-            ...prev,
-            [videoId]: 100
-          }));
-          return;
-        }
-
-        // Calculate progress based on actual video duration
-        const progressPercentage = (accumulatedTime / videoDuration) * 100;
-
+        const progressPercentage = Math.min((accumulatedTime / videoDuration) * 100, 100);
+        
         setVideoWatchProgress(prev => ({
           ...prev,
           [videoId]: progressPercentage
         }));
 
-        setMaxWatchedTime(prev => ({
-          ...prev,
-          [videoId]: Math.max(prev[videoId] || 0, progressPercentage)
-        }));
+        // Stop at 100%
+        if (progressPercentage >= 100) {
+          clearInterval(trackingIntervalRef.current);
+          trackingIntervalRef.current = null;
+        }
       }
     }, 1000);
 
     return () => {
-      clearInterval(trackingInterval);
+      if (trackingIntervalRef.current) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
+      }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [selectedVideo]);
@@ -427,20 +423,39 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     // Fetch video progress for this student and course
     const fetchVideoProgress = async (studentId, courseId, token) => {
       try {
-        const response = await fetch(
-          `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseId}/summary`,
+        // Calculate comprehensive progress from database
+        const calculateResponse = await fetch(
+          'http://localhost:5000/api/progress/calculate',
           {
+            method: 'POST',
             headers: {
+              'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
-            }
+            },
+            body: JSON.stringify({
+              courseId: courseId,
+              studentId: studentId
+            })
           }
         );
 
-        if (response.ok) {
-          const result = await response.json();
+        if (calculateResponse.ok) {
+          const result = await calculateResponse.json();
           if (result.success) {
-            setVideoProgress(result.data);
-            setProgress(result.data.completionPercentage);
+            // Set video progress from database
+            setVideoProgress({
+              totalVideos: result.data.totalVideos,
+              completedVideos: result.data.completedVideos,
+              completionPercentage: result.data.videoProgress
+            });
+            
+            // Set overall progress from database
+            setProgress(result.data.overallProgress);
+            
+            // Fetch completed videos list from database
+            await fetchCompletedVideosList(studentId, courseId);
+            
+            console.log('✅ Initial progress loaded from database:', result.data);
           }
         } else {
           // No progress yet, set defaults
@@ -801,6 +816,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     }
   }, [selectedCourse]);
 
+  // Load progress from database when component mounts or when studentId/selectedCourse changes
+  useEffect(() => {
+    if (studentId && selectedCourse) {
+      refreshVideoProgress();
+    }
+  }, [studentId, selectedCourse]);
+
   // Fetch progress from backend
   const fetchProgress = async (courseId, userId) => {
     try {
@@ -815,28 +837,96 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     }
   };
 
-  // Update progress in backend
-  const updateProgress = async () => {
-    if (!selectedCourse || !studentId) return;
-
-    const totalVideos = courseContent.videos.length;
-    const newProgress = Math.round((completedVideos.length / totalVideos) * 100);
-
-    try {
-      await fetch('http://localhost:5000/api/progress/update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          Course_Id: selectedCourse.id || selectedCourse.Course_Id || 'COURSE_001',
-          Student_Id: studentId,
-          Progress_Percent: newProgress,
-          Completed_Topics: completedVideos
-        })
-      });
-      setProgress(newProgress);
-    } catch (error) {
-      console.error('Error updating progress:', error);
+  // Refresh comprehensive progress from database (single source of truth)
+  const refreshVideoProgress = async () => {
+    if (!studentId || !selectedCourse) {
+      console.warn('⚠️ Cannot refresh progress - missing studentId or selectedCourse');
+      return;
     }
+    
+    try {
+      const courseId = selectedCourse.id || selectedCourse.Course_Id;
+      const authToken = localStorage.getItem('auth_token');
+      
+      console.log('📊 Calculating progress for:', { studentId, courseId });
+      
+      // Calculate and update overall progress in database
+      const calculateResponse = await fetch(
+        'http://localhost:5000/api/progress/calculate',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            courseId: courseId,
+            studentId: studentId
+          })
+        }
+      );
+
+      const calculateResult = await calculateResponse.json();
+      console.log('📊 Progress calculation result:', calculateResult);
+
+      if (calculateResponse.ok && calculateResult.success) {
+        // Update video progress state from database
+        setVideoProgress({
+          totalVideos: calculateResult.data.totalVideos,
+          completedVideos: calculateResult.data.completedVideos,
+          completionPercentage: calculateResult.data.videoProgress
+        });
+        
+        // Update overall progress from database
+        setProgress(calculateResult.data.overallProgress);
+        
+        console.log('✅ Progress updated:', {
+          videoProgress: calculateResult.data.videoProgress,
+          overallProgress: calculateResult.data.overallProgress,
+          completedVideos: calculateResult.data.completedVideos
+        });
+      } else {
+        console.error('❌ Failed to calculate progress:', calculateResult);
+      }
+      
+      // Fetch and set completed video IDs from database
+      await fetchCompletedVideosList(studentId, courseId);
+    } catch (error) {
+      console.error('❌ Error refreshing video progress:', error);
+    }
+  };
+
+  // Fetch list of completed video IDs from backend
+  const fetchCompletedVideosList = async (studentId, courseId) => {
+    try {
+      const authToken = localStorage.getItem('auth_token');
+      const response = await fetch(
+        `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseId}/completed`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Extract video IDs from completed videos
+          const completedVideoIds = result.data.map(v => parseInt(v.videoId) || v.videoId);
+          setCompletedVideos(completedVideoIds);
+          console.log('✅ Loaded completed videos:', completedVideoIds);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching completed videos list:', error);
+    }
+  };
+
+  // Recalculate and update progress in database
+  const updateProgress = async () => {
+    // Use refreshVideoProgress to recalculate from database
+    await refreshVideoProgress();
   };
 
   // Fetch course feedbacks
@@ -1057,19 +1147,57 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   };
 
   // Update video progress in database
-  const updateVideoProgressInDB = async (videoId, isCompleted = false) => {
+  const updateVideoProgressInDB = async (videoId, isCompleted = false, videoInfo = null) => {
     try {
       const authToken = localStorage.getItem('auth_token');
       const courseData = JSON.parse(localStorage.getItem('selected_course'));
 
-      if (!authToken || !studentId || !courseData) return;
+      if (!authToken || !studentId || !courseData) {
+        console.error('Missing required data:', { authToken: !!authToken, studentId, courseData: !!courseData });
+        return false;
+      }
 
-      const video = courseContent.videos.find(v => v.id === videoId);
-      if (!video) return;
+      // Use provided videoInfo or find in courseContent
+      let video = videoInfo;
+      if (!video) {
+        video = courseContent.videos.find(v => v.id === videoId);
+      }
+      
+      if (!video) {
+        console.error('Video not found:', videoId);
+        return false;
+      }
 
       const endpoint = isCompleted
         ? 'http://localhost:5000/api/video-progress/mark-complete'
         : 'http://localhost:5000/api/video-progress/update';
+
+      // Get student email from auth_user or localStorage
+      let studentEmail = localStorage.getItem('user_email') || '';
+      if (!studentEmail) {
+        try {
+          const authUser = localStorage.getItem('auth_user');
+          if (authUser) {
+            const user = JSON.parse(authUser);
+            studentEmail = user.email || user.Email || user.Student_Email || '';
+          }
+        } catch (e) {
+          console.error('Error getting email from auth_user:', e);
+        }
+      }
+
+      const requestBody = {
+        studentId: studentId,
+        studentEmail: studentEmail,
+        courseId: courseData.id || courseData.Course_Id,
+        courseName: courseData.name || courseData.Name,
+        videoId: videoId.toString(),
+        videoTitle: video.title,
+        totalDuration: 1800,
+        watchDuration: isCompleted ? 1800 : 900
+      };
+
+      console.log('📤 Marking video as complete:', requestBody);
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -1077,39 +1205,38 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
-        body: JSON.stringify({
-          studentId: studentId,
-          studentEmail: localStorage.getItem('user_email') || '',
-          courseId: courseData.id || courseData.Course_Id,
-          courseName: courseData.name || courseData.Name,
-          videoId: videoId.toString(),
-          videoTitle: video.title,
-          totalDuration: 1800, // 30 minutes default
-          watchDuration: isCompleted ? 1800 : 900
-        })
+        body: JSON.stringify(requestBody)
       });
 
-      if (response.ok) {
-        // Refresh video progress summary
-        const summaryResponse = await fetch(
-          `http://localhost:5000/api/video-progress/student/${studentId}/course/${courseData.id || courseData.Course_Id}/summary`,
-          {
-            headers: {
-              'Authorization': `Bearer ${authToken}`
-            }
-          }
-        );
+      console.log('📥 Response status:', response.status);
 
-        if (summaryResponse.ok) {
-          const result = await summaryResponse.json();
-          if (result.success) {
-            setVideoProgress(result.data);
-            setProgress(result.data.completionPercentage);
-          }
-        }
+      // Clone response to read it multiple times if needed
+      const responseClone = response.clone();
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('📥 Backend response:', responseData);
+      } catch (parseError) {
+        console.error('❌ Failed to parse JSON response:', parseError);
+        const responseText = await responseClone.text();
+        console.error('❌ Response text:', responseText);
+        return false;
+      }
+
+      if (response.ok && responseData.success) {
+        console.log('✅ Video completion saved to database');
+        return true;
+      } else {
+        console.error('❌ Failed to save video completion');
+        console.error('Status:', response.status);
+        console.error('Response:', responseData);
+        return false;
       }
     } catch (error) {
-      console.error('Error updating video progress:', error);
+      console.error('❌ Error updating video progress:', error);
+      console.error('Error details:', error.message);
+      return false;
     }
   };
 
@@ -1134,8 +1261,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setCompletedAssignments(prev => [...prev, selectedAssignment.id]);
       // Refresh submitted assignments list
       fetchSubmittedAssignments();
-      // Update progress
-      setTimeout(updateProgress, 100);
+      // Refresh all progress from database
+      setTimeout(() => {
+        refreshVideoProgress();
+      }, 500);
     }
   };
 
@@ -1352,6 +1481,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         onSubmissionComplete={() => {
           fetchSubmittedAssignments();
           fetchAssignments(selectedCourse?.Course_Id || selectedCourse?.id);
+          // Recalculate course progress after assignment submission
+          setTimeout(() => {
+            refreshVideoProgress();
+          }, 500);
         }}
       />
     );
@@ -1870,7 +2003,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               <div className="stat-label">ASSIGNMENTS</div>
             </div>
             <div className="progress-stat-box">
-              <div className="stat-number">{videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)}%</div>
+              <div className="stat-number">{progress || 0}%</div>
               <div className="stat-label">COMPLETE</div>
             </div>
           </div>
@@ -1886,46 +2019,72 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               {videoProgress.completedVideos !== undefined ? videoProgress.completedVideos : completedVideos.length} of {videoProgress.totalVideos || totalVideos || 0} videos completed
             </p>
 
-            {/* Attempt Quiz Button - Unlocks at 100% video AND assignment completion */}
+            {/* Attempt Quiz Button - Unlocks at 100% course completion (videos AND assignments) */}
             <button
               onClick={() => handleQuizStart(1)}
               disabled={
-                (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) < 100 ||
-                (assignments.length > 0 && (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) < 1)
+                (() => {
+                  // Get video completion percentage
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  
+                  // Calculate assignment completion percentage
+                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                  
+                  // Overall course progress (videos and assignments combined)
+                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                  
+                  // Enable only when overall progress is 100%
+                  return overallProgress < 100;
+                })()
               }
               style={{
                 marginTop: '16px',
                 width: '100%',
                 padding: '12px',
                 background:
-                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
-                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
-                    ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)'
-                    : '#cbd5e1',
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
+                  })(),
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: '600',
                 cursor:
-                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
-                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
-                    ? 'pointer' : 'not-allowed',
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? 'pointer' : 'not-allowed';
+                  })(),
                 transition: 'all 0.3s ease',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
                 boxShadow:
-                  (videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
-                    (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
-                    ? '0 4px 15px rgba(139, 92, 246, 0.4)'
-                    : 'none'
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
+                  })()
               }}
             >
               <span>
-                {(videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0)) >= 100 &&
-                  (assignments.length === 0 || (Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) >= 1)
-                  ? '📝' : '🔒'}
+                {(() => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                  return overallProgress >= 100 ? '📝' : '🔒';
+                })()}
               </span>
               Attempt Quiz
             </button>
@@ -2021,28 +2180,36 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
                   <button
                     onClick={async () => {
-                      if ((videoWatchProgress[selectedVideo.id] || 0) >= 80) {
-                        // Mark video as completed
-                        await updateVideoProgressInDB(selectedVideo.id, true);
-                        if (!completedVideos.includes(selectedVideo.id)) {
-                          setCompletedVideos(prev => [...prev, selectedVideo.id]);
+                      const currentWatchProgress = videoWatchProgress[selectedVideo.id] || 0;
+                      
+                      // Only allow marking as completed if watched >= 80%
+                      if (currentWatchProgress >= 80) {
+                        // Check if already completed to prevent duplicate
+                        if (completedVideos.includes(selectedVideo.id)) {
+                          alert('ℹ️ This video is already marked as completed!');
+                          return;
                         }
-                        // Recalculate progress locally for immediate UI update
-                        const totalVids = courseContent.videos.length || 1;
-                        const currentCompletedCount = completedVideos.includes(selectedVideo.id) ? completedVideos.length : completedVideos.length + 1;
-                        const newPercentage = Math.round((currentCompletedCount / totalVids) * 100);
+                        
+                        console.log('🎯 Marking video as completed:', selectedVideo.id);
+                        
+                        // Mark video as completed in database (pass selectedVideo as third parameter)
+                        const saved = await updateVideoProgressInDB(selectedVideo.id, true, selectedVideo);
+                        
+                        if (saved) {
+                          // Wait a moment for database to update
+                          await new Promise(resolve => setTimeout(resolve, 500));
+                          
+                          // Refresh all progress data from database (single source of truth)
+                          console.log('🔄 Refreshing progress from database...');
+                          await refreshVideoProgress();
 
-                        setVideoProgress(prev => ({
-                          ...prev,
-                          completedVideos: currentCompletedCount,
-                          completionPercentage: newPercentage
-                        }));
-                        setProgress(newPercentage);
-
-                        alert('✅ Video marked as completed!');
+                          alert('✅ Video marked as completed!');
+                        } else {
+                          alert('❌ Failed to save progress. Please try again.');
+                        }
                       }
                     }}
-                    disabled={(videoWatchProgress[selectedVideo.id] || 0) < 80}
+                    disabled={(videoWatchProgress[selectedVideo.id] || 0) < 80 || completedVideos.includes(selectedVideo.id)}
                     style={{
                       width: '100%',
                       padding: '14px 24px',

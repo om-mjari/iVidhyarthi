@@ -5215,10 +5215,23 @@ function EarningsTab() {
           return;
         }
 
-        const response = await fetch(`http://localhost:5000/api/lecturer-dynamic-data/${lecturerId}`);
+        console.log('📊 Fetching earnings data for lecturer:', lecturerId);
+        // Add timestamp to prevent caching
+        const timestamp = new Date().getTime();
+        const response = await fetch(`http://localhost:5000/api/lecturer-dynamic-data/${lecturerId}?_t=${timestamp}`, {
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         const result = await response.json();
 
+        console.log('💰 Earnings API Response:', result);
+
         if (result.success) {
+          console.log('✅ Total Earnings:', result.data.totalEarnings);
+          console.log('✅ Pending Earnings:', result.data.pendingEarnings);
+          console.log('✅ Earnings Records:', result.data.earningsTable?.length);
           setDynamicData(result.data);
         } else {
           console.error('Failed to fetch dynamic data:', result.message);
@@ -5237,14 +5250,16 @@ function EarningsTab() {
     return (
       <div className="panel">
         <h3>Earnings & Payouts</h3>
-        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading earnings data...</div>
       </div>
     );
   }
 
   const totalEarnings = dynamicData?.totalEarnings || 0;
+  const pendingEarnings = dynamicData?.pendingEarnings || 0;
   const activeCourses = dynamicData?.activeCourses || 0;
   const avgRating = dynamicData?.avgRating || '0.0';
+  const feedbackList = dynamicData?.feedbackList || [];
   const earningsTable = dynamicData?.earningsTable || [];
   const monthlyEarningsChart = dynamicData?.monthlyEarningsChart || { labels: [], data: [] };
   const enrollmentsChart = dynamicData?.enrollmentsThisMonthChart || { labels: [], data: [] };
@@ -5283,20 +5298,26 @@ function EarningsTab() {
       <div className="stats">
         <Stat 
           label="Total Earnings" 
-          value={totalEarnings === 0 ? '₹0' : `₹${totalEarnings.toLocaleString()}`}
-          trend="This quarter" 
+          value={totalEarnings === 0 ? '₹0' : `₹${totalEarnings.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+          trend="Paid + Processed" 
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
+        />
+        <Stat 
+          label="Pending Earnings" 
+          value={pendingEarnings === 0 ? '₹0' : `₹${pendingEarnings.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+          trend="Awaiting payout" 
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
         />
         <Stat 
           label="Active Courses" 
           value={activeCourses.toString()}
-          trend="2% MoM" 
+          trend={`${activeCourses} course${activeCourses !== 1 ? 's' : ''}`}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
         />
         <Stat 
           label="Avg. Rating" 
           value={avgRating}
-          trend="+0.2" 
+          trend={parseFloat(avgRating) > 0 ? `${feedbackList.length} reviews` : 'No reviews yet'}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>}
         />
       </div>
@@ -5327,23 +5348,39 @@ function EarningsTab() {
       <div className="table">
         <div className="t-head">
           <div>Date</div>
+          <div>Type</div>
           <div>Amount</div>
           <div>Status</div>
           <div>Course</div>
         </div>
         {earningsTable.length === 0 ? (
           <div className="t-row" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-            <div style={{ gridColumn: '1 / -1' }}>No earnings available</div>
+            <div style={{ gridColumn: '1 / -1' }}>No earnings records found</div>
           </div>
         ) : (
-          earningsTable.map((earning) => (
+          earningsTable.slice(0, 10).map((earning) => (
             <div className="t-row" key={earning.id}>
-              <div>{new Date(earning.date).toLocaleDateString()}</div>
-              <div>₹{earning.amount.toLocaleString()}</div>
-              <div><span className={`badge ${earning.status === 'Paid' ? 'success' : 'warning'}`}>{earning.status}</span></div>
-              <div>{earning.course}</div>
+              <div>{new Date(earning.date).toLocaleDateString('en-IN')}</div>
+              <div>{earning.transactionType || 'Course Sale'}</div>
+              <div style={{ fontWeight: 'bold', color: '#00a67e' }}>₹{earning.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+              <div>
+                <span className={`badge ${
+                  earning.status === 'Paid' ? 'success' : 
+                  earning.status === 'Processed' ? 'info' : 
+                  earning.status === 'Pending' ? 'warning' : 
+                  'error'
+                }`}>
+                  {earning.status}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.9em', color: '#666' }}>{earning.course}</div>
             </div>
           ))
+        )}
+        {earningsTable.length > 10 && (
+          <div style={{ padding: '12px', textAlign: 'center', color: '#666', fontSize: '0.9em', borderTop: '1px solid #eee' }}>
+            Showing latest 10 of {earningsTable.length} earnings records
+          </div>
         )}
       </div>
     </div>

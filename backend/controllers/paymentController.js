@@ -314,6 +314,71 @@ exports.verifyPayment = async (req, res) => {
         console.error("❌ Error creating enrollment:", enrollError.message);
         // We don't fail the response here as payment was successful
       }
+
+      // ==========================================
+      // PAYMENT SPLIT: 30% Lecturer, 70% Admin
+      // ==========================================
+      try {
+        const TblCourses = require("../models/Tbl_Courses");
+        const TblEarnings = require("../models/Tbl_Earnings");
+
+        // Fetch course to get Lecturer_Id
+        const course = await TblCourses.findOne({
+          Course_Id: payment.courseId,
+        }).lean();
+
+        if (course && course.Lecturer_Id) {
+          const totalAmount = payment.amount;
+          const lecturerShare = (totalAmount * 0.3).toFixed(2); // 30% for lecturer
+          const adminShare = (totalAmount * 0.7).toFixed(2); // 70% for admin
+
+          console.log(`\n💰 Payment Split for ₹${totalAmount}:`);
+          console.log(`   Lecturer (30%): ₹${lecturerShare}`);
+          console.log(`   Admin (70%): ₹${adminShare}`);
+
+          // Create Lecturer Earning Record (30%)
+          const lecturerEarning = new TblEarnings({
+            Lecturer_Id: course.Lecturer_Id,
+            Amount: parseFloat(lecturerShare),
+            Course_Id: payment.courseId.toString(),
+            Transaction_Type: "Course Sale",
+            Transaction_Date: new Date(),
+            Status: "Paid",
+            Payment_Method: "Online",
+            Payment_Date: new Date(),
+            Notes: `30% share from course enrollment - Payment ID: ${razorpay_payment_id}`,
+          });
+          await lecturerEarning.save();
+          console.log(
+            `✅ Lecturer earning created: ${lecturerEarning.Earning_Id}`
+          );
+
+          // Create Admin Earning Record (70%)
+          const adminEarning = new TblEarnings({
+            Lecturer_Id: "ADMIN",
+            Amount: parseFloat(adminShare),
+            Course_Id: payment.courseId.toString(),
+            Transaction_Type: "Course Sale",
+            Transaction_Date: new Date(),
+            Status: "Paid",
+            Payment_Method: "Online",
+            Payment_Date: new Date(),
+            Notes: `70% admin share from course enrollment - Payment ID: ${razorpay_payment_id}`,
+          });
+          await adminEarning.save();
+          console.log(`✅ Admin earning created: ${adminEarning.Earning_Id}\n`);
+        } else {
+          console.warn(
+            `⚠️  Course not found or Lecturer_Id missing for Course_Id: ${payment.courseId}`
+          );
+        }
+      } catch (earningError) {
+        console.error(
+          "❌ Error creating earnings split:",
+          earningError.message
+        );
+        // We don't fail the payment verification even if earnings creation fails
+      }
     }
 
     if (!payment) {

@@ -196,9 +196,6 @@ const SuccessScreen = ({ paymentDetails, onContinue }) => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-
-    // Show success message
-    alert('Receipt downloaded successfully! You can open it in your browser or print it.');
   };
 
   // Generate confetti particles

@@ -26,12 +26,27 @@ exports.createOrder = async (req, res) => {
     } = req.body;
 
     // Validate input
-    if (!studentId || !courseId || !amount || !type) {
+    if (!studentId || !courseId || !type) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: studentId, courseId, amount, type",
+        message: "Missing required fields: studentId, courseId, type",
       });
     }
+
+    // Fetch actual course price from database to prevent price manipulation
+    const Tbl_Courses = require("../models/Tbl_Courses");
+    const course = await Tbl_Courses.findOne({ Course_Id: courseId });
+    
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    // Use the actual price from database, ignore client-provided amount
+    const actualAmount = course.Price || 0;
+    console.log(`🔒 Price verified from database: ₹${actualAmount} (Client sent: ₹${amount})`);
 
     // Fetch real student data from database
     let realStudentName = studentName || "";
@@ -115,15 +130,15 @@ exports.createOrder = async (req, res) => {
         created_at: Math.floor(Date.now() / 1000),
       };
     } else {
-      // Create real Razorpay order
+      // Create real Razorpay order using actual price from database
       const orderOptions = {
-        amount: Math.round(amount * 100), // Convert to paise (smallest currency unit)
+        amount: Math.round(actualAmount * 100), // Convert to paise (smallest currency unit)
         currency: "INR",
         receipt: receiptNo,
         notes: {
           studentId,
           courseId,
-          courseName: courseName || "Course",
+          courseName: courseName || course.Name || course.Title || "Course",
         },
       };
 
@@ -141,18 +156,18 @@ exports.createOrder = async (req, res) => {
       }
     }
 
-    // Save payment record in MongoDB with PENDING status
+    // Save payment record in MongoDB with PENDING status (use actual price)
     const payment = new Payment({
       studentId,
       courseId,
-      amount,
+      amount: actualAmount,
       type,
       receiptNo,
       orderId: razorpayOrder.id,
       status: "PENDING",
       studentName: realStudentName,
       studentEmail: realStudentEmail,
-      courseName: courseName || "",
+      courseName: courseName || course.Name || course.Title || "",
     });
 
     await payment.save();
@@ -167,7 +182,7 @@ exports.createOrder = async (req, res) => {
       data: {
         orderId: razorpayOrder.id,
         receiptNo: receiptNo,
-        amount: amount,
+        amount: actualAmount,
         currency: "INR",
         razorpayKey: isRazorpayConfigured
           ? process.env.RAZORPAY_KEY_ID

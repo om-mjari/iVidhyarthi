@@ -257,7 +257,9 @@ const RazorpayPayment = ({ onPaymentSuccess }) => {
             type="number"
             className="amount-input"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            disabled
+            readOnly
+            style={{ cursor: 'not-allowed', backgroundColor: '#f5f5f5' }}
           />
           
           <div className="price-breakdown">

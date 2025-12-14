@@ -19,7 +19,6 @@ const videoProgressSchema = new mongoose.Schema(
     },
     Student_Email: {
       type: String,
-      required: true,
       index: true,
     },
     Course_Id: {

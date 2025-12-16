@@ -1,14 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './QuizPage.css';
 
 const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
+  const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(quiz?.Time_Limit * 60 || 1800); // Convert minutes to seconds
+  const [timeLeft, setTimeLeft] = useState(50 * 60); // 50 minutes in seconds
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
   const [studentId, setStudentId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [warningShown, setWarningShown] = useState(false);
+  const tabSwitchRef = useRef(0);
+  const [isPassed, setIsPassed] = useState(false);
+  const [percentage, setPercentage] = useState(0);
 
   useEffect(() => {
     // Get student ID from localStorage
@@ -23,19 +29,69 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
     }
   }, []);
 
+  // Timer countdown
   useEffect(() => {
-    // Timer countdown
-    if (timeLeft > 0 && !showResults) {
-      const timer = setTimeout(() => {
-        setTimeLeft(timeLeft - 1);
-      }, 1000);
+    if (!quizStarted || !timeLeft || showResults || submitting) return;
 
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !showResults) {
-      // Auto-submit when time is up
-      handleSubmit(true);
-    }
-  }, [timeLeft, showResults]);
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          handleSubmit(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [quizStarted, timeLeft, showResults, submitting]);
+
+  // Tab switching & screenshot detection
+  useEffect(() => {
+    if (!quizStarted || showResults) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        tabSwitchRef.current += 1;
+        
+        if (tabSwitchRef.current === 1 && !warningShown) {
+          setWarningShown(true);
+          alert('⚠️ WARNING: Tab switching is not allowed during the quiz!\n\nIf you switch tabs again, your quiz will be automatically submitted.');
+        } else if (tabSwitchRef.current >= 2) {
+          alert('🚫 Quiz auto-submitted due to multiple tab switches!');
+          handleSubmit(true);
+        }
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      // Prevent screenshot shortcuts
+      if (
+        (e.key === 'PrintScreen') ||
+        (e.ctrlKey && e.shiftKey && e.key === 'S') ||
+        (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key))
+      ) {
+        e.preventDefault();
+        alert('🚫 Screenshots are not allowed during the quiz!');
+        return false;
+      }
+    };
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('contextmenu', handleContextMenu);
+    };
+  }, [quizStarted, showResults, warningShown]);
 
   const handleAnswerSelect = (questionId, optionIndex) => {
     setAnswers({
@@ -68,6 +124,8 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
   };
 
   const handleSubmit = async (autoSubmit = false) => {
+    if (submitting) return;
+
     if (!autoSubmit && Object.keys(answers).length < quiz.Questions.length) {
       if (!window.confirm('You haven\'t answered all questions. Submit anyway?')) {
         return;
@@ -77,40 +135,48 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
     setSubmitting(true);
 
     try {
-      const finalScore = calculateScore();
-      const timeSpent = (quiz.Time_Limit * 60) - timeLeft;
+      const timeSpent = (50 * 60) - timeLeft;
+      const authToken = localStorage.getItem('auth_token');
 
       const attemptData = {
-        Quiz_Id: quiz.Quiz_Id,
-        Student_Id: studentId,
-        Course_Id: courseId,
-        Week_Number: weekNumber,
-        Answers: answers,
-        Time_Spent: timeSpent,
+        studentId: studentId,
+        courseId: courseId,
+        quizId: quiz.Quiz_Id,
+        answers: answers,
       };
 
       console.log('📤 Submitting Quiz:', attemptData);
 
-      const response = await fetch('http://localhost:5000/api/quiz/attempt', {
+      const response = await fetch('http://localhost:5000/api/auto-quiz/attempt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
         body: JSON.stringify(attemptData),
       });
 
+      if (!response.ok) {
+        throw new Error('Failed to submit quiz');
+      }
+
       const result = await response.json();
 
-      if (result.success) {
-        setScore(result.data.score);
-        setShowResults(true);
-        console.log('✅ Quiz submitted successfully!');
-        if (onComplete) onComplete(result.data.score);
+      console.log('Quiz submission result:', result);
+      
+      setScore(result.score);
+      setPercentage(result.percentage);
+      setIsPassed(result.isPassed);
+      setShowResults(true);
+      
+      if (result.isPassed) {
+        alert(`🎉 Congratulations! You PASSED!\n\nScore: ${result.score}/${result.totalMarks} (${result.percentage}%)\n\nYour certificate has been generated and emailed to you!`);
       } else {
-        alert('Failed to submit quiz: ' + result.message);
+        alert(`❌ You did not pass this time.\n\nScore: ${result.score}/${result.totalMarks} (${result.percentage}%)\nRemaining attempts: ${result.remainingAttempts}\n\nYou need 70% to pass.`);
       }
     } catch (error) {
       console.error('❌ Error submitting quiz:', error);
-      alert('Error submitting quiz. Please try again.');
-    } finally {
+      alert('Error submitting quiz: ' + error.message);
       setSubmitting(false);
     }
   };
@@ -129,21 +195,59 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
     );
   }
 
+  // Quiz Start Screen
+  if (!quizStarted) {
+    return (
+      <div className="quiz-page quiz-start-page">
+        <div className="quiz-start-container">
+          <div className="quiz-start-header">
+            <h1>📝 {quiz.Title}</h1>
+            <p className="quiz-description">{quiz.Description}</p>
+          </div>
+
+          <div className="quiz-instructions">
+            <h2>📋 Instructions</h2>
+            <ul>
+              <li>⏱️ <strong>Time Limit:</strong> 50 minutes</li>
+              <li>❓ <strong>Total Questions:</strong> {quiz.Total_Questions}</li>
+              <li>✅ <strong>Passing Score:</strong> 70%</li>
+              <li>🚫 <strong>No Tab Switching:</strong> First time = Warning, Second time = Auto-submit</li>
+              <li>📸 <strong>No Screenshots:</strong> Not allowed during the quiz</li>
+              <li>⚠️ <strong>Auto-Submit:</strong> Quiz will auto-submit when timer reaches 0</li>
+              <li>💾 <strong>Save Progress:</strong> Your answers are saved as you go</li>
+            </ul>
+          </div>
+
+          <div className="quiz-start-actions">
+            <button className="btn-back" onClick={onBack}>
+              ← Cancel
+            </button>
+            <button 
+              className="btn-start-quiz" 
+              onClick={() => setQuizStarted(true)}
+            >
+              Start Quiz 🚀
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showResults) {
-    const percentage = Math.round((score / quiz.Total_Marks) * 100);
-    
     return (
       <div className="quiz-page quiz-results-page">
         <div className="results-container">
           <div className="results-header">
-            <h1>🎉 Quiz Completed!</h1>
+            <h1>{isPassed ? '🎉 Congratulations!' : '❌ Quiz Completed'}</h1>
             <p>{quiz.Title}</p>
           </div>
 
           <div className="results-score">
-            <div className="score-circle">
+            <div className={`score-circle ${isPassed ? 'passed' : 'failed'}`}>
               <div className="score-percentage">{percentage}%</div>
               <div className="score-details">{score} / {quiz.Total_Marks}</div>
+              <div className="pass-status">{isPassed ? 'PASSED' : 'FAILED'}</div>
             </div>
           </div>
 
@@ -154,13 +258,19 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
             </div>
             <div className="stat-item">
               <span className="stat-label">Time Spent</span>
-              <span className="stat-value">{formatTime((quiz.Time_Limit * 60) - timeLeft)}</span>
+              <span className="stat-value">{formatTime((50 * 60) - timeLeft)}</span>
             </div>
             <div className="stat-item">
-              <span className="stat-label">Performance</span>
-              <span className="stat-value">{percentage >= 80 ? 'Excellent' : percentage >= 60 ? 'Good' : percentage >= 40 ? 'Fair' : 'Needs Improvement'}</span>
+              <span className="stat-label">Result</span>
+              <span className="stat-value">{isPassed ? 'Certificate Issued ✅' : 'Try Again'}</span>
             </div>
           </div>
+
+          {isPassed && (
+            <div className="certificate-notice">
+              <p>🎓 Your certificate has been generated and sent to your email!</p>
+            </div>
+          )}
 
           <button className="back-to-course-btn" onClick={onBack}>
             ← Back to Course

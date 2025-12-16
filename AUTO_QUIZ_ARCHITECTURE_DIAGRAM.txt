@@ -1,0 +1,236 @@
+# Automated Quiz System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          STUDENT INTERFACE                                  │
+│                                                                             │
+│   ┌──────────────────────────────────────────────────────────────────┐    │
+│   │  CourseLearningPage.jsx                                          │    │
+│   │                                                                  │    │
+│   │  ┌────────────────────────────────────────────────────────┐    │    │
+│   │  │  "Attempt Quiz" Button                                 │    │    │
+│   │  │  • Enabled at 100% course completion                   │    │    │
+│   │  │  • Purple gradient when active                         │    │    │
+│   │  │  • Gray/disabled when progress < 100%                  │    │    │
+│   │  └────────────────────────────────────────────────────────┘    │    │
+│   │                           ↓                                     │    │
+│   │           handleQuizStart() - Check eligibility                 │    │
+│   └──────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            API LAYER                                        │
+│                    /api/auto-quiz/* Routes                                  │
+│                                                                             │
+│   GET  /check-eligibility    →  Can student attempt? Check blocks         │
+│   GET  /check-progress       →  Course completion percentage              │
+│   POST /generate             →  Generate quiz from materials              │
+│   POST /attempt              →  Submit & auto-evaluate                    │
+│   GET  /quiz/:courseId       →  Fetch quiz                                │
+│   GET  /certificate/:id      →  Get certificate                           │
+│   GET  /history              →  Attempt history                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SERVICE ORCHESTRATION                                │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │  autoQuizOrchestrator.js                                        │    │
+│   │                                                                 │    │
+│   │  1. Check if quiz exists in database                          │    │
+│   │  2. If not, start generation workflow                         │    │
+│   │  3. Fetch course materials (PDFs, notes)                      │    │
+│   │  4. Extract → Chunk → Generate → Consolidate                  │    │
+│   │  5. Save to Tbl_Quiz (Week_Number=0)                          │    │
+│   └─────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     QUIZ GENERATION PIPELINE                                │
+│                                                                             │
+│  ┌────────────────────┐     ┌────────────────────┐                        │
+│  │ Tbl_CourseContent  │────→│ Text Extraction    │                        │
+│  │ (PDFs, Notes)      │     │ Service            │                        │
+│  └────────────────────┘     │                    │                        │
+│                             │ • pdf-parse        │                        │
+│                             │ • mammoth (DOCX)   │                        │
+│                             │ • textract (PPT)   │                        │
+│                             │ • Text cleaning    │                        │
+│                             └────────────────────┘                        │
+│                                     ↓                                       │
+│                             ┌────────────────────┐                        │
+│                             │ Chunking Service   │                        │
+│                             │                    │                        │
+│                             │ • 800-1500 words   │                        │
+│                             │ • Paragraph bounds │                        │
+│                             │ • Target: 1200w    │                        │
+│                             └────────────────────┘                        │
+│                                     ↓                                       │
+│                             ┌────────────────────┐                        │
+│                             │ AI Quiz Generation │                        │
+│                             │ Service            │                        │
+│                             │                    │                        │
+│                             │ Hugging Face API   │                        │
+│                             │ Mixtral-8x7B       │                        │
+│                             │                    │                        │
+│                             │ Per Chunk:         │                        │
+│                             │ • 3 MCQs           │                        │
+│                             │ • 2 Short Answers  │                        │
+│                             │ • 1 Conceptual     │                        │
+│                             └────────────────────┘                        │
+│                                     ↓                                       │
+│                             ┌────────────────────┐                        │
+│                             │ Consolidation      │                        │
+│                             │ Service            │                        │
+│                             │                    │                        │
+│                             │ • Deduplication    │                        │
+│                             │   (75% similarity) │                        │
+│                             │ • Quality scoring  │                        │
+│                             │   (60% minimum)    │                        │
+│                             │ • Select best 30:  │                        │
+│                             │   - 15 MCQ         │                        │
+│                             │   - 10 Short       │                        │
+│                             │   - 5 Conceptual   │                        │
+│                             └────────────────────┘                        │
+│                                     ↓                                       │
+│                             ┌────────────────────┐                        │
+│                             │   Tbl_Quiz         │                        │
+│                             │   (MongoDB)        │                        │
+│                             │   Week_Number = 0  │                        │
+│                             │   AI_Generated=true│                        │
+│                             └────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      ATTEMPT MANAGEMENT                                     │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │  attemptManagementService.js                                    │    │
+│   │                                                                 │    │
+│   │  checkAttemptEligibility():                                    │    │
+│   │  ├─ Already passed (≥70%)? → Block further attempts           │    │
+│   │  ├─ 5 attempts used? → Check 30-day block                     │    │
+│   │  │  ├─ Within 30 days → Temporary block                       │    │
+│   │  │  └─ After 30 days → Permanent block                        │    │
+│   │  └─ < 5 attempts → Allow                                       │    │
+│   │                                                                 │    │
+│   │  recordAttempt():                                              │    │
+│   │  ├─ Validate eligibility                                       │    │
+│   │  ├─ Evaluate MCQ answers                                       │    │
+│   │  ├─ Calculate score & percentage                               │    │
+│   │  └─ Save to Tbl_QuizAttempts                                   │    │
+│   └─────────────────────────────────────────────────────────────────┘    │
+│                                  ↓                                          │
+│                      Pass (≥70%)? ┬─ No → Record failure                  │
+│                                   │        Show remaining attempts          │
+│                                   │                                         │
+│                                   └─ Yes → Generate Certificate            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     CERTIFICATE GENERATION                                  │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────┐    │
+│   │  certificateService.js                                          │    │
+│   │                                                                 │    │
+│   │  generateAndIssueCertificate():                                │    │
+│   │  ├─ Fetch student & course info                               │    │
+│   │  ├─ Generate PDF certificate (PDFKit)                         │    │
+│   │  │  • A4 landscape                                            │    │
+│   │  │  • Professional design with borders                        │    │
+│   │  │  • Student name, course, grade, score                      │    │
+│   │  │  • Certificate number                                      │    │
+│   │  │  • Issue date                                              │    │
+│   │  ├─ Save to Tbl_Certificates                                  │    │
+│   │  └─ Email certificate (nodemailer)                            │    │
+│   │     • HTML email template                                     │    │
+│   │     • PDF attachment                                          │    │
+│   │     • Congratulations message                                 │    │
+│   └─────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          DATABASE LAYER                                     │
+│                                                                             │
+│   ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐      │
+│   │  Tbl_Quiz        │  │ Tbl_QuizAttempts │  │ Tbl_Certificates │      │
+│   │                  │  │                  │  │                  │      │
+│   │ • Quiz_Id        │  │ • Attempt_Id     │  │ • Certificate_Id │      │
+│   │ • Course_Id      │  │ • Quiz_Id        │  │ • Course_Id      │      │
+│   │ • Questions[]    │  │ • Student_Id     │  │ • Student_Id     │      │
+│   │ • Total_Marks    │  │ • Answers        │  │ • Certificate_Url│      │
+│   │ • AI_Generated   │  │ • Score          │  │ • Grade          │      │
+│   │ • Week_Number=0  │  │ • Percentage     │  │ • Percentage     │      │
+│   │ • Status=Active  │  │ • Submitted_At   │  │ • Issue_Date     │      │
+│   └──────────────────┘  └──────────────────┘  └──────────────────┘      │
+│                                                                             │
+│   ┌──────────────────┐  ┌──────────────────┐                             │
+│   │ Tbl_CourseContent│  │ Tbl_Enrollments  │                             │
+│   │                  │  │                  │                             │
+│   │ • Content_Id     │  │ • Enrollment_Id  │                             │
+│   │ • Course_Id      │  │ • Student_Id     │                             │
+│   │ • File_Url       │  │ • Course_Id      │                             │
+│   │ • Content_Type   │  │ • Progress_%     │                             │
+│   │   (pdf, notes)   │  │                  │                             │
+│   └──────────────────┘  └──────────────────┘                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+                            SYSTEM FLOW SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+FIRST TIME (Quiz Generation):
+  1. Student reaches 100% completion
+  2. Clicks "Attempt Quiz" button
+  3. System checks if quiz exists (no)
+  4. Fetches course PDFs/notes
+  5. Extracts text from files
+  6. Chunks into 1200-word segments
+  7. Sends each chunk to AI (Mixtral-8x7B)
+  8. AI generates 6 questions per chunk
+  9. Consolidates all questions (deduplicate, score)
+  10. Selects best 30 questions
+  11. Saves to Tbl_Quiz
+  12. Displays quiz to student
+
+SUBSEQUENT ATTEMPTS (Same or Different Students):
+  1. Student clicks "Attempt Quiz"
+  2. System fetches existing quiz
+  3. Checks attempt eligibility (blocks, passed?)
+  4. Displays quiz
+
+SUBMISSION & EVALUATION:
+  1. Student submits answers
+  2. Auto-evaluates MCQs
+  3. Calculates score
+  4. IF ≥70%:
+     - Generates PDF certificate
+     - Saves to database
+     - Emails student
+  5. IF <70%:
+     - Records failed attempt
+     - Shows remaining attempts
+     - Blocks if needed (5 attempts reached)
+
+BLOCKING LOGIC:
+  • 0-4 attempts: Continue
+  • 5 failed attempts: 30-day temporary block
+  • After 30 days: Permanent block
+  • Passed (≥70%): Block (success state)
+
+═══════════════════════════════════════════════════════════════════════════════
+                             KEY FEATURES
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ 100% Automated        - No manual intervention required
+✅ AI-Powered            - Free Mixtral-8x7B via Hugging Face
+✅ Quality Control       - Deduplication (75%) + Quality scoring (60%)
+✅ Fair Attempts         - 5 max, 70% pass threshold
+✅ Auto Certificates     - PDF generation + email delivery
+✅ Efficient             - Generate once, reuse for all students
+✅ Secure                - Progress-locked (100%), attempt validation
+✅ Existing Schema       - No new database tables
+✅ Block System          - Temporary (30d) and permanent blocks
+✅ Email Notifications   - Automated certificate delivery
+
+═══════════════════════════════════════════════════════════════════════════════

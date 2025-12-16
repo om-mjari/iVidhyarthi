@@ -49,6 +49,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  
+  // Custom modal states
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState({ title: '', message: '', type: 'info' });
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   // Course content from database
   const [courseTopics, setCourseTopics] = useState([]);
@@ -1367,20 +1372,41 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     try {
       setLoadingQuiz(true);
       const authToken = localStorage.getItem('auth_token');
+      const authUser = localStorage.getItem('auth_user');
 
-      if (!authToken) {
-        alert('Please login to start quiz');
+      if (!authToken && !authUser) {
+        setModalContent({ title: 'Authentication Required', message: 'Please login to start the quiz', type: 'error' });
+        setShowModal(true);
+        setLoadingQuiz(false);
         return;
       }
 
-      if (!courseInfo || !courseInfo.id) {
-        alert('Course information not available');
+      if (!selectedCourse) {
+        setModalContent({ title: 'Course Error', message: 'Course information not available', type: 'error' });
+        setShowModal(true);
+        setLoadingQuiz(false);
         return;
       }
 
-      // First, try to fetch existing quiz for this week
-      const fetchResponse = await fetch(
-        `http://localhost:5000/api/quiz/course/${courseInfo.id}/week/${weekNumber}`,
+      const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+      
+      if (!courseId) {
+        setModalContent({ title: 'Course Error', message: 'Course ID not found', type: 'error' });
+        setShowModal(true);
+        setLoadingQuiz(false);
+        return;
+      }
+
+      if (!studentId) {
+        setModalContent({ title: 'Student Error', message: 'Student information not available', type: 'error' });
+        setShowModal(true);
+        setLoadingQuiz(false);
+        return;
+      }
+
+      // Check attempt eligibility first
+      const eligibilityResponse = await fetch(
+        `http://localhost:5000/api/auto-quiz/check-eligibility?studentId=${studentId}&courseId=${courseId}`,
         {
           headers: {
             'Authorization': `Bearer ${authToken}`
@@ -1388,40 +1414,116 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         }
       );
 
-      let quiz;
-      if (fetchResponse.ok) {
-        // Quiz exists, use it
-        quiz = await fetchResponse.json();
-      } else {
-        // Generate new quiz
-        const generateResponse = await fetch('http://localhost:5000/api/quiz/generate', {
+      if (!eligibilityResponse.ok) {
+        throw new Error('Failed to check quiz eligibility');
+      }
+
+      const eligibilityData = await eligibilityResponse.json();
+
+      // Check if student is blocked
+      if (eligibilityData.isBlocked) {
+        if (eligibilityData.blockExpiresAt) {
+          const expiryDate = new Date(eligibilityData.blockExpiresAt).toLocaleDateString();
+          setModalContent({ 
+            title: 'Access Blocked', 
+            message: `You are temporarily blocked from attempting this quiz until ${expiryDate}.\n\nReason: ${eligibilityData.blockReason}`, 
+            type: 'error' 
+          });
+        } else {
+          setModalContent({ 
+            title: 'Access Blocked', 
+            message: `You are permanently blocked from attempting this quiz.\n\nReason: ${eligibilityData.blockReason}`, 
+            type: 'error' 
+          });
+        }
+        setShowModal(true);
+        setLoadingQuiz(false);
+        return;
+      }
+
+      // Check if already passed
+      if (eligibilityData.isPassed) {
+        setModalContent({ 
+          title: 'Quiz Already Passed', 
+          message: 'You have already passed this quiz! Check your certificates section.', 
+          type: 'success' 
+        });
+        setShowModal(true);
+        setLoadingQuiz(false);
+        return;
+      }
+
+      // If quiz doesn't exist, generate it
+      if (!eligibilityData.quizExists) {
+        setIsGeneratingQuiz(true);
+        const generateResponse = await fetch('http://localhost:5000/api/auto-quiz/generate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`
           },
           body: JSON.stringify({
-            courseId: courseInfo.id,
-            courseName: courseInfo.title,
-            weekNumber: weekNumber,
-            topic: `Week ${weekNumber} - ${courseInfo.title}`
+            courseId: courseId,
+            studentId: studentId
           })
         });
 
+        setIsGeneratingQuiz(false);
+
         if (!generateResponse.ok) {
-          throw new Error('Failed to generate quiz');
+          const errorData = await generateResponse.json();
+          throw new Error(errorData.message || 'Failed to generate quiz');
         }
 
-        quiz = await generateResponse.json();
+        const generatedData = await generateResponse.json();
+        setModalContent({ 
+          title: 'Quiz Generated!', 
+          message: `Quiz generated successfully! ${generatedData.totalQuestions} questions created.`, 
+          type: 'success' 
+        });
+        setShowModal(true);
+        setTimeout(() => setShowModal(false), 2000);
       }
 
-      setSelectedQuiz(quiz);
-      setShowQuiz(true);
+      // Fetch the quiz
+      const quizResponse = await fetch(
+        `http://localhost:5000/api/auto-quiz/quiz/${courseId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        }
+      );
+
+      if (!quizResponse.ok) {
+        throw new Error('Failed to fetch quiz');
+      }
+
+      const quiz = await quizResponse.json();
+
+      // Show attempt information
+      setModalContent({ 
+        title: 'Quiz Ready!', 
+        message: `Remaining attempts: ${eligibilityData.remainingAttempts}/5\n\nYou need 70% to pass and receive your certificate.`, 
+        type: 'info' 
+      });
+      setShowModal(true);
+      setTimeout(() => {
+        setShowModal(false);
+        setSelectedQuiz(quiz);
+        setShowQuiz(true);
+      }, 2000);
       setLoadingQuiz(false);
     } catch (error) {
       console.error('Error starting quiz:', error);
-      alert('Error starting quiz. Please try again.');
+      setModalContent({ 
+        title: 'Error', 
+        message: `${error.message}. Please try again or contact support.`, 
+        type: 'error' 
+      });
+      setShowModal(true);
       setLoadingQuiz(false);
+      setIsGeneratingQuiz(false);
     }
   };
 
@@ -1952,31 +2054,85 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <span className="progress-icon">📊</span>
             <h2>Course Progress</h2>
             <button
-              className="view-detailed-progress-btn"
-              onClick={() => onNavigate && onNavigate('course-progress')}
+              onClick={() => handleQuizStart(1)}
+              disabled={
+                (() => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                  return overallProgress < 100;
+                })()
+              }
               style={{
                 marginLeft: 'auto',
                 padding: '0.6rem 1.25rem',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background:
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
+                  })(),
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '0.9rem',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor:
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? 'pointer' : 'not-allowed';
+                  })(),
                 transition: 'all 0.3s ease',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow:
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    return overallProgress >= 100 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
+                  })()
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                if (overallProgress >= 100) {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.3)';
+                const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                if (overallProgress >= 100) {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 15px rgba(139, 92, 246, 0.4)';
+                }
               }}
             >
-              View Detailed Progress
+              <span>
+                {(() => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                  return overallProgress >= 100 ? '📝' : '🔒';
+                })()}
+              </span>
+              Attempt Quiz
             </button>
           </div>
           <div className="progress-stats-grid">
@@ -2020,76 +2176,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <p className="progress-text">
               {videoProgress.completedVideos !== undefined ? videoProgress.completedVideos : completedVideos.length} of {videoProgress.totalVideos || totalVideos || 0} videos completed
             </p>
-
-            {/* Attempt Quiz Button - Unlocks at 100% course completion (videos AND assignments) */}
-            <button
-              onClick={() => handleQuizStart(1)}
-              disabled={
-                (() => {
-                  // Get video completion percentage
-                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                  
-                  // Calculate assignment completion percentage
-                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
-                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                  
-                  // Overall course progress (videos and assignments combined)
-                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                  
-                  // Enable only when overall progress is 100%
-                  return overallProgress < 100;
-                })()
-              }
-              style={{
-                marginTop: '16px',
-                width: '100%',
-                padding: '12px',
-                background:
-                  (() => {
-                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
-                  })(),
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor:
-                  (() => {
-                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? 'pointer' : 'not-allowed';
-                  })(),
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow:
-                  (() => {
-                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
-                  })()
-              }}
-            >
-              <span>
-                {(() => {
-                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
-                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                  return overallProgress >= 100 ? '📝' : '🔒';
-                })()}
-              </span>
-              Attempt Quiz
-            </button>
           </div>
         </div>
 
@@ -2929,6 +3015,199 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 📥 Download PDF
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Modal */}
+      {showModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(4px)',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px',
+            maxWidth: '450px',
+            width: '90%',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            animation: 'slideUp 0.3s ease',
+            position: 'relative'
+          }}>
+            {/* Icon based on type */}
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              margin: '0 auto 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '32px',
+              background: modalContent.type === 'error' ? '#fee' : 
+                         modalContent.type === 'success' ? '#efe' : '#e3f2fd'
+            }}>
+              {modalContent.type === 'error' ? '❌' : 
+               modalContent.type === 'success' ? '✅' : 'ℹ️'}
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              margin: '0 0 16px',
+              fontSize: '22px',
+              fontWeight: '700',
+              textAlign: 'center',
+              color: '#333'
+            }}>
+              {modalContent.title}
+            </h3>
+
+            {/* Message */}
+            <p style={{
+              margin: '0 0 24px',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              textAlign: 'center',
+              color: '#666',
+              whiteSpace: 'pre-line'
+            }}>
+              {modalContent.message}
+            </p>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowModal(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: modalContent.type === 'error' ? '#ef4444' :
+                           modalContent.type === 'success' ? '#10b981' : '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quiz Generation Loading Overlay */}
+      {isGeneratingQuiz && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10001,
+          backdropFilter: 'blur(8px)',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '48px',
+            textAlign: 'center',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 25px 70px rgba(0, 0, 0, 0.4)',
+            animation: 'slideUp 0.3s ease'
+          }}>
+            {/* Animated Spinner */}
+            <div style={{
+              width: '80px',
+              height: '80px',
+              margin: '0 auto 24px',
+              border: '6px solid #f3f4f6',
+              borderTop: '6px solid #667eea',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+
+            {/* Title */}
+            <h3 style={{
+              margin: '0 0 12px',
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#333'
+            }}>
+              Generating Your Quiz
+            </h3>
+
+            {/* Description */}
+            <p style={{
+              margin: '0 0 20px',
+              fontSize: '15px',
+              lineHeight: '1.6',
+              color: '#666'
+            }}>
+              AI is analyzing course materials and creating personalized questions...
+            </p>
+
+            {/* Progress Dots */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '20px'
+            }}>
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#667eea',
+                animation: 'bounce 1.4s infinite ease-in-out both',
+                animationDelay: '-0.32s'
+              }}></div>
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#667eea',
+                animation: 'bounce 1.4s infinite ease-in-out both',
+                animationDelay: '-0.16s'
+              }}></div>
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: '#667eea',
+                animation: 'bounce 1.4s infinite ease-in-out both'
+              }}></div>
+            </div>
+
+            {/* Estimated Time */}
+            <p style={{
+              marginTop: '24px',
+              fontSize: '13px',
+              color: '#999',
+              fontStyle: 'italic'
+            }}>
+              This may take 2-3 minutes...
+            </p>
           </div>
         </div>
       )}

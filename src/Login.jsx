@@ -265,6 +265,11 @@ const Login = ({ onAuthenticated, onSwitchToSignup, onAdminLogin }) => {
             gender: userData.gender
           }));
 
+          // Store JWT token for API authentication
+          if (apiResponse.data.token) {
+            localStorage.setItem('auth_token', apiResponse.data.token);
+          }
+
           setSuccess('Login successful! Redirecting to home...');
           console.log('Login successful, redirecting to home');
           setTimeout(() => {

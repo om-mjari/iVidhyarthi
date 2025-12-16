@@ -137,6 +137,7 @@ const instituteRoutes = require("./routes/instituteRoutes");
 const transcriptionRoutes = require("./routes/transcriptionRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const chatHistoryRoutes = require("./routes/chatHistoryRoutes");
+const autoQuizRoutes = require("./routes/autoQuizRoutes");
 
 /* ============================
    Mount API routes (STATIC first)
@@ -171,6 +172,7 @@ app.use("/api/recommendations", recommendationsRoutes);
 app.use("/api/transcription", transcriptionRoutes);
 app.use("/api/lecturer-dynamic-data", lecturerDynamicDataRoutes);
 app.use("/api/institutes", instituteRoutes);
+app.use("/api/auto-quiz", autoQuizRoutes);
 
 console.log("✅ Routes registered:");
 console.log("   - /api/auth");

@@ -2339,6 +2339,10 @@ function SubmissionsTab() {
   const [studentStats, setStudentStats] = useState({});
   const [savingMarks, setSavingMarks] = useState({});
   const [marksInput, setMarksInput] = useState({});
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const lecturer = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
@@ -2428,13 +2432,15 @@ function SubmissionsTab() {
     const marks = marksInput[submission.Submission_Id];
     
     if (marks === undefined || marks === null || marks === '') {
-      alert('Please enter marks');
+      setErrorMessage('Please enter marks');
+      setShowErrorPopup(true);
       return;
     }
 
     const marksNum = Number(marks);
     if (isNaN(marksNum) || marksNum < 0 || marksNum > submission.assignmentMarks) {
-      alert(`Please enter valid marks between 0 and ${submission.assignmentMarks}`);
+      setErrorMessage(`Please enter valid marks between 0 and ${submission.assignmentMarks}`);
+      setShowErrorPopup(true);
       return;
     }
 
@@ -2459,7 +2465,8 @@ function SubmissionsTab() {
             ? { ...s, Grade: marksNum, Status: 'Graded', Graded_On: new Date() }
             : s
         ));
-        alert('✅ Marks saved successfully!');
+        setSuccessMessage('Marks saved successfully!');
+        setShowSuccessPopup(true);
         // Refresh to update statistics
         fetchSubmissions();
       } else {
@@ -2467,7 +2474,8 @@ function SubmissionsTab() {
       }
     } catch (err) {
       console.error('Error saving marks:', err);
-      alert('❌ ' + (err.message || 'Failed to save marks'));
+      setErrorMessage(err.message || 'Failed to save marks');
+      setShowErrorPopup(true);
     } finally {
       setSavingMarks(prev => ({ ...prev, [submission.Submission_Id]: false }));
     }
@@ -2581,9 +2589,6 @@ function SubmissionsTab() {
             <div className="t-row" key={submission.Submission_Id}>
               <div>
                 <strong>{submission.studentName || 'Unknown'}</strong>
-                <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
-                  ID: {submission.Student_Id}
-                </div>
               </div>
               <div>{submission.assignmentTitle}</div>
               <div>{submission.courseName}</div>
@@ -2717,6 +2722,82 @@ function SubmissionsTab() {
                   {savingMarks[selectedSubmission.Submission_Id] ? '⏳ Saving...' : '💾 Save Marks'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Success Popup */}
+      {showSuccessPopup && (
+        <div className="modal-overlay" onClick={() => setShowSuccessPopup(false)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '400px', padding: '0', borderRadius: '12px', overflow: 'hidden' }}
+          >
+            <div style={{ 
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              padding: '24px',
+              textAlign: 'center',
+              color: 'white'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>✓</div>
+              <h3 style={{ margin: '0', fontSize: '20px', fontWeight: '600' }}>Success!</h3>
+            </div>
+            <div style={{ padding: '24px', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 24px 0', fontSize: '16px', color: '#374151' }}>
+                {successMessage}
+              </p>
+              <button 
+                className="button primary" 
+                onClick={() => setShowSuccessPopup(false)}
+                style={{ 
+                  padding: '10px 32px',
+                  background: '#10b981',
+                  borderRadius: '8px',
+                  fontWeight: '600'
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Error Popup */}
+      {showErrorPopup && (
+        <div className="modal-overlay" onClick={() => setShowErrorPopup(false)}>
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: '400px', padding: '0', borderRadius: '12px', overflow: 'hidden' }}
+          >
+            <div style={{ 
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              padding: '24px',
+              textAlign: 'center',
+              color: 'white'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚠</div>
+              <h3 style={{ margin: '0', fontSize: '20px', fontWeight: '600' }}>Error</h3>
+            </div>
+            <div style={{ padding: '24px', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 24px 0', fontSize: '16px', color: '#374151' }}>
+                {errorMessage}
+              </p>
+              <button 
+                className="button primary" 
+                onClick={() => setShowErrorPopup(false)}
+                style={{ 
+                  padding: '10px 32px',
+                  background: '#ef4444',
+                  borderRadius: '8px',
+                  fontWeight: '600'
+                }}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>

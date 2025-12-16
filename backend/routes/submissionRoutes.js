@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Submission = require("../models/Tbl_Submissions");
 const Assignment = require("../models/Tbl_Assignments");
 const ExamAttempt = require("../models/Tbl_ExamAttempts");
@@ -279,40 +280,24 @@ router.get("/lecturer/:lecturerId", async (req, res) => {
       Assignment_Id: { $in: assignmentIds }
     }).sort({ Submitted_On: -1 });
     
-    // Get all unique student IDs
-    const studentIds = [...new Set(submissions.map(s => s.Student_Id))];
+    // Get all unique student IDs from submissions (Student_Id is actually User_Id)
+    const userIds = [...new Set(submissions.map(s => s.Student_Id))];
     
-    // Fetch student details
+    // Fetch student details using User_Id (since Student_Id in submission is actually User._id)
     const students = await Tbl_Students.find({
-      _id: { $in: studentIds.map(id => {
-        try { return mongoose.Types.ObjectId(id); } catch { return id; }
-      })}
-    }).populate('User_Id', 'email');
-    
-    // Also try to get users by email (if Student_Id is email)
-    const users = await User.find({
-      email: { $in: studentIds }
+      User_Id: { $in: userIds }
     });
     
-    // Create lookup maps
+    // Create lookup map for student names (map by User_Id)
     const studentMap = {};
     students.forEach(s => {
-      studentMap[s._id.toString()] = s.Full_Name;
-      if (s.User_Id && s.User_Id.email) {
-        studentMap[s.User_Id.email] = s.Full_Name;
-      }
-    });
-    
-    users.forEach(u => {
-      if (!studentMap[u.email]) {
-        studentMap[u.email] = u.full_name || u.email.split('@')[0];
-      }
+      studentMap[s.User_Id.toString()] = s.Full_Name;
     });
     
     // Enrich submissions with student names and assignment info
     const enrichedSubmissions = submissions.map(sub => {
       const assignment = assignments.find(a => a.Assignment_Id === sub.Assignment_Id);
-      const course = courses.find(c => c.Course_Id === sub.Course_Id);
+      const course = courses.find(c => c.Course_Id == sub.Course_Id); // Use == for type coercion
       const studentName = studentMap[sub.Student_Id] || sub.Student_Id;
       
       return {

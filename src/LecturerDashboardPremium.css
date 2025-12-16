@@ -203,6 +203,8 @@
   position: sticky;
   top: 120px;
   height: fit-content;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
   animation: slideIn 0.6s ease-out;
 }
 

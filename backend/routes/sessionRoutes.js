@@ -4,7 +4,10 @@ const Tbl_Sessions = require("../models/Tbl_Sessions");
 const Tbl_Courses = require("../models/Tbl_Courses");
 const Tbl_Lecturers = require("../models/Tbl_Lecturers");
 const User = require("../models/User");
+const Tbl_Enrollments = require("../models/Tbl_Enrollments");
+const Tbl_Students = require("../models/Tbl_Students");
 const zoomService = require("../config/zoom");
+const sendSessionEmail = require("../utils/sendSessionEmail");
 
 /**
  * Middleware: Verify lecturer authorization for a course
@@ -191,6 +194,45 @@ router.post("/", async (req, res) => {
 
       console.log(`✅ Session created without Zoom: ${newSession.Session_Id}`);
 
+      // Send email to enrolled students with pending completion
+      try {
+        console.log('📧 Checking for students to notify...');
+        const enrollments = await Tbl_Enrollments.find({
+          Course_Id: course_id,
+          Status: { $in: ['Active', 'Pending'] } // Not 'Completed'
+        });
+        console.log(`   Found ${enrollments.length} active/pending enrollments`);
+
+        if (enrollments.length > 0) {
+          const studentIds = enrollments.map(e => e.Student_Id);
+          // Student_Id in enrollment is actually User._id, query users directly
+          const users = await User.find({ _id: { $in: studentIds } });
+          console.log(`   Found ${users.length} users`);
+          const studentEmails = users.map(u => u.email).filter(e => e);
+          console.log(`   Collected ${studentEmails.length} valid emails`);
+
+          if (studentEmails.length > 0) {
+            console.log('   📨 Sending session creation emails...');
+            await sendSessionEmail(studentEmails, {
+              courseTitle: course.Title || course.Course_Name,
+              sessionTitle: title,
+              scheduledAt: scheduled_at,
+              duration: duration,
+              sessionUrl: null,
+              description: description
+            }, 'created');
+          } else {
+            console.log('   ⚠️ No valid email addresses found');
+          }
+        } else {
+          console.log('   ⚠️ No active/pending students to notify');
+        }
+      } catch (emailError) {
+        console.error('⚠️ Failed to send session notification emails:', emailError.message);
+        console.error('   Error details:', emailError);
+        // Don't fail the request if email fails
+      }
+
       return res.status(201).json({
         success: true,
         message: "Session created successfully (Zoom not configured)",
@@ -246,6 +288,45 @@ router.post("/", async (req, res) => {
       await newSession.save();
 
       console.log(`✅ Session persisted to DB: ${newSession.Session_Id}`);
+
+      // Send email to enrolled students with pending completion
+      try {
+        console.log('📧 Checking for students to notify...');
+        const enrollments = await Tbl_Enrollments.find({
+          Course_Id: course_id,
+          Status: { $in: ['Active', 'Pending'] } // Not 'Completed'
+        });
+        console.log(`   Found ${enrollments.length} active/pending enrollments`);
+
+        if (enrollments.length > 0) {
+          const studentIds = enrollments.map(e => e.Student_Id);
+          // Student_Id in enrollment is actually User._id, query users directly
+          const users = await User.find({ _id: { $in: studentIds } });
+          console.log(`   Found ${users.length} users`);
+          const studentEmails = users.map(u => u.email).filter(e => e);
+          console.log(`   Collected ${studentEmails.length} valid emails`);
+
+          if (studentEmails.length > 0) {
+            console.log('   📨 Sending session creation emails...');
+            await sendSessionEmail(studentEmails, {
+              courseTitle: course.Title || course.Course_Name,
+              sessionTitle: title,
+              scheduledAt: scheduled_at,
+              duration: duration,
+              sessionUrl: zoomMeeting.join_url,
+              description: description
+            }, 'created');
+          } else {
+            console.log('   ⚠️ No valid email addresses found');
+          }
+        } else {
+          console.log('   ⚠️ No active/pending students to notify');
+        }
+      } catch (emailError) {
+        console.error('⚠️ Failed to send session notification emails:', emailError.message);
+        console.error('   Error details:', emailError);
+        // Don't fail the request if email fails
+      }
     } catch (dbError) {
       console.error('❌ Database save failed:', dbError.message);
       
@@ -535,6 +616,47 @@ router.put('/:sessionId/start', async (req, res) => {
     }
 
     console.log(`✅ Session started: ${sessionId}`);
+
+    // Send email to enrolled students with pending completion
+    try {
+      console.log('📧 Session started - Checking for students to notify...');
+      const course = await Tbl_Courses.findOne({ Course_Id: session.Course_Id });
+      const enrollments = await Tbl_Enrollments.find({
+        Course_Id: session.Course_Id,
+        Status: { $in: ['Active', 'Pending'] } // Not 'Completed'
+      });
+      console.log(`   Found ${enrollments.length} active/pending enrollments`);
+
+      if (enrollments.length > 0 && course) {
+        const studentIds = enrollments.map(e => e.Student_Id);
+        // Student_Id in enrollment is actually User._id, query users directly
+        const users = await User.find({ _id: { $in: studentIds } });
+        console.log(`   Found ${users.length} users`);
+        const studentEmails = users.map(u => u.email).filter(e => e);
+        console.log(`   Collected ${studentEmails.length} valid emails`);
+
+        if (studentEmails.length > 0) {
+          console.log('   📨 Sending session start notification emails...');
+          await sendSessionEmail(studentEmails, {
+            courseTitle: course.Title || course.Course_Name,
+            sessionTitle: session.Title,
+            scheduledAt: session.Scheduled_At,
+            duration: session.Duration,
+            sessionUrl: session.Session_Url,
+            description: session.Description
+          }, 'started');
+        } else {
+          console.log('   ⚠️ No valid email addresses found');
+        }
+      } else {
+        console.log('   ⚠️ No active/pending students or course not found');
+      }
+    } catch (emailError) {
+      console.error('⚠️ Failed to send session start emails:', emailError.message);
+      console.error('   Error details:', emailError);
+      // Don't fail the request if email fails
+    }
+
     res.json({
       success: true,
       message: 'Session started successfully',

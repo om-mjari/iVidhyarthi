@@ -62,37 +62,32 @@ router.get("/:lecturerId", async (req, res) => {
       })
     );
 
-    // Get Earnings
+    // Get Earnings directly for this lecturer
     const Tbl_Earnings = getModel("Tbl_Earnings", "Tbl_Earnings");
-    const earningsRecords = await Tbl_Earnings.find({})
+    const earningsRecords = await Tbl_Earnings.find({
+      Lecturer_Id: lecturerId
+    })
       .sort({ createdAt: -1 })
       .lean();
-    console.log(`   Found ${earningsRecords.length} earnings records`);
+    console.log(`   Found ${earningsRecords.length} earnings records for lecturer ${lecturerId}`);
 
-    // Filter and enrich earnings for lecturer's courses
-    const earningsTable = earningsRecords
-      .filter((earning) => {
-        const courseId =
-          typeof earning.Course_Id === "string"
-            ? parseInt(earning.Course_Id)
-            : earning.Course_Id;
-        return courseIds.includes(courseId);
-      })
-      .map((earning) => {
-        const courseId =
-          typeof earning.Course_Id === "string"
-            ? parseInt(earning.Course_Id)
-            : earning.Course_Id;
-        const course = lecturerCourses.find((c) => c.Course_Id === courseId);
+    // Enrich earnings with course names
+    const earningsTable = earningsRecords.map((earning) => {
+      const courseId =
+        typeof earning.Course_Id === "string"
+          ? parseInt(earning.Course_Id)
+          : earning.Course_Id;
+      const course = lecturerCourses.find((c) => c.Course_Id === courseId);
 
-        return {
-          id: earning.Earning_Id || earning._id,
-          date: earning.Earning_Date || earning.createdAt || new Date(),
-          amount: earning.Amount || 0,
-          status: earning.Status || "Pending",
-          course: course ? course.Title : "Unknown Course",
-        };
-      });
+      return {
+        id: earning.Earning_Id || earning._id,
+        date: earning.Transaction_Date || earning.createdAt || new Date(),
+        amount: earning.Amount || 0,
+        status: earning.Status || "Paid",
+        course: course ? course.Title : (earning.Notes ? earning.Notes.split(' - ')[0] : "Course Enrollment"),
+        transactionType: earning.Transaction_Type || "Course Sale"
+      };
+    });
 
     // Calculate total earnings
     const totalEarnings = earningsTable.reduce(
@@ -143,9 +138,9 @@ router.get("/:lecturerId", async (req, res) => {
     const avgRating =
       feedbackList.length > 0
         ? (
-            feedbackList.reduce((sum, f) => sum + (f.rating || 0), 0) /
-            feedbackList.length
-          ).toFixed(1)
+          feedbackList.reduce((sum, f) => sum + (f.rating || 0), 0) /
+          feedbackList.length
+        ).toFixed(1)
         : "0.0";
 
     // Prepare response

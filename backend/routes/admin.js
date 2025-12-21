@@ -611,44 +611,103 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
         // Fetch student name
         let studentName = "N/A";
         if (feedback.Student_Id) {
-          const studentId = parseInt(feedback.Student_Id);
-          if (!isNaN(studentId)) {
-            const student = await Students.findOne(
-              { Student_Id: studentId },
-              { First_Name: 1, Last_Name: 1 }
-            ).lean();
-            if (student) {
-              studentName = `${student.First_Name} ${student.Last_Name}`;
+          try {
+            // Try finding by Student_Id (integer)
+            const studentId = parseInt(feedback.Student_Id);
+            if (!isNaN(studentId)) {
+              const student = await Students.findOne(
+                { Student_Id: studentId }
+              ).lean();
+              if (student) {
+                studentName = student.Full_Name || `${student.First_Name || ''} ${student.Last_Name || ''}`.trim();
+                console.log(`Found student by Student_Id: ${studentName}`);
+              }
             }
+
+            // If not found, try by User_Id
+            if (studentName === "N/A") {
+              const studentByUserId = await Students.findOne({
+                User_Id: feedback.Student_Id.toString()
+              }).lean();
+
+              if (studentByUserId) {
+                studentName = studentByUserId.Full_Name || `${studentByUserId.First_Name || ''} ${studentByUserId.Last_Name || ''}`.trim();
+                console.log(`Found student by User_Id: ${studentName}`);
+              }
+            }
+
+            // If still not found, try finding user by email or _id
+            if (studentName === "N/A") {
+              const Users = require('../models/User');
+              const user = await Users.findOne({
+                $or: [
+                  { email: feedback.Student_Id },
+                  { _id: feedback.Student_Id }
+                ]
+              }).lean();
+
+              if (user) {
+                // Now find student by this user's ID
+                const studentByUser = await Students.findOne({
+                  User_Id: user._id.toString()
+                }).lean();
+
+                if (studentByUser) {
+                  studentName = studentByUser.Full_Name || `${studentByUser.First_Name || ''} ${studentByUser.Last_Name || ''}`.trim();
+                  console.log(`Found student via User lookup: ${studentName}`);
+                } else {
+                  studentName = user.name || studentName;
+                  console.log(`Using User name: ${studentName}`);
+                }
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching student for feedback ${feedback.Feedback_Id}:`, err);
           }
         }
 
         // Fetch course title
         let courseTitle = "N/A";
         if (feedback.Course_Id) {
-          // Try parsing as number first
-          const courseId = parseInt(feedback.Course_Id);
+          try {
+            // Try parsing as number first
+            const courseId = parseInt(feedback.Course_Id);
 
-          if (!isNaN(courseId)) {
-            // Numeric Course_Id
-            const course = await Courses.findOne({ Course_Id: courseId })
-              .select("Title")
-              .lean();
+            if (!isNaN(courseId)) {
+              // Numeric Course_Id
+              const course = await Courses.findOne({ Course_Id: courseId }).lean();
 
-            if (course) {
-              courseTitle = course.Title;
+              if (course) {
+                courseTitle = course.Title || course.Course_Name || course.Name || courseTitle;
+                console.log(`Found course: ${courseTitle}`);
+              }
             }
-          } else if (/COURSE_(\d+)/.test(feedback.Course_Id)) {
-            // String Course_Id like "COURSE_001" - extract the number
-            const match = feedback.Course_Id.match(/COURSE_(\d+)/);
-            const extractedId = parseInt(match[1]);
-            const course = await Courses.findOne({ Course_Id: extractedId })
-              .select("Title")
-              .lean();
 
-            if (course) {
-              courseTitle = course.Title;
+            // If not found by integer, try string format
+            if (courseTitle === "N/A") {
+              const courseByString = await Courses.findOne({
+                Course_Id: feedback.Course_Id.toString()
+              }).lean();
+
+              if (courseByString) {
+                courseTitle = courseByString.Title || courseByString.Course_Name || courseByString.Name || courseTitle;
+                console.log(`Found course by string ID: ${courseTitle}`);
+              }
             }
+
+            // Try COURSE_XXX format
+            if (courseTitle === "N/A" && /COURSE_(\d+)/.test(feedback.Course_Id)) {
+              const match = feedback.Course_Id.match(/COURSE_(\d+)/);
+              const extractedId = parseInt(match[1]);
+              const course = await Courses.findOne({ Course_Id: extractedId }).lean();
+
+              if (course) {
+                courseTitle = course.Title || course.Course_Name || course.Name || courseTitle;
+                console.log(`Found course by COURSE_XXX format: ${courseTitle}`);
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching course for feedback ${feedback.Feedback_Id}:`, err);
           }
         }
 
@@ -670,9 +729,9 @@ router.get("/feedback", authenticateAdmin, async (req, res) => {
       averageRating:
         feedbacks.length > 0
           ? (
-              feedbacks.reduce((sum, f) => sum + (f.Rating || 0), 0) /
-              feedbacks.length
-            ).toFixed(2)
+            feedbacks.reduce((sum, f) => sum + (f.Rating || 0), 0) /
+            feedbacks.length
+          ).toFixed(2)
           : 0,
     };
 
@@ -833,6 +892,40 @@ router.put("/feedback/:id/respond", authenticateAdmin, async (req, res) => {
   }
 });
 
+// Delete feedback (admin only)
+router.delete("/feedback/:id", authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🗑️ Deleting feedback: ${id}`);
+
+    const Feedback = require("../models/Tbl_Feedback");
+    const feedback = await Feedback.findOne({ Feedback_Id: id });
+
+    if (!feedback) {
+      return res.status(404).json({
+        success: false,
+        message: "Feedback not found",
+      });
+    }
+
+    await Feedback.deleteOne({ Feedback_Id: id });
+
+    console.log(`✅ Feedback ${id} deleted successfully`);
+
+    res.json({
+      success: true,
+      message: "Feedback deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error deleting feedback:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error deleting feedback",
+      error: error.message,
+    });
+  }
+});
+
 // Get all sessions for admin dashboard
 router.get("/sessions", authenticateAdmin, async (req, res) => {
   try {
@@ -857,22 +950,43 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
         let instructorName = "Unknown Instructor";
 
         try {
-          // Get course details
-          const course = await Tbl_Courses.findOne({
-            Course_Id: session.Course_Id,
-          });
+          // Get course details - try both Course_Id formats
+          let course = await Tbl_Courses.findOne({
+            Course_Id: parseInt(session.Course_Id),
+          }).lean();
+
+          // If not found by integer, try string format
+          if (!course) {
+            course = await Tbl_Courses.findOne({
+              Course_Id: session.Course_Id.toString(),
+            }).lean();
+          }
+
+          console.log(`Session ${session.Session_Id} - Course lookup:`, course ? 'Found' : 'Not found');
 
           if (course) {
-            courseName = course.Course_Name || course.Name || courseName;
+            courseName = course.Title || course.Course_Name || course.Name || courseName;
 
             // Get lecturer details from course
             if (course.Lecturer_Id) {
-              const user = await Users.findOne({
-                email: course.Lecturer_Id.toLowerCase(),
-              });
+              // Try finding lecturer by Lecturer_Id
+              const lecturer = await Tbl_Lecturers.findOne({
+                Lecturer_Id: parseInt(course.Lecturer_Id),
+              }).lean();
 
-              if (user) {
-                instructorName = user.name || instructorName;
+              if (lecturer) {
+                instructorName = lecturer.Full_Name || instructorName;
+                console.log(`Found lecturer: ${instructorName}`);
+              } else {
+                // Try finding by email in Users table
+                const user = await Users.findOne({
+                  email: course.Lecturer_Id.toLowerCase(),
+                }).lean();
+
+                if (user) {
+                  instructorName = user.name || instructorName;
+                  console.log(`Found user: ${instructorName}`);
+                }
               }
             }
           }
@@ -891,6 +1005,7 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
           session_url: session.Session_Url,
+          meeting_link: session.Session_Url, // Add meeting_link for frontend
           description: session.Description,
         };
       })

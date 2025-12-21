@@ -217,4 +217,24 @@ function generateAIQuestions(topic, count) {
   return questions;
 }
 
+// Get all quizzes (Admin)
+router.get("/all/list", async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: quizzes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching quizzes", error: error.message });
+  }
+});
+
+// Get all quiz attempts (Admin)
+router.get("/attempts/all/list", async (req, res) => {
+  try {
+    const attempts = await QuizAttempt.find().sort({ Submitted_At: -1 });
+    res.json({ success: true, data: attempts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Error fetching attempts", error: error.message });
+  }
+});
+
 module.exports = router;

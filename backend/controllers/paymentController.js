@@ -36,7 +36,7 @@ exports.createOrder = async (req, res) => {
     // Fetch actual course price from database to prevent price manipulation
     const Tbl_Courses = require("../models/Tbl_Courses");
     const course = await Tbl_Courses.findOne({ Course_Id: courseId });
-    
+
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -316,7 +316,7 @@ exports.verifyPayment = async (req, res) => {
       }
 
       // ==========================================
-      // PAYMENT SPLIT: 30% Lecturer, 70% Admin
+      // PAYMENT SPLIT: 70% Lecturer, 30% Admin
       // ==========================================
       try {
         const TblCourses = require("../models/Tbl_Courses");
@@ -329,44 +329,33 @@ exports.verifyPayment = async (req, res) => {
 
         if (course && course.Lecturer_Id) {
           const totalAmount = payment.amount;
-          const lecturerShare = (totalAmount * 0.3).toFixed(2); // 30% for lecturer
-          const adminShare = (totalAmount * 0.7).toFixed(2); // 70% for admin
+          const lecturerShare = (totalAmount * 0.7).toFixed(2); // 70% for lecturer
+          const adminShare = (totalAmount * 0.3).toFixed(2); // 30% for admin (NOT STORED)
 
           console.log(`\n💰 Payment Split for ₹${totalAmount}:`);
-          console.log(`   Lecturer (30%): ₹${lecturerShare}`);
-          console.log(`   Admin (70%): ₹${adminShare}`);
+          console.log(`   Lecturer (70%): ₹${lecturerShare}`);
+          console.log(`   Admin (30%): ₹${adminShare} (Manual deduction)`);
 
-          // Create Lecturer Earning Record (30%)
+          // Create Lecturer Earning Record (70%)
           const lecturerEarning = new TblEarnings({
             Lecturer_Id: course.Lecturer_Id,
-            Amount: parseFloat(lecturerShare),
             Course_Id: payment.courseId.toString(),
+            Student_Id: payment.studentId,
+            Enrollment_Id: razorpay_payment_id, // Link to payment ID as identifier
+            Total_Amount: totalAmount,
+            Amount: parseFloat(lecturerShare),
             Transaction_Type: "Course Sale",
             Transaction_Date: new Date(),
             Status: "Paid",
             Payment_Method: "Online",
             Payment_Date: new Date(),
-            Notes: `30% share from course enrollment - Payment ID: ${razorpay_payment_id}`,
+            Notes: `70% share from course enrollment - Total: ₹${totalAmount}, Student: ${payment.studentEmail}`,
           });
+
           await lecturerEarning.save();
           console.log(
-            `✅ Lecturer earning created: ${lecturerEarning.Earning_Id}`
+            `✅ Lecturer earning record created: ${lecturerEarning.Earning_Id} (Saved ₹${lecturerShare})`
           );
-
-          // Create Admin Earning Record (70%)
-          const adminEarning = new TblEarnings({
-            Lecturer_Id: "ADMIN",
-            Amount: parseFloat(adminShare),
-            Course_Id: payment.courseId.toString(),
-            Transaction_Type: "Course Sale",
-            Transaction_Date: new Date(),
-            Status: "Paid",
-            Payment_Method: "Online",
-            Payment_Date: new Date(),
-            Notes: `70% admin share from course enrollment - Payment ID: ${razorpay_payment_id}`,
-          });
-          await adminEarning.save();
-          console.log(`✅ Admin earning created: ${adminEarning.Earning_Id}\n`);
         } else {
           console.warn(
             `⚠️  Course not found or Lecturer_Id missing for Course_Id: ${payment.courseId}`
@@ -377,7 +366,6 @@ exports.verifyPayment = async (req, res) => {
           "❌ Error creating earnings split:",
           earningError.message
         );
-        // We don't fail the payment verification even if earnings creation fails
       }
     }
 

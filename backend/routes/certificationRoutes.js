@@ -15,4 +15,15 @@ router.get("/:studentId", async (req, res) => {
   }
 });
 
+// Get all certificates (Admin)
+router.get("/all/list", async (req, res) => {
+  try {
+    const certificates = await Certificate.find().sort({ createdAt: -1 });
+    res.json({ success: true, data: certificates });
+  } catch (error) {
+    console.error("Error fetching all certificates:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 module.exports = router;

@@ -19,7 +19,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=800&q=80', // JavaScript code
     'https://images.unsplash.com/photo-1587620962725-abab7fe55159?w=800&q=80', // Python programming
   ],
-  
+
   // Web Development (Category ID: 2)
   'Web Development': [
     'https://images.unsplash.com/photo-1547658719-da2b51169166?w=800&q=80', // Web design
@@ -28,7 +28,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1508317469940-e3de49ba902e?w=800&q=80', // Responsive design
     'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=800&q=80', // Web coding
   ],
-  
+
   // Mobile App Development (Category ID: 3)
   'Mobile App Development': [
     'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800&q=80', // Mobile apps
@@ -37,7 +37,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1607252650355-f7fd0460ccdb?w=800&q=80', // App design
     'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800&q=80', // Smartphone apps
   ],
-  
+
   // Data Science (Category ID: 4)
   'Data Science': [
     'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80', // Data analytics
@@ -46,7 +46,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1543286386-2e659306cd6c?w=800&q=80', // Analytics graphs
     'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d?w=800&q=80', // Big data
   ],
-  
+
   // Cloud Computing (Category ID: 5)
   'Cloud Computing': [
     'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80', // Cloud network
@@ -55,7 +55,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1573164713714-d95e436ab8d6?w=800&q=80', // Cloud technology
     'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=800&q=80', // Cloud computing
   ],
-  
+
   // Networking (Category ID: 6)
   'Networking': [
     'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // Network cables
@@ -64,7 +64,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // Network connections
     'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=800&q=80', // Network technology
   ],
-  
+
   // Cyber Security (Category ID: 7)
   'Cyber Security': [
     'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // Security lock
@@ -73,7 +73,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80', // Digital security
     'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80', // Security lock code
   ],
-  
+
   // Designing (Category ID: 8)
   'Designing': [
     'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80', // UI design
@@ -82,7 +82,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=800&q=80', // Creative design
     'https://images.unsplash.com/photo-1600132806370-bf17e65e942f?w=800&q=80', // Design workspace
   ],
-  
+
   // Business / Management (Category ID: 9)
   'Business / Management': [
     'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80', // Business meeting
@@ -91,7 +91,7 @@ const CATEGORY_IMAGE_POOLS = {
     'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80', // Office work
     'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&q=80', // Business strategy
   ],
-  
+
   // Language Learning (Category ID: 10)
   'Language Learning': [
     'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800&q=80', // Books learning
@@ -130,45 +130,45 @@ let usedImagesTracker = {};
  */
 function assignCourseImage(categoryId, categoryName, courseId = null) {
   let selectedImage = '';
-  
+
   // (A) Category-based image selection
   if (categoryName && CATEGORY_IMAGE_POOLS[categoryName]) {
     const categoryPool = CATEGORY_IMAGE_POOLS[categoryName];
-    
+
     // Initialize tracker for this category if not exists
     if (!usedImagesTracker[categoryName]) {
       usedImagesTracker[categoryName] = [];
     }
-    
+
     // Get available images (not recently used)
     let availableIndexes = categoryPool
       .map((_, idx) => idx)
       .filter(idx => !usedImagesTracker[categoryName].includes(idx));
-    
+
     // Reset tracker if all images have been used
     if (availableIndexes.length === 0) {
       usedImagesTracker[categoryName] = [];
       availableIndexes = categoryPool.map((_, idx) => idx);
     }
-    
+
     // Select random image from available ones
     const randomIndex = availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
     selectedImage = categoryPool[randomIndex];
-    
+
     // Mark as used
     usedImagesTracker[categoryName].push(randomIndex);
-    
+
     // Keep only last 3 used images to allow repetition after a gap
     if (usedImagesTracker[categoryName].length > 3) {
       usedImagesTracker[categoryName].shift();
     }
-  } 
+  }
   // (B) Default random image if no category selected
   else {
     const randomIndex = Math.floor(Math.random() * DEFAULT_IMAGE_POOL.length);
     selectedImage = DEFAULT_IMAGE_POOL[randomIndex];
   }
-  
+
   // Return image assignment metadata
   const result = {
     Course_Id: courseId,
@@ -176,9 +176,9 @@ function assignCourseImage(categoryId, categoryName, courseId = null) {
     Image_URL: selectedImage,
     Assigned_By_System: true
   };
-  
+
   console.log('🖼️ Auto-assigned course image:', result);
-  
+
   return result;
 }
 
@@ -271,7 +271,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
       <div className="student-info-container">
         <button className="back-button" onClick={onBack}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back to List
         </button>
@@ -299,7 +299,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
                 {student.email}
               </p>
               <div className="student-detail-badges">
-                <span className="student-badge" style={{ 
+                <span className="student-badge" style={{
                   background: getStatusColor(student.status),
                   boxShadow: `0 4px 12px ${getStatusColor(student.status)}40`
                 }}>
@@ -386,12 +386,12 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
               {student.progress || 0}%
             </span>
           </div>
-          
+
           <div className="enhanced-progress-bar">
             <div className="progress-track">
-              <div 
-                className="progress-fill" 
-                style={{ 
+              <div
+                className="progress-fill"
+                style={{
                   width: `${student.progress || 0}%`,
                   background: getProgressGradient(student.progress || 0)
                 }}
@@ -444,7 +444,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
               <h3>Activity Timeline</h3>
             </div>
           </div>
-          
+
           <div className="timeline">
             <div className="timeline-item">
               <div className="timeline-dot" style={{ background: '#00D896' }}></div>
@@ -475,7 +475,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
               <h3>Contact Information</h3>
             </div>
           </div>
-          
+
           <div className="contact-items">
             <div className="contact-detail-item">
               <div className="contact-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
@@ -520,7 +520,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
             </svg>
           </button>
         </div>
-        
+
         <div className="modal-body">
           {type === 'students' && viewMode === 'detail' && selectedStudent ? (
             <StudentDetailView student={selectedStudent} onBack={handleBackToList} />
@@ -556,7 +556,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
                         <div key={col.key}>
                           {type === 'students' && colIdx === 0 ? (
                             // Make student name clickable
-                            <div 
+                            <div
                               className="clickable-student-name"
                               onClick={() => handleViewStudent(item)}
                             >
@@ -569,7 +569,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
                       ))}
                       {type === 'students' && (
                         <div>
-                          <button 
+                          <button
                             className="view-details-btn"
                             onClick={() => handleViewStudent(item)}
                           >
@@ -581,7 +581,7 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
                   ))}
                 </div>
               )}
-              
+
               <div style={{ marginTop: '12px', fontSize: '13px', color: '#666', textAlign: 'center' }}>
                 Showing {filteredData.length} of {data.length} {title.toLowerCase()}
               </div>
@@ -595,8 +595,8 @@ function DetailModal({ isOpen, onClose, title, data, columns, type }) {
 
 function Stat({ label, value, trend, icon, onClick }) {
   return (
-    <div 
-      className="stat" 
+    <div
+      className="stat"
       onClick={onClick}
       style={onClick ? { cursor: 'pointer', transition: 'transform 0.2s' } : {}}
       onMouseEnter={(e) => onClick && (e.currentTarget.style.transform = 'scale(1.02)')}
@@ -636,7 +636,7 @@ function OverviewTab() {
     setError('');
     try {
       const lecturerId = lecturer?.email || lecturer?.id;
-      
+
       if (!lecturerId) {
         throw new Error('Lecturer identification not found');
       }
@@ -665,8 +665,8 @@ function OverviewTab() {
 
       if (result.success && result.data) {
         let modalData = {};
-        
-        switch(type) {
+
+        switch (type) {
           case 'students':
             // Enrich student data with default values if missing
             const enrichedStudents = (result.data.studentsDetail || []).map(student => ({
@@ -683,18 +683,18 @@ function OverviewTab() {
                 { key: 'studentName', label: 'Student Name' },
                 { key: 'email', label: 'Email' },
                 { key: 'course', label: 'Course' },
-                { 
-                  key: 'enrollDate', 
+                {
+                  key: 'enrollDate',
                   label: 'Enrolled Date',
                   render: (value) => new Date(value).toLocaleDateString()
                 },
-                { 
-                  key: 'progress', 
+                {
+                  key: 'progress',
                   label: 'Progress',
                   render: (value) => `${value || 0}%`
                 },
-                { 
-                  key: 'status', 
+                {
+                  key: 'status',
                   label: 'Status',
                   render: (value) => (
                     <span className={`badge ${value === 'Active' ? 'success' : 'warning'}`}>
@@ -706,7 +706,7 @@ function OverviewTab() {
               type: 'students'
             };
             break;
-          
+
           case 'courses':
             modalData = {
               title: 'All Courses',
@@ -714,13 +714,13 @@ function OverviewTab() {
               columns: [
                 { key: 'title', label: 'Course Title' },
                 { key: 'enrollments', label: 'Enrollments' },
-                { 
-                  key: 'status', 
+                {
+                  key: 'status',
                   label: 'Status',
                   render: (value) => value || 'Active'
                 },
-                { 
-                  key: 'isActive', 
+                {
+                  key: 'isActive',
                   label: 'Active',
                   render: (value) => value ? '✓' : '✗'
                 }
@@ -728,7 +728,7 @@ function OverviewTab() {
               type: 'courses'
             };
             break;
-          
+
           case 'materials':
             modalData = {
               title: 'All Materials',
@@ -737,8 +737,8 @@ function OverviewTab() {
                 { key: 'title', label: 'Material Title' },
                 { key: 'type', label: 'Type' },
                 { key: 'course', label: 'Course' },
-                { 
-                  key: 'uploadedDate', 
+                {
+                  key: 'uploadedDate',
                   label: 'Uploaded',
                   render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
                 }
@@ -746,7 +746,7 @@ function OverviewTab() {
               type: 'materials'
             };
             break;
-          
+
           case 'assignments':
             modalData = {
               title: 'All Assignments',
@@ -754,8 +754,8 @@ function OverviewTab() {
               columns: [
                 { key: 'title', label: 'Assignment Title' },
                 { key: 'course', label: 'Course' },
-                { 
-                  key: 'dueDate', 
+                {
+                  key: 'dueDate',
                   label: 'Due Date',
                   render: (value) => value ? new Date(value).toLocaleDateString() : 'N/A'
                 },
@@ -765,7 +765,7 @@ function OverviewTab() {
             };
             break;
         }
-        
+
         setModalState({ isOpen: true, ...modalData });
       }
     } catch (err) {
@@ -812,38 +812,38 @@ function OverviewTab() {
     <div className="panel">
       <h3>Welcome back, {lecturer?.name || 'Lecturer'}!</h3>
       <div className="stats">
-        <Stat 
-          label="Total Students" 
-          value={overviewData.totalStudents || 0} 
-          trend={overviewData.growthPercentage || '0%'} 
+        <Stat
+          label="Total Students"
+          value={overviewData.totalStudents || 0}
+          trend={overviewData.growthPercentage || '0%'}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
           onClick={() => fetchDetailData('students')}
         />
-        <Stat 
-          label="Active Courses" 
-          value={overviewData.activeCourses || 0} 
-          trend={`${overviewData.totalCourses || 0} total`} 
+        <Stat
+          label="Active Courses"
+          value={overviewData.activeCourses || 0}
+          trend={`${overviewData.totalCourses || 0} total`}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
           onClick={() => fetchDetailData('courses')}
         />
-        <Stat 
-          label="Course Materials" 
-          value={overviewData.totalMaterials || 0} 
-          trend="Uploaded" 
+        <Stat
+          label="Course Materials"
+          value={overviewData.totalMaterials || 0}
+          trend="Uploaded"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>}
           onClick={() => fetchDetailData('materials')}
         />
-        <Stat 
-          label="Assignments" 
-          value={overviewData.totalAssignments || 0} 
-          trend="Created" 
+        <Stat
+          label="Assignments"
+          value={overviewData.totalAssignments || 0}
+          trend="Created"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>}
           onClick={() => fetchDetailData('assignments')}
         />
       </div>
-      
+
       {/* Detail Modal */}
-      <DetailModal 
+      <DetailModal
         isOpen={modalState.isOpen}
         onClose={closeModal}
         title={modalState.title}
@@ -851,7 +851,7 @@ function OverviewTab() {
         columns={modalState.columns}
         type={modalState.type}
       />
-      
+
       <div className="charts" style={{ marginTop: '12px' }}>
         <div className="chart-card">
           <div className="chart-title">Student Enrollments</div>
@@ -881,12 +881,12 @@ function OverviewTab() {
                 const colors = ['#b7dcff', '#4da3ff', '#89c3ff', '#2e8bff', '#1a75d9', '#0f5ca8'];
                 return (
                   <g key={course.courseId}>
-                    <rect 
-                      x={x} 
-                      y={y} 
-                      width="24" 
-                      height={barHeight} 
-                      fill={colors[index % colors.length]} 
+                    <rect
+                      x={x}
+                      y={y}
+                      width="24"
+                      height={barHeight}
+                      fill={colors[index % colors.length]}
                     />
                     <title>{course.courseName}: {course.enrollments} students</title>
                   </g>
@@ -947,7 +947,7 @@ function ProfileSlideOver({ open, onClose }) {
     try {
       const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
       const identifier = lecturer.email || lecturer.id;
-      
+
       if (!identifier) {
         throw new Error('Lecturer identification not found');
       }
@@ -957,7 +957,7 @@ function ProfileSlideOver({ open, onClose }) {
 
       if (result.success && result.data) {
         const data = result.data;
-        
+
         // Format DOB for input[type="date"]
         let formattedDOB = '';
         if (data.DOB) {
@@ -979,7 +979,7 @@ function ProfileSlideOver({ open, onClose }) {
           Experience_Years: data.Experience_Years || '',
           Institute_Name: data.Institute_Name || ''
         });
-        
+
         // Update localStorage with fresh data
         localStorage.setItem('lecturer_profile', JSON.stringify(data));
       } else {
@@ -988,7 +988,7 @@ function ProfileSlideOver({ open, onClose }) {
     } catch (err) {
       console.error('Error fetching profile:', err);
       setError(err.message || 'Failed to load profile data');
-      
+
       // Fallback to localStorage
       try {
         const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
@@ -1018,11 +1018,11 @@ function ProfileSlideOver({ open, onClose }) {
     setSaving(true);
     setError('');
     setSuccess('');
-    
+
     try {
       const lecturer = JSON.parse(localStorage.getItem('lecturer_user') || '{}');
       const identifier = lecturer.email || lecturer.id;
-      
+
       if (!identifier) {
         throw new Error('Lecturer identification not found');
       }
@@ -1060,7 +1060,7 @@ function ProfileSlideOver({ open, onClose }) {
       localStorage.setItem('lecturer_profile', JSON.stringify(result.data));
 
       setSuccess('✓ Profile updated successfully!');
-      
+
       setTimeout(() => {
         if (onClose) onClose();
         // Reload page to reflect changes
@@ -1156,9 +1156,9 @@ function ProfileSlideOver({ open, onClose }) {
       const response = await fetch('http://localhost:5000/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: form.email.trim(), 
-          newPassword: newPassword 
+        body: JSON.stringify({
+          email: form.email.trim(),
+          newPassword: newPassword
         })
       });
 
@@ -1202,7 +1202,7 @@ function ProfileSlideOver({ open, onClose }) {
           <h3>👤 My Profile</h3>
           <button className="btn-close" onClick={onClose} aria-label="Close profile">×</button>
         </div>
-        
+
         {loading ? (
           <div className="lec-profile-loading">
             <div className="loading-spinner"></div>
@@ -1215,7 +1215,7 @@ function ProfileSlideOver({ open, onClose }) {
                 ⚠️ {error}
               </div>
             )}
-            
+
             {success && (
               <div className="alert-success">
                 {success}
@@ -1224,62 +1224,62 @@ function ProfileSlideOver({ open, onClose }) {
 
             <div className="profile-section">
               <h4 className="section-title">Personal Information (Read-Only)</h4>
-              
+
               <label className="lec-form-field">
                 <span>Full Name</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  value={form.Full_Name} 
+                <input
+                  className="input"
+                  type="text"
+                  value={form.Full_Name}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Email</span>
-                <input 
-                  className="input" 
-                  type="email" 
-                  value={form.email} 
+                <input
+                  className="input"
+                  type="email"
+                  value={form.email}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Date of Birth</span>
-                <input 
-                  className="input" 
-                  type="date" 
-                  value={form.DOB} 
+                <input
+                  className="input"
+                  type="date"
+                  value={form.DOB}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
-              
+
               <div className="lec-form-field">
                 <span>Gender</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  value={form.Gender === 'male' ? 'Male' : form.Gender === 'female' ? 'Female' : form.Gender === 'other' ? 'Other' : 'Not Specified'} 
+                <input
+                  className="input"
+                  type="text"
+                  value={form.Gender === 'male' ? 'Male' : form.Gender === 'female' ? 'Female' : form.Gender === 'other' ? 'Other' : 'Not Specified'}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </div>
-              
+
               <label className="lec-form-field">
                 <span>Specialization</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  value={form.Specialization} 
+                <input
+                  className="input"
+                  type="text"
+                  value={form.Specialization}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
               </label>
-              
+
               <small style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '8px', display: 'block' }}>
                 💡 These fields are managed by the system and cannot be edited.
               </small>
@@ -1287,87 +1287,87 @@ function ProfileSlideOver({ open, onClose }) {
 
             <div className="profile-section">
               <h4 className="section-title">Professional Information (Editable)</h4>
-              
+
               <label className="lec-form-field">
                 <span>Mobile Number</span>
-                <input 
-                  className="input" 
-                  type="tel" 
-                  name="Mobile_No" 
-                  value={form.Mobile_No} 
-                  onChange={handleChange} 
+                <input
+                  className="input"
+                  type="tel"
+                  name="Mobile_No"
+                  value={form.Mobile_No}
+                  onChange={handleChange}
                   placeholder="+91 98765 43210"
                   disabled={saving}
                 />
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Institute</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  value={form.Institute_Name} 
+                <input
+                  className="input"
+                  type="text"
+                  value={form.Institute_Name}
                   disabled
                   style={{ background: 'rgba(200, 200, 200, 0.1)', cursor: 'not-allowed' }}
                 />
                 <small style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '4px' }}>Institute cannot be changed</small>
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Highest Qualification</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  name="Highest_Qualification" 
-                  value={form.Highest_Qualification} 
-                  onChange={handleChange} 
+                <input
+                  className="input"
+                  type="text"
+                  name="Highest_Qualification"
+                  value={form.Highest_Qualification}
+                  onChange={handleChange}
                   placeholder="e.g., M.Tech, PhD, M.Sc"
                   disabled={saving}
                 />
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Designation</span>
-                <input 
-                  className="input" 
-                  type="text" 
-                  name="Designation" 
-                  value={form.Designation} 
-                  onChange={handleChange} 
+                <input
+                  className="input"
+                  type="text"
+                  name="Designation"
+                  value={form.Designation}
+                  onChange={handleChange}
                   placeholder="e.g., Assistant Professor, Senior Lecturer"
                   disabled={saving}
                 />
               </label>
-              
+
               <label className="lec-form-field">
                 <span>Years of Experience</span>
-                <input 
-                  className="input" 
-                  type="number" 
-                  name="Experience_Years" 
-                  value={form.Experience_Years} 
-                  onChange={handleChange} 
+                <input
+                  className="input"
+                  type="number"
+                  name="Experience_Years"
+                  value={form.Experience_Years}
+                  onChange={handleChange}
                   placeholder="Enter years"
                   min="0"
                   disabled={saving}
                 />
               </label>
             </div>
-            
+
             {/* Reset Password Section */}
             <div className="profile-section" style={{ borderTop: '2px solid #E6FFF5', paddingTop: '24px', marginTop: '24px' }}>
               <h4 className="section-title" style={{ color: '#667eea' }}>🔐 Security Settings</h4>
-              
+
               {!showResetPassword ? (
                 <div>
                   <p style={{ fontSize: '14px', color: '#6B7280', marginBottom: '16px' }}>
                     Update your password to keep your account secure
                   </p>
-                  <button 
-                    type="button" 
-                    className="button secondary" 
+                  <button
+                    type="button"
+                    className="button secondary"
                     onClick={() => setShowResetPassword(true)}
-                    style={{ 
+                    style={{
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: 'white',
                       border: 'none'
@@ -1383,39 +1383,39 @@ function ProfileSlideOver({ open, onClose }) {
                     <div>
                       <label className="lec-form-field">
                         <span>Email Address</span>
-                        <input 
-                          className="input" 
-                          type="email" 
-                          value={form.email} 
+                        <input
+                          className="input"
+                          type="email"
+                          value={form.email}
                           disabled
                           style={{ background: 'white' }}
                         />
                       </label>
-                      
+
                       {resetError && (
                         <div className="alert-error" style={{ marginTop: '12px' }}>
                           ⚠️ {resetError}
                         </div>
                       )}
-                      
+
                       {resetSuccess && (
                         <div className="alert-success" style={{ marginTop: '12px' }}>
                           {resetSuccess}
                         </div>
                       )}
-                      
+
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button 
-                          type="button" 
-                          className="button ghost" 
+                        <button
+                          type="button"
+                          className="button ghost"
                           onClick={cancelResetPassword}
                           disabled={resetLoading}
                         >
                           Cancel
                         </button>
-                        <button 
-                          type="button" 
-                          className="button primary" 
+                        <button
+                          type="button"
+                          className="button primary"
                           onClick={handleSendOTP}
                           disabled={resetLoading}
                           style={{ flex: 1 }}
@@ -1425,38 +1425,38 @@ function ProfileSlideOver({ open, onClose }) {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Step 2: Verify OTP */}
                   {resetStep === 2 && (
                     <div>
                       <label className="lec-form-field">
                         <span>Enter OTP (sent to {form.email})</span>
-                        <input 
-                          className="input" 
-                          type="text" 
+                        <input
+                          className="input"
+                          type="text"
                           placeholder="123456"
                           value={otp}
                           onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                           maxLength={6}
-                          style={{ 
-                            fontSize: '24px', 
-                            letterSpacing: '8px', 
+                          style={{
+                            fontSize: '24px',
+                            letterSpacing: '8px',
                             textAlign: 'center',
                             background: 'white'
                           }}
                         />
                       </label>
-                      
+
                       <p style={{ fontSize: '13px', color: '#666', marginTop: '8px', textAlign: 'center' }}>
-                        Didn't receive the code? 
-                        <button 
-                          type="button" 
+                        Didn't receive the code?
+                        <button
+                          type="button"
                           onClick={() => { setResetStep(1); setOtp(''); }}
-                          style={{ 
-                            background: 'none', 
-                            border: 'none', 
-                            color: '#667eea', 
-                            cursor: 'pointer', 
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#667eea',
+                            cursor: 'pointer',
                             textDecoration: 'underline',
                             marginLeft: '4px'
                           }}
@@ -1464,31 +1464,31 @@ function ProfileSlideOver({ open, onClose }) {
                           Resend OTP
                         </button>
                       </p>
-                      
+
                       {resetError && (
                         <div className="alert-error" style={{ marginTop: '12px' }}>
                           ⚠️ {resetError}
                         </div>
                       )}
-                      
+
                       {resetSuccess && (
                         <div className="alert-success" style={{ marginTop: '12px' }}>
                           {resetSuccess}
                         </div>
                       )}
-                      
+
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button 
-                          type="button" 
-                          className="button ghost" 
+                        <button
+                          type="button"
+                          className="button ghost"
                           onClick={cancelResetPassword}
                           disabled={resetLoading}
                         >
                           Cancel
                         </button>
-                        <button 
-                          type="button" 
-                          className="button primary" 
+                        <button
+                          type="button"
+                          className="button primary"
                           onClick={handleVerifyOTP}
                           disabled={resetLoading}
                           style={{ flex: 1 }}
@@ -1498,62 +1498,62 @@ function ProfileSlideOver({ open, onClose }) {
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Step 3: Set New Password */}
                   {resetStep === 3 && (
                     <div>
                       <label className="lec-form-field">
                         <span>New Password</span>
-                        <input 
-                          className="input" 
-                          type="password" 
+                        <input
+                          className="input"
+                          type="password"
                           placeholder="Enter new password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           style={{ background: 'white' }}
                         />
                       </label>
-                      
+
                       <label className="lec-form-field">
                         <span>Confirm New Password</span>
-                        <input 
-                          className="input" 
-                          type="password" 
+                        <input
+                          className="input"
+                          type="password"
                           placeholder="Confirm new password"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           style={{ background: 'white' }}
                         />
                       </label>
-                      
+
                       <small style={{ fontSize: '13px', color: '#666', display: 'block', marginTop: '8px' }}>
                         Password must be at least 6 characters long
                       </small>
-                      
+
                       {resetError && (
                         <div className="alert-error" style={{ marginTop: '12px' }}>
                           ⚠️ {resetError}
                         </div>
                       )}
-                      
+
                       {resetSuccess && (
                         <div className="alert-success" style={{ marginTop: '12px' }}>
                           {resetSuccess}
                         </div>
                       )}
-                      
+
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button 
-                          type="button" 
-                          className="button ghost" 
+                        <button
+                          type="button"
+                          className="button ghost"
                           onClick={cancelResetPassword}
                           disabled={resetLoading}
                         >
                           Cancel
                         </button>
-                        <button 
-                          type="button" 
-                          className="button primary" 
+                        <button
+                          type="button"
+                          className="button primary"
                           onClick={handleResetPassword}
                           disabled={resetLoading}
                           style={{ flex: 1 }}
@@ -1566,7 +1566,7 @@ function ProfileSlideOver({ open, onClose }) {
                 </div>
               )}
             </div>
-            
+
             <div className="lec-profile-actions">
               <button type="button" className="button ghost" onClick={onClose} disabled={saving}>Cancel</button>
               <button type="submit" className="button primary" disabled={saving || loading}>
@@ -1631,12 +1631,12 @@ function UploadsTab() {
     try {
       const lecturerId = lecturer?.email || lecturer?.id;
       console.log('🔍 Fetching uploaded data for lecturer:', lecturerId);
-      
+
       // Fetch detailed data using the same endpoint as Overview section
       const response = await fetch(`${API_BASE_URL}/lecturer-overview/${encodeURIComponent(lecturerId)}?details=true`);
       const result = await response.json();
       console.log('📊 Overview response:', result);
-      
+
       if (result.success && result.data) {
         // Set materials from Overview data
         if (result.data.materialsDetail) {
@@ -1677,14 +1677,14 @@ function UploadsTab() {
     setSelectedCourse(courseId);
     setSelectedTopic('');
     setTopics([]);
-    
+
     if (!courseId) return;
 
     setLoadingTopics(true);
     try {
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${courseId}`);
       const result = await response.json();
-      
+
       if (result.success && result.data && result.data.Topics) {
         setTopics(result.data.Topics);
       }
@@ -1722,7 +1722,7 @@ function UploadsTab() {
   // Upload material
   const uploadMaterial = async (e) => {
     e.preventDefault();
-    
+
     if (!selectedCourse || !selectedTopic || !materialForm.title || !materialForm.file) {
       setUploadError('Please fill all required fields and select a file');
       return;
@@ -1788,7 +1788,7 @@ function UploadsTab() {
   // Upload assignment
   const uploadAssignment = async (e) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!selectedCourse || !selectedTopic) {
       setUploadError('Please select both course and topic');
@@ -1908,14 +1908,14 @@ function UploadsTab() {
     <div className="uploads-container">
       {/* Upload Type Tabs */}
       <div className="upload-tabs">
-        <button 
+        <button
           className={`upload-tab ${activeUploadTab === 'materials' ? 'active' : ''}`}
           onClick={() => setActiveUploadTab('materials')}
         >
           <span className="tab-icon">📚</span>
           <span>Course Materials</span>
         </button>
-        <button 
+        <button
           className={`upload-tab ${activeUploadTab === 'assignments' ? 'active' : ''}`}
           onClick={() => setActiveUploadTab('assignments')}
         >
@@ -1932,7 +1932,7 @@ function UploadsTab() {
               <span className="label-icon">📖</span>
               Select Course *
             </label>
-            <select 
+            <select
               className="selection-input"
               value={selectedCourse}
               onChange={(e) => handleCourseChange(e.target.value)}
@@ -1952,7 +1952,7 @@ function UploadsTab() {
               <span className="label-icon">🎯</span>
               Select Topic *
             </label>
-            <select 
+            <select
               className="selection-input"
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value)}
@@ -1984,7 +1984,7 @@ function UploadsTab() {
           {uploadSuccess}
         </div>
       )}
-      
+
       {uploadError && (
         <div className="upload-alert upload-error">
           ⚠️ {uploadError}
@@ -2039,8 +2039,8 @@ function UploadsTab() {
                       onChange={(e) => handleFileSelect(e, 'materials')}
                       accept={
                         materialForm.contentType === 'pdf' ? '.pdf' :
-                        materialForm.contentType === 'video' ? 'video/*' :
-                        '.txt,.doc,.docx'
+                          materialForm.contentType === 'video' ? 'video/*' :
+                            '.txt,.doc,.docx'
                       }
                       disabled={uploadingFile}
                       required
@@ -2056,8 +2056,8 @@ function UploadsTab() {
               </div>
 
               <div className="form-actions">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="button primary large"
                   disabled={uploadingFile}
                 >
@@ -2171,8 +2171,8 @@ function UploadsTab() {
               </div>
 
               <div className="form-actions">
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="button primary large"
                   disabled={uploadingFile}
                 >
@@ -2202,7 +2202,7 @@ function UploadsTab() {
             <h3>📚 Uploaded Materials</h3>
             <span className="upload-count">{uploadedMaterials.length} items</span>
           </div>
-          
+
           {loadingData ? (
             <div className="lec-profile-loading">
               <div className="loading-spinner"></div>
@@ -2237,19 +2237,19 @@ function UploadsTab() {
                   </div>
                   <div>{material.course || 'N/A'}</div>
                   <div>
-                    {material.uploadedDate 
-                      ? new Date(material.uploadedDate).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
+                    {material.uploadedDate
+                      ? new Date(material.uploadedDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })
                       : 'N/A'}
                   </div>
                   <div>
                     {material.fileUrl && (
-                      <a 
-                        href={material.fileUrl} 
-                        target="_blank" 
+                      <a
+                        href={material.fileUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="button ghost sm"
                       >
@@ -2269,7 +2269,7 @@ function UploadsTab() {
             <h3>📝 Created Assignments</h3>
             <span className="upload-count">{uploadedAssignments.length} items</span>
           </div>
-          
+
           {loadingData ? (
             <div className="lec-profile-loading">
               <div className="loading-spinner"></div>
@@ -2296,12 +2296,12 @@ function UploadsTab() {
                   </div>
                   <div>{assignment.course || 'N/A'}</div>
                   <div>
-                    {assignment.dueDate 
-                      ? new Date(assignment.dueDate).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })
+                    {assignment.dueDate
+                      ? new Date(assignment.dueDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                      })
                       : 'N/A'}
                   </div>
                   <div>
@@ -2309,9 +2309,9 @@ function UploadsTab() {
                   </div>
                   <div>
                     {assignment.fileUrl && (
-                      <a 
-                        href={assignment.fileUrl} 
-                        target="_blank" 
+                      <a
+                        href={assignment.fileUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="button ghost sm"
                       >
@@ -2357,7 +2357,7 @@ function SubmissionsTab() {
     setError('');
     try {
       const lecturerId = lecturer?.email || lecturer?.id;
-      
+
       if (!lecturerId) {
         throw new Error('Lecturer identification not found');
       }
@@ -2430,7 +2430,7 @@ function SubmissionsTab() {
 
   const handleSaveMarks = async (submission) => {
     const marks = marksInput[submission.Submission_Id];
-    
+
     if (marks === undefined || marks === null || marks === '') {
       setErrorMessage('Please enter marks');
       setShowErrorPopup(true);
@@ -2445,7 +2445,7 @@ function SubmissionsTab() {
     }
 
     setSavingMarks(prev => ({ ...prev, [submission.Submission_Id]: true }));
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/submissions/marks/${submission.Submission_Id}`, {
         method: 'PUT',
@@ -2460,8 +2460,8 @@ function SubmissionsTab() {
 
       if (result.success) {
         // Update the submission in the list
-        setSubmissions(prev => prev.map(s => 
-          s.Submission_Id === submission.Submission_Id 
+        setSubmissions(prev => prev.map(s =>
+          s.Submission_Id === submission.Submission_Id
             ? { ...s, Grade: marksNum, Status: 'Graded', Graded_On: new Date() }
             : s
         ));
@@ -2513,28 +2513,28 @@ function SubmissionsTab() {
   return (
     <div className="panel">
       <h3>📝 Student Submissions</h3>
-      
+
       {/* Summary Cards */}
       <div className="stats" style={{ marginBottom: '24px' }}>
-        <Stat 
-          label="Total Submissions" 
-          value={submissions.length} 
-          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
+        <Stat
+          label="Total Submissions"
+          value={submissions.length}
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>}
         />
-        <Stat 
-          label="Pending Grading" 
-          value={submissions.filter(s => s.Status !== 'Graded').length} 
-          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
+        <Stat
+          label="Pending Grading"
+          value={submissions.filter(s => s.Status !== 'Graded').length}
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
         />
-        <Stat 
-          label="Graded" 
-          value={submissions.filter(s => s.Status === 'Graded').length} 
-          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
+        <Stat
+          label="Graded"
+          value={submissions.filter(s => s.Status === 'Graded').length}
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>}
         />
-        <Stat 
-          label="Unique Students" 
-          value={Object.keys(studentStats).length} 
-          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>}
+        <Stat
+          label="Unique Students"
+          value={Object.keys(studentStats).length}
+          icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
         />
       </div>
 
@@ -2544,22 +2544,22 @@ function SubmissionsTab() {
           <h4 style={{ marginBottom: '16px', fontSize: '18px' }}>📊 Submission Count by Student</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '12px' }}>
             {Object.values(studentStats).map((stat, idx) => (
-              <div key={idx} style={{ 
-                background: 'rgba(255,255,255,0.15)', 
-                padding: '12px 16px', 
+              <div key={idx} style={{
+                background: 'rgba(255,255,255,0.15)',
+                padding: '12px 16px',
                 borderRadius: '8px',
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255,255,255,0.2)'
               }}>
                 <div style={{ fontWeight: '600', marginBottom: '4px' }}>{stat.studentName}</div>
                 <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                  📚 Total: {stat.totalSubmissions} | 
-                  ✅ Graded: {stat.gradedSubmissions} | 
+                  📚 Total: {stat.totalSubmissions} |
+                  ✅ Graded: {stat.gradedSubmissions} |
                   ⏳ Pending: {stat.pendingSubmissions}
                 </div>
                 {stat.gradedSubmissions > 0 && (
                   <div style={{ fontSize: '13px', marginTop: '4px', opacity: 0.85 }}>
-                    🎯 Score: {stat.totalMarksEarned}/{stat.totalMarksPossible} ({Math.round((stat.totalMarksEarned/stat.totalMarksPossible)*100)}%)
+                    🎯 Score: {stat.totalMarksEarned}/{stat.totalMarksPossible} ({Math.round((stat.totalMarksEarned / stat.totalMarksPossible) * 100)}%)
                   </div>
                 )}
               </div>
@@ -2595,8 +2595,8 @@ function SubmissionsTab() {
               <div>{formatDate(submission.Submitted_On)}</div>
               <div>
                 {submission.File_Url ? (
-                  <button 
-                    className="button secondary" 
+                  <button
+                    className="button secondary"
                     onClick={() => handleViewPDF(submission)}
                     style={{ padding: '6px 12px', fontSize: '13px' }}
                   >
@@ -2607,17 +2607,17 @@ function SubmissionsTab() {
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
+                <input
                   type="number"
                   min="0"
                   max={submission.assignmentMarks}
                   value={marksInput[submission.Submission_Id] ?? ''}
                   onChange={(e) => handleMarksChange(submission.Submission_Id, e.target.value)}
                   placeholder={`/${submission.assignmentMarks}`}
-                  style={{ 
-                    width: '70px', 
-                    padding: '6px 8px', 
-                    borderRadius: '4px', 
+                  style={{
+                    width: '70px',
+                    padding: '6px 8px',
+                    borderRadius: '4px',
                     border: '1px solid #ddd',
                     fontSize: '14px'
                   }}
@@ -2626,8 +2626,8 @@ function SubmissionsTab() {
                 <span style={{ fontSize: '14px', color: '#666' }}>/ {submission.assignmentMarks}</span>
               </div>
               <div>
-                <button 
-                  className="button primary" 
+                <button
+                  className="button primary"
                   onClick={() => handleSaveMarks(submission)}
                   style={{ padding: '6px 16px', fontSize: '13px' }}
                   disabled={savingMarks[submission.Submission_Id]}
@@ -2649,35 +2649,35 @@ function SubmissionsTab() {
       {/* PDF Viewer Modal */}
       {showPDFViewer && selectedSubmission && selectedSubmission.File_Url && (
         <div className="modal-overlay" onClick={() => setShowPDFViewer(false)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '95vw', maxHeight: '95vh', width: '1200px', height: '90vh' }}
           >
             <div className="modal-header">
               <div>
                 <h3>📄 {selectedSubmission.assignmentTitle}</h3>
                 <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
-                  Student: {selectedSubmission.studentName || selectedSubmission.Student_Id} | 
+                  Student: {selectedSubmission.studentName || selectedSubmission.Student_Id} |
                   Submitted: {formatDate(selectedSubmission.Submitted_On)}
                 </div>
               </div>
               <button className="modal-close" onClick={() => setShowPDFViewer(false)}>×</button>
             </div>
             <div className="modal-body" style={{ padding: 0, height: 'calc(100% - 80px)' }}>
-              <iframe 
+              <iframe
                 src={`http://localhost:5000${selectedSubmission.File_Url}`}
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
+                style={{
+                  width: '100%',
+                  height: '100%',
                   border: 'none',
                   borderRadius: '0 0 8px 8px'
                 }}
                 title="Submission PDF"
               />
             </div>
-            <div style={{ 
-              padding: '12px 20px', 
+            <div style={{
+              padding: '12px 20px',
               borderTop: '1px solid #e5e7eb',
               display: 'flex',
               gap: '12px',
@@ -2686,17 +2686,17 @@ function SubmissionsTab() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <label style={{ fontWeight: '500', fontSize: '14px' }}>Marks:</label>
-                <input 
+                <input
                   type="number"
                   min="0"
                   max={selectedSubmission.assignmentMarks}
                   value={marksInput[selectedSubmission.Submission_Id] ?? ''}
                   onChange={(e) => handleMarksChange(selectedSubmission.Submission_Id, e.target.value)}
                   placeholder={`out of ${selectedSubmission.assignmentMarks}`}
-                  style={{ 
-                    width: '100px', 
-                    padding: '8px 12px', 
-                    borderRadius: '6px', 
+                  style={{
+                    width: '100px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
                     border: '1px solid #ddd',
                     fontSize: '14px'
                   }}
@@ -2704,7 +2704,7 @@ function SubmissionsTab() {
                 <span style={{ fontSize: '14px', color: '#666' }}>/ {selectedSubmission.assignmentMarks}</span>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <a 
+                <a
                   href={`http://localhost:5000${selectedSubmission.File_Url}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -2713,8 +2713,8 @@ function SubmissionsTab() {
                 >
                   📥 Download
                 </a>
-                <button 
-                  className="button primary" 
+                <button
+                  className="button primary"
                   onClick={() => handleSaveMarks(selectedSubmission)}
                   disabled={savingMarks[selectedSubmission.Submission_Id]}
                   style={{ padding: '8px 20px' }}
@@ -2730,12 +2730,12 @@ function SubmissionsTab() {
       {/* Custom Success Popup */}
       {showSuccessPopup && (
         <div className="modal-overlay" onClick={() => setShowSuccessPopup(false)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '400px', padding: '0', borderRadius: '12px', overflow: 'hidden' }}
           >
-            <div style={{ 
+            <div style={{
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               padding: '24px',
               textAlign: 'center',
@@ -2748,10 +2748,10 @@ function SubmissionsTab() {
               <p style={{ margin: '0 0 24px 0', fontSize: '16px', color: '#374151' }}>
                 {successMessage}
               </p>
-              <button 
-                className="button primary" 
+              <button
+                className="button primary"
                 onClick={() => setShowSuccessPopup(false)}
-                style={{ 
+                style={{
                   padding: '10px 32px',
                   background: '#10b981',
                   borderRadius: '8px',
@@ -2768,12 +2768,12 @@ function SubmissionsTab() {
       {/* Custom Error Popup */}
       {showErrorPopup && (
         <div className="modal-overlay" onClick={() => setShowErrorPopup(false)}>
-          <div 
-            className="modal-content" 
-            onClick={(e) => e.stopPropagation()} 
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: '400px', padding: '0', borderRadius: '12px', overflow: 'hidden' }}
           >
-            <div style={{ 
+            <div style={{
               background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
               padding: '24px',
               textAlign: 'center',
@@ -2786,10 +2786,10 @@ function SubmissionsTab() {
               <p style={{ margin: '0 0 24px 0', fontSize: '16px', color: '#374151' }}>
                 {errorMessage}
               </p>
-              <button 
-                className="button primary" 
+              <button
+                className="button primary"
                 onClick={() => setShowErrorPopup(false)}
-                style={{ 
+                style={{
                   padding: '10px 32px',
                   background: '#ef4444',
                   borderRadius: '8px',
@@ -2808,7 +2808,7 @@ function SubmissionsTab() {
 
 function SessionsTab() {
   const API_BASE_URL = 'http://localhost:5000/api';
-  
+
   const lecturer = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('lecturer_user')); } catch { return null; }
   }, []);
@@ -2820,7 +2820,7 @@ function SessionsTab() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  
+
   // Form state
   const [form, setForm] = useState({
     course_id: '',
@@ -2954,10 +2954,10 @@ function SessionsTab() {
       }
 
       // Success!
-      setSuccessMessage(result.data.zoom_configured 
-        ? '✅ Session created successfully with Zoom meeting!' 
+      setSuccessMessage(result.data.zoom_configured
+        ? '✅ Session created successfully with Zoom meeting!'
         : '✅ Session created successfully (Zoom not configured)');
-      
+
       // Reset form
       setForm({
         course_id: '',
@@ -2974,10 +2974,10 @@ function SessionsTab() {
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (err) {
       console.error('Error creating session:', err);
-      
+
       // Display user-friendly error
       let errorMessage = err.message || 'Failed to create session';
-      
+
       // Parse specific Zoom errors
       if (errorMessage.includes('authenticate with Zoom')) {
         errorMessage = '❌ Zoom authentication failed. Please verify API credentials in server configuration.';
@@ -2988,7 +2988,7 @@ function SessionsTab() {
       } else if (!errorMessage.startsWith('❌')) {
         errorMessage = `❌ ${errorMessage}`;
       }
-      
+
       setError(errorMessage);
     } finally {
       setCreating(false);
@@ -3031,7 +3031,7 @@ function SessionsTab() {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     // Lecturer can only access meeting when it's Ongoing AND within duration
     return session.status === 'Ongoing' && now <= endTime;
   };
@@ -3040,19 +3040,19 @@ function SessionsTab() {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     if (session.status === 'Completed') return 'Completed';
     if (session.status === 'Ongoing') {
       // Check if duration expired
       if (now > endTime) return 'Completed';
       return '🔗 Join Meeting';
     }
-    
+
     // If scheduled but duration expired
     if (session.status === 'Scheduled' && now > endTime) {
       return 'Time Over / Not Started';
     }
-    
+
     return 'Not Started';
   };
 
@@ -3060,7 +3060,7 @@ function SessionsTab() {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     // Can start only within the duration window (scheduled time to end time)
     return session.status === 'Scheduled' && now >= scheduledTime && now <= endTime;
   };
@@ -3071,9 +3071,9 @@ function SessionsTab() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setSuccessMessage('Meeting started successfully! Students can now join.');
         setTimeout(() => setSuccessMessage(''), 3000);
@@ -3093,9 +3093,9 @@ function SessionsTab() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' }
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setSuccessMessage('Meeting ended successfully!');
         setTimeout(() => setSuccessMessage(''), 3000);
@@ -3116,33 +3116,33 @@ function SessionsTab() {
     const bScheduled = new Date(b.scheduled_at);
     const aEnd = new Date(aScheduled.getTime() + a.duration * 60000);
     const bEnd = new Date(bScheduled.getTime() + b.duration * 60000);
-    
+
     // Correct status if ongoing but expired
     const aStatus = (a.status === 'Ongoing' && now > aEnd) ? 'Completed' : a.status;
     const bStatus = (b.status === 'Ongoing' && now > bEnd) ? 'Completed' : b.status;
-    
+
     // Determine if session is past (Completed or Time Over/Not Started)
     const aIsPast = aStatus === 'Completed' || (aStatus === 'Scheduled' && now > aEnd);
     const bIsPast = bStatus === 'Completed' || (bStatus === 'Scheduled' && now > bEnd);
-    
+
     // Determine if session is upcoming (Scheduled future or Ongoing within duration)
     const aIsUpcoming = !aIsPast && (aStatus === 'Scheduled' || (aStatus === 'Ongoing' && now <= aEnd));
     const bIsUpcoming = !bIsPast && (bStatus === 'Scheduled' || (bStatus === 'Ongoing' && now <= bEnd));
-    
+
     // Upcoming meetings first, past meetings at bottom
     if (aIsUpcoming && bIsPast) return -1;
     if (aIsPast && bIsUpcoming) return 1;
-    
+
     // Within upcoming: sort by nearest first (ascending by start time)
     if (aIsUpcoming && bIsUpcoming) {
       return aScheduled - bScheduled;
     }
-    
+
     // Within past: sort by most recent first (descending by start time)
     if (aIsPast && bIsPast) {
       return bScheduled - aScheduled;
     }
-    
+
     return 0;
   });
 
@@ -3151,26 +3151,26 @@ function SessionsTab() {
     const now = new Date();
     const scheduledTime = new Date(session.scheduled_at);
     const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
-    
+
     // If ongoing but duration expired, show as completed
     if (session.status === 'Ongoing' && now > endTime) {
       return { ...session, status: 'Completed' };
     }
-    
+
     return session;
   });
 
   return (
     <div className="panel">
       <h3>Problem-Solving Sessions</h3>
-      
+
       {/* Success Message */}
       {successMessage && (
-        <div className="alert-success" style={{ 
-          background: '#d4edda', 
-          color: '#155724', 
-          padding: '12px 16px', 
-          borderRadius: '6px', 
+        <div className="alert-success" style={{
+          background: '#d4edda',
+          color: '#155724',
+          padding: '12px 16px',
+          borderRadius: '6px',
           marginBottom: '20px',
           border: '1px solid #c3e6cb'
         }}>
@@ -3190,12 +3190,12 @@ function SessionsTab() {
         <h4 style={{ marginBottom: '16px' }}>
           🎥 Create New Session
         </h4>
-        
+
         <div className="grid-3" style={{ gap: '16px', overflow: 'visible' }}>
           <div style={{ position: 'relative', zIndex: 100 }}>
             <label className="label">Course *</label>
-            <select 
-              className="input" 
+            <select
+              className="input"
               value={form.course_id}
               onChange={(e) => setForm({ ...form, course_id: e.target.value })}
               disabled={creating}
@@ -3212,8 +3212,8 @@ function SessionsTab() {
 
           <div>
             <label className="label">Session Title *</label>
-            <input 
-              className="input" 
+            <input
+              className="input"
               placeholder="e.g., Week 5 Lecture"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -3224,8 +3224,8 @@ function SessionsTab() {
 
           <div>
             <label className="label">Scheduled At *</label>
-            <input 
-              className="input" 
+            <input
+              className="input"
               type="datetime-local"
               value={form.scheduled_at}
               onChange={(e) => setForm({ ...form, scheduled_at: e.target.value })}
@@ -3236,8 +3236,8 @@ function SessionsTab() {
 
           <div>
             <label className="label">Duration (minutes) *</label>
-            <input 
-              className="input" 
+            <input
+              className="input"
               type="number"
               min="1"
               max="480"
@@ -3250,8 +3250,8 @@ function SessionsTab() {
 
           <div style={{ gridColumn: 'span 2' }}>
             <label className="label">Description (optional)</label>
-            <input 
-              className="input" 
+            <input
+              className="input"
               placeholder="Session details..."
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -3260,8 +3260,8 @@ function SessionsTab() {
           </div>
         </div>
 
-        <button 
-          className="button primary" 
+        <button
+          className="button primary"
           onClick={createSession}
           disabled={creating}
           style={{ marginTop: '16px' }}
@@ -3280,10 +3280,10 @@ function SessionsTab() {
             <p>Loading sessions...</p>
           </div>
         ) : sessions.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            padding: '40px', 
-            background: '#f5f5f5', 
+          <div style={{
+            textAlign: 'center',
+            padding: '40px',
+            background: '#f5f5f5',
             borderRadius: '8px',
             color: '#666'
           }}>
@@ -3296,8 +3296,8 @@ function SessionsTab() {
           <>
             {/* Sessions Table */}
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ 
-                width: '100%', 
+              <table style={{
+                width: '100%',
                 borderCollapse: 'collapse',
                 background: 'white',
                 borderRadius: '8px',
@@ -3306,53 +3306,53 @@ function SessionsTab() {
               }}>
                 <thead>
                   <tr style={{ background: '#f5f5f5' }}>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd',
                       cursor: 'pointer'
                     }} onClick={() => handleSort('session_id')}>
                       Session ID {sortBy === 'session_id' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd'
                     }}>
                       Course
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd'
                     }}>
                       Title
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd',
                       cursor: 'pointer'
                     }} onClick={() => handleSort('scheduled_at')}>
                       Scheduled At {sortBy === 'scheduled_at' && (sortOrder === 'asc' ? '↑' : '↓')}
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd'
                     }}>
                       Duration
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'left', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'left',
                       borderBottom: '2px solid #ddd'
                     }}>
                       Status
                     </th>
-                    <th style={{ 
-                      padding: '12px', 
-                      textAlign: 'center', 
+                    <th style={{
+                      padding: '12px',
+                      textAlign: 'center',
                       borderBottom: '2px solid #ddd'
                     }}>
                       Action
@@ -3361,11 +3361,11 @@ function SessionsTab() {
                 </thead>
                 <tbody>
                   {displaySessions.map((session) => (
-                    <tr key={session.session_id} style={{ 
+                    <tr key={session.session_id} style={{
                       borderBottom: '1px solid #eee',
                       transition: 'background 0.2s'
                     }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'}
-                       onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
                       <td style={{ padding: '12px', fontSize: '13px', color: '#666' }}>
                         {session.session_id.substring(0, 16)}...
                       </td>
@@ -3423,9 +3423,9 @@ function SessionsTab() {
                           {/* Join Meeting Button - for Ongoing sessions */}
                           {canAccessMeeting(session) && (
                             <>
-                              <a 
-                                href={session.session_url || session.Session_URL || '#'} 
-                                target="_blank" 
+                              <a
+                                href={session.session_url || session.Session_URL || '#'}
+                                target="_blank"
                                 rel="noopener noreferrer"
                                 className="button primary sm"
                                 onClick={(e) => {
@@ -3448,7 +3448,7 @@ function SessionsTab() {
                               >
                                 🔗 Join Meeting
                               </a>
-                              
+
                               {/* End Meeting Button - for Ongoing sessions */}
                               <button
                                 onClick={() => handleEndMeeting(session.session_id)}
@@ -3471,8 +3471,8 @@ function SessionsTab() {
 
                           {/* Status text when no action available */}
                           {!canStartMeeting(session) && !canAccessMeeting(session) && (
-                            <span style={{ 
-                              color: '#999', 
+                            <span style={{
+                              color: '#999',
                               fontSize: '13px',
                               padding: '6px 16px',
                               background: '#f5f5f5',
@@ -3492,10 +3492,10 @@ function SessionsTab() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div style={{ 
-                marginTop: '20px', 
-                display: 'flex', 
-                justifyContent: 'center', 
+              <div style={{
+                marginTop: '20px',
+                display: 'flex',
+                justifyContent: 'center',
                 gap: '8px',
                 alignItems: 'center'
               }}>
@@ -3507,11 +3507,11 @@ function SessionsTab() {
                 >
                   ← Previous
                 </button>
-                
+
                 <span style={{ color: '#666', fontSize: '14px' }}>
                   Page {currentPage} of {totalPages}
                 </span>
-                
+
                 <button
                   className="button ghost sm"
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
@@ -3552,7 +3552,7 @@ function StudentsTab() {
     setError('');
     try {
       const lecturerId = lecturer?.email || lecturer?.id;
-      
+
       if (!lecturerId) {
         throw new Error('Lecturer identification not found');
       }
@@ -3657,7 +3657,7 @@ function StudentsTab() {
       <div className="student-info-container">
         <button className="back-button" onClick={onBack}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
           Back to List
         </button>
@@ -3685,7 +3685,7 @@ function StudentsTab() {
                 {student.email}
               </p>
               <div className="student-detail-badges">
-                <span className="student-badge" style={{ 
+                <span className="student-badge" style={{
                   background: getStatusColor(student.status),
                   boxShadow: `0 4px 12px ${getStatusColor(student.status)}40`
                 }}>
@@ -3772,12 +3772,12 @@ function StudentsTab() {
               {student.progress || 0}%
             </span>
           </div>
-          
+
           <div className="enhanced-progress-bar">
             <div className="progress-track">
-              <div 
-                className="progress-fill" 
-                style={{ 
+              <div
+                className="progress-fill"
+                style={{
                   width: `${student.progress || 0}%`,
                   background: getProgressGradient(student.progress || 0)
                 }}
@@ -3830,7 +3830,7 @@ function StudentsTab() {
               <h3>Activity Timeline</h3>
             </div>
           </div>
-          
+
           <div className="timeline">
             <div className="timeline-item">
               <div className="timeline-dot" style={{ background: '#00D896' }}></div>
@@ -3861,7 +3861,7 @@ function StudentsTab() {
               <h3>Contact Information</h3>
             </div>
           </div>
-          
+
           <div className="contact-items">
             <div className="contact-detail-item">
               <div className="contact-icon" style={{ background: '#EAF4FF', color: '#2E8BFF' }}>
@@ -3921,22 +3921,22 @@ function StudentsTab() {
 
       {/* Summary Stats */}
       <div className="stats" style={{ marginBottom: '20px' }}>
-        <Stat 
-          label="Total Students" 
-          value={enrollments.length} 
-          trend="Across all courses" 
+        <Stat
+          label="TOTAL STUDENTS"
+          value={enrollments.length}
+          trend="Across all courses"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
         />
-        <Stat 
-          label="Active Courses" 
-          value={courses.length} 
-          trend="Currently teaching" 
+        <Stat
+          label="ACTIVE COURSES"
+          value={courses.length}
+          trend="Currently teaching"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
         />
-        <Stat 
-          label="Avg Progress" 
-          value={enrollments.length > 0 ? `${Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)}%` : '0%'} 
-          trend="Overall completion" 
+        <Stat
+          label="AVG PROGRESS"
+          value={enrollments.length > 0 ? `${Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length)}%` : '0%'}
+          trend="Overall completion"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>}
         />
       </div>
@@ -3993,8 +3993,8 @@ function StudentsTab() {
         {filteredEnrollments.map((enrollment) => (
           <div className="t-row" key={enrollment.id}>
             <div>
-              <div 
-                className="clickable-student-name" 
+              <div
+                className="clickable-student-name"
                 onClick={() => handleViewStudent(enrollment)}
                 style={{ fontWeight: '500' }}
               >
@@ -4136,7 +4136,7 @@ function FeedbackTab() {
                     {f.courseName}
                   </div>
                 </div>
-                
+
                 {/* Comment */}
                 <div style={{
                   color: '#333',
@@ -4150,7 +4150,7 @@ function FeedbackTab() {
                 }}>
                   {f.comment}
                 </div>
-                
+
                 {/* Rating and Date */}
                 <div style={{
                   display: 'flex',
@@ -4161,7 +4161,7 @@ function FeedbackTab() {
                   <div style={{ fontSize: '1rem' }}>
                     {Array.from({ length: f.rating }).map((_, i) => '⭐').join('')}
                   </div>
-                  
+
                   {/* Date */}
                   <div style={{
                     fontSize: '0.85rem',
@@ -4311,6 +4311,7 @@ function CoursesTab() {
             createdBy: 'lecturer',
             categoryId: course.Category_Id,
             duration: course.Duration || '',
+            status: course.status || 'pending',
             courseData: course // Keep original data for updates
           }));
           setCourses(mapped);
@@ -4412,17 +4413,17 @@ function CoursesTab() {
   // Validation function
   const validateTopics = () => {
     const errors = [];
-    
+
     if (topics.length < 3) {
       errors.push('You must add at least 3 Main Topics to create a course.');
     }
-    
+
     topics.forEach((topic, idx) => {
       if (topic.subtopics.length === 0) {
         errors.push(`Main Topic ${idx + 1} must have at least 1 Sub Topic.`);
       }
     });
-    
+
     setValidationErrors(errors);
     return errors.length === 0;
   };
@@ -4430,24 +4431,24 @@ function CoursesTab() {
   const addCourse = async () => {
     // Validate form
     if (!form.categoryId || !form.name || !form.price) {
-      window.alert('Please select a category, enter course name and price.');
+      showNotification('Incomplete Form', 'Please select a category, enter course name and price.', 'error');
       return;
     }
 
     if (!form.duration) {
-      window.alert('Please specify course duration');
+      showNotification('Incomplete Form', 'Please specify course duration', 'error');
       return;
     }
 
     // Validate topics/subtopics
     if (!validateTopics()) {
-      window.alert('Please fix the following issues:\n\n' + validationErrors.join('\n'));
+      showNotification('Topic Validation Failed', 'Please fix the issues with your course topics before proceeding.', 'error');
       return;
     }
 
     // Validate lecturer is logged in
     if (!lecturer || (!lecturer.email && !lecturer.id)) {
-      window.alert('Lecturer information not found. Please log in again.');
+      showNotification('Authentication Error', 'Lecturer information not found. Please log in again.', 'error');
       return;
     }
 
@@ -4479,7 +4480,7 @@ function CoursesTab() {
         // Optional fields
         Duration: form.duration.trim(),
         Description: (form.description || '').trim(),
-        
+
         // Auto-assigned image URL
         image_url: imageAssignment.Image_URL
       };
@@ -4569,6 +4570,7 @@ function CoursesTab() {
         createdBy: 'lecturer',
         categoryId: Number(responseData.Category_Id || form.categoryId),
         duration: responseData.Duration || form.duration,
+        status: responseData.status || 'pending',
         courseData: responseData
       };
 
@@ -4587,7 +4589,7 @@ function CoursesTab() {
       setTopics([]);
 
       // Show success message
-      window.alert('✓ Course created successfully!');
+      showNotification('Success', '✓ Course created successfully!', 'success');
     } catch (error) {
       console.error('Error adding course:', error);
 
@@ -4599,7 +4601,7 @@ function CoursesTab() {
         errorMessage += error.message || 'An unknown error occurred.';
       }
 
-      window.alert(errorMessage);
+      showNotification('Update Failed', errorMessage, 'error');
     } finally {
       setSavingCourse(false);
     }
@@ -4607,13 +4609,13 @@ function CoursesTab() {
 
   const updateCourse = async () => {
     if (!editingCourse || !form.categoryId || !form.name || !form.price || !form.duration) {
-      window.alert('Please fill all required fields.');
+      showNotification('Incomplete Form', 'Please fill all required fields.', 'error');
       return;
     }
 
     // Validate topics/subtopics
     if (!validateTopics()) {
-      window.alert('Please fix the following issues:\n\n' + validationErrors.join('\n'));
+      showNotification('Topic Validation Failed', 'Please fix the issues with your course topics before proceeding.', 'error');
       return;
     }
 
@@ -4621,15 +4623,15 @@ function CoursesTab() {
 
     try {
       const courseId = editingCourse.id;
-      
+
       // Get category name for image assignment
       const selectedCategory = categories.find(cat => cat.categoryId === Number(form.categoryId));
       const categoryName = selectedCategory?.categoryName || '';
-      
+
       // 🖼️ AUTO-ASSIGN NEW IMAGE IF CATEGORY CHANGED
       const categoryChanged = editingCourse.categoryId !== Number(form.categoryId);
       let imageUrl = editingCourse.image; // Keep existing image by default
-      
+
       if (categoryChanged) {
         const imageAssignment = assignCourseImage(
           Number(form.categoryId),
@@ -4639,7 +4641,7 @@ function CoursesTab() {
         imageUrl = imageAssignment.Image_URL;
         console.log('🔄 Category changed - assigning new image:', imageAssignment);
       }
-      
+
       const updatedData = {
         Title: form.name.trim(),
         Category_Id: Number(form.categoryId),
@@ -4696,6 +4698,7 @@ function CoursesTab() {
         createdBy: 'lecturer',
         categoryId: Number(responseData.Category_Id || form.categoryId),
         duration: responseData.Duration || form.duration,
+        status: responseData.status || editingCourse.status || 'pending',
         courseData: responseData
       };
 
@@ -4749,10 +4752,10 @@ function CoursesTab() {
   };
 
   const handleDeleteClick = (course) => {
-    setDeleteConfirm({ 
-      show: true, 
-      courseId: course.id, 
-      courseName: course.name 
+    setDeleteConfirm({
+      show: true,
+      courseId: course.id,
+      courseName: course.name
     });
   };
 
@@ -4775,16 +4778,16 @@ function CoursesTab() {
       duration: course.duration || '',
       description: course.description || ''
     });
-    
+
     // Fetch full course details including topics/subtopics from API
     try {
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const courseData = result.data;
         const existing = courseData.Topics || [];
-        
+
         if (existing && Array.isArray(existing) && existing.length > 0) {
           const mapped = existing.map((t, idx) => ({
             id: t.Topic_Id || t.id || Date.now() + idx,
@@ -4811,7 +4814,7 @@ function CoursesTab() {
       console.error('Error loading course topics:', e);
       setTopics([]);
     }
-    
+
     setValidationErrors([]);
     // Scroll to top to show form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4841,7 +4844,7 @@ function CoursesTab() {
       // Fetch full course details including topics/subtopics
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}`);
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         setViewingCourse({ ...course, fullData: result.data });
       } else {
@@ -4860,7 +4863,7 @@ function CoursesTab() {
   const toggleCourseCompletion = async (course) => {
     try {
       const isCurrentlyCompleted = course.status === 'Completed';
-      
+
       const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}/complete`, {
         method: 'PATCH',
         headers: {
@@ -4870,19 +4873,19 @@ function CoursesTab() {
           isCompleted: !isCurrentlyCompleted
         })
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         // Update local state
-        setCourses(prevCourses => 
-          prevCourses.map(c => 
-            c.id === course.id 
+        setCourses(prevCourses =>
+          prevCourses.map(c =>
+            c.id === course.id
               ? { ...c, status: !isCurrentlyCompleted ? 'Completed' : 'approved' }
               : c
           )
         );
-        
+
         // Also update viewingCourse if it's the same course
         if (viewingCourse && viewingCourse.id === course.id) {
           setViewingCourse(prev => ({
@@ -4890,15 +4893,15 @@ function CoursesTab() {
             status: !isCurrentlyCompleted ? 'Completed' : 'approved'
           }));
         }
-        
+
         // Show success message
-        alert(`Course ${!isCurrentlyCompleted ? 'marked as completed' : 'unmarked as completed'} successfully!`);
+        showNotification('Success', `Course ${!isCurrentlyCompleted ? 'marked as completed' : 'unmarked as completed'} successfully!`, 'success');
       } else {
         throw new Error(result.message || 'Failed to update course status');
       }
     } catch (error) {
       console.error('Error toggling course completion:', error);
-      alert(`Error: ${error.message || 'Failed to update course status'}`);
+      showNotification('Update Failed', error.message || 'Failed to update course status', 'error');
     }
   };
 
@@ -4975,12 +4978,12 @@ function CoursesTab() {
                 disabled={savingCourse}
               />
             </div>
-            
+
             {/* Auto Image Assignment Notice */}
-            <div style={{ 
-              marginTop: '16px', 
-              padding: '12px 16px', 
-              background: 'linear-gradient(135deg, rgba(230, 255, 245, 0.5) 0%, rgba(234, 244, 255, 0.5) 100%)', 
+            <div style={{
+              marginTop: '16px',
+              padding: '12px 16px',
+              background: 'linear-gradient(135deg, rgba(230, 255, 245, 0.5) 0%, rgba(234, 244, 255, 0.5) 100%)',
               border: '1px solid rgba(46, 139, 255, 0.2)',
               borderRadius: '10px',
               display: 'flex',
@@ -4997,7 +5000,7 @@ function CoursesTab() {
                 </div>
               </div>
             </div>
-            
+
             {/* Course Topics Section */}
             <div style={{ marginTop: '20px' }} className="topic-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -5137,10 +5140,10 @@ function CoursesTab() {
                     Category: {categories.find(c => c.categoryId === course.categoryId)?.categoryName || 'N/A'}
                   </div>
                   <div style={{ fontSize: '11px', marginTop: '4px' }}>
-                    Status: <span style={{ 
-                      color: course.status === 'Completed' ? '#4ade80' : 
-                             course.status === 'approved' ? '#60a5fa' : 
-                             '#fbbf24',
+                    Status: <span style={{
+                      color: course.status === 'Completed' ? '#4ade80' :
+                        course.status === 'approved' ? '#60a5fa' :
+                          '#fbbf24',
                       fontWeight: 'bold'
                     }}>
                       {course.status || 'pending'}
@@ -5149,15 +5152,15 @@ function CoursesTab() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                <button 
-                  className={`button ghost sm ${viewingCourse?.id === course.id ? 'active' : ''}`} 
+                <button
+                  className={`button ghost sm ${viewingCourse?.id === course.id ? 'active' : ''}`}
                   onClick={() => viewCourse(course)}
                 >
                   {viewingCourse?.id === course.id ? 'Hide' : 'View'}
                 </button>
                 <button className="button ghost sm" onClick={() => startEdit(course)}>Edit</button>
-                <button 
-                  className="button ghost sm" 
+                <button
+                  className="button ghost sm"
                   onClick={() => toggleCourseCompletion(course)}
                   style={{
                     backgroundColor: course.status === 'Completed' ? '#10b981' : '#f59e0b',
@@ -5233,128 +5236,128 @@ function CoursesTab() {
 
             {/* Inline Expanded Course View */}
             {viewingCourse?.id === course.id && (
-            <div className="inline-course-view">
-              <div className="inline-course-content">
-                {/* Course Header - Image Left, Details Right */}
-                <div className="inline-view-header">
-                  <div className="inline-view-image">
-                    <img
-                      src={viewingCourse.image || viewingCourse.fullData?.image_url}
-                      alt={viewingCourse.name}
-                      onError={(e) => {
-                        e.target.src = 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80';
-                      }}
-                    />
-                  </div>
-
-                  <div className="inline-view-details">
-                    <h2 className="inline-view-title">{viewingCourse.name}</h2>
-                    
-                    <div className="inline-view-meta">
-                      <div className="inline-meta-item">
-                        <span className="inline-meta-icon">🏷️</span>
-                        <span>{categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}</span>
-                      </div>
-                      <div className="inline-meta-item">
-                        <span className="inline-meta-icon">👨‍🏫</span>
-                        <span>{viewingCourse.instructor}</span>
-                      </div>
-                      <div className="inline-meta-item">
-                        <span className="inline-meta-icon">⭐</span>
-                        <span>{viewingCourse.rating} / 5.0</span>
-                      </div>
+              <div className="inline-course-view">
+                <div className="inline-course-content">
+                  {/* Course Header - Image Left, Details Right */}
+                  <div className="inline-view-header">
+                    <div className="inline-view-image">
+                      <img
+                        src={viewingCourse.image || viewingCourse.fullData?.image_url}
+                        alt={viewingCourse.name}
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=800&q=80';
+                        }}
+                      />
                     </div>
 
-                    {viewingCourse.description && (
-                      <div className="inline-view-description">
-                        {viewingCourse.description}
-                      </div>
-                    )}
+                    <div className="inline-view-details">
+                      <h2 className="inline-view-title">{viewingCourse.name}</h2>
 
-                    <div className="inline-view-stats">
-                      <span className="inline-stat-badge">
-                        <span>💰</span>
-                        <span>₹{viewingCourse.price}</span>
-                      </span>
-                      <span className="inline-stat-badge">
-                        <span>⏱️</span>
-                        <span>{viewingCourse.duration || 'N/A'}</span>
-                      </span>
-                      <span className="inline-stat-badge" style={{ 
-                        backgroundColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.2)' : 
-                                       viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.2)' : 
-                                       'rgba(251, 191, 36, 0.2)',
-                        borderColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.5)' : 
-                                     viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.5)' : 
-                                     'rgba(251, 191, 36, 0.5)'
-                      }}>
-                        <span>{viewingCourse.status === 'Completed' ? '✅' : '⏳'}</span>
-                        <span style={{ 
-                          color: viewingCourse.status === 'Completed' ? '#4ade80' : 
-                                 viewingCourse.status === 'approved' ? '#60a5fa' : 
-                                 '#fbbf24'
-                        }}>
-                          {viewingCourse.status || 'pending'}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Topics & Subtopics Section */}
-                {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
-                  <div className="inline-view-section">
-                    <h4 className="inline-section-title">📋 Course Curriculum ({viewingCourse.fullData.Topics.length} Topics)</h4>
-                    <div className="inline-topics-container">
-                      {viewingCourse.fullData.Topics.map((topic, idx) => (
-                        <div key={topic.Topic_Id || idx} className="inline-topic-card">
-                          <div className="inline-topic-header">
-                            <span className="inline-topic-number">{topic.Order_Number}.</span>
-                            <div className="inline-topic-info">
-                              <span className="inline-topic-title">{topic.Title}</span>
-                              {topic.Description && (
-                                <div className="inline-topic-description">{topic.Description}</div>
-                              )}
-                              {topic.Estimated_Hours && (
-                                <div className="inline-topic-hours">⏱ {topic.Estimated_Hours} hours</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Subtopics */}
-                          {topic.SubTopics && topic.SubTopics.length > 0 && (
-                            <div className="inline-subtopics">
-                              {topic.SubTopics.map((sub, subIdx) => (
-                                <div key={sub.SubTopic_Id || subIdx} className="inline-subtopic-item">
-                                  <span className="inline-subtopic-number">{sub.Order_Number}</span>
-                                  <div className="inline-subtopic-content">
-                                    <span className="inline-subtopic-title">{sub.Title}</span>
-                                    {sub.Description && (
-                                      <div className="inline-subtopic-description">{sub.Description}</div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                      <div className="inline-view-meta">
+                        <div className="inline-meta-item">
+                          <span className="inline-meta-icon">🏷️</span>
+                          <span>{categories.find(c => c.categoryId === viewingCourse.categoryId)?.categoryName || 'N/A'}</span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                        <div className="inline-meta-item">
+                          <span className="inline-meta-icon">👨‍🏫</span>
+                          <span>{viewingCourse.instructor}</span>
+                        </div>
+                        <div className="inline-meta-item">
+                          <span className="inline-meta-icon">⭐</span>
+                          <span>{viewingCourse.rating} / 5.0</span>
+                        </div>
+                      </div>
 
-                {/* No Topics Message */}
-                {(!viewingCourse.fullData?.Topics || viewingCourse.fullData.Topics.length === 0) && (
-                  <div className="inline-view-section">
-                    <div className="inline-no-content">
-                      <div style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
-                      <div>No topics added to this course yet.</div>
+                      {viewingCourse.description && (
+                        <div className="inline-view-description">
+                          {viewingCourse.description}
+                        </div>
+                      )}
+
+                      <div className="inline-view-stats">
+                        <span className="inline-stat-badge">
+                          <span>💰</span>
+                          <span>₹{viewingCourse.price}</span>
+                        </span>
+                        <span className="inline-stat-badge">
+                          <span>⏱️</span>
+                          <span>{viewingCourse.duration || 'N/A'}</span>
+                        </span>
+                        <span className="inline-stat-badge" style={{
+                          backgroundColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.2)' :
+                            viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.2)' :
+                              'rgba(251, 191, 36, 0.2)',
+                          borderColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.5)' :
+                            viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.5)' :
+                              'rgba(251, 191, 36, 0.5)'
+                        }}>
+                          <span>{viewingCourse.status === 'Completed' ? '✅' : '⏳'}</span>
+                          <span style={{
+                            color: viewingCourse.status === 'Completed' ? '#4ade80' :
+                              viewingCourse.status === 'approved' ? '#60a5fa' :
+                                '#fbbf24'
+                          }}>
+                            {viewingCourse.status || 'pending'}
+                          </span>
+                        </span>
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Topics & Subtopics Section */}
+                  {viewingCourse.fullData?.Topics && viewingCourse.fullData.Topics.length > 0 && (
+                    <div className="inline-view-section">
+                      <h4 className="inline-section-title">📋 Course Curriculum ({viewingCourse.fullData.Topics.length} Topics)</h4>
+                      <div className="inline-topics-container">
+                        {viewingCourse.fullData.Topics.map((topic, idx) => (
+                          <div key={topic.Topic_Id || idx} className="inline-topic-card">
+                            <div className="inline-topic-header">
+                              <span className="inline-topic-number">{topic.Order_Number}.</span>
+                              <div className="inline-topic-info">
+                                <span className="inline-topic-title">{topic.Title}</span>
+                                {topic.Description && (
+                                  <div className="inline-topic-description">{topic.Description}</div>
+                                )}
+                                {topic.Estimated_Hours && (
+                                  <div className="inline-topic-hours">⏱ {topic.Estimated_Hours} hours</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Subtopics */}
+                            {topic.SubTopics && topic.SubTopics.length > 0 && (
+                              <div className="inline-subtopics">
+                                {topic.SubTopics.map((sub, subIdx) => (
+                                  <div key={sub.SubTopic_Id || subIdx} className="inline-subtopic-item">
+                                    <span className="inline-subtopic-number">{sub.Order_Number}</span>
+                                    <div className="inline-subtopic-content">
+                                      <span className="inline-subtopic-title">{sub.Title}</span>
+                                      {sub.Description && (
+                                        <div className="inline-subtopic-description">{sub.Description}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Topics Message */}
+                  {(!viewingCourse.fullData?.Topics || viewingCourse.fullData.Topics.length === 0) && (
+                    <div className="inline-view-section">
+                      <div className="inline-no-content">
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>📚</div>
+                        <div>No topics added to this course yet.</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
           </React.Fragment>
         ))}
       </div>
@@ -5431,7 +5434,7 @@ function EarningsTab() {
   const generateEarningsChartPoints = () => {
     const data = monthlyEarningsChart.data;
     if (!data || data.length === 0) return '10,150 50,150 90,150 130,150 170,150 210,150 250,150 290,150';
-    
+
     const maxValue = Math.max(...data, 1);
     const points = data.map((value, index) => {
       const x = 10 + (index * 280 / (data.length - 1));
@@ -5445,7 +5448,7 @@ function EarningsTab() {
   const generateEnrollmentBars = () => {
     const data = enrollmentsChart.data;
     if (!data || data.length === 0) return [];
-    
+
     const maxValue = Math.max(...data, 1);
     return data.map((value, index) => {
       const x = 30 + (index * 60);
@@ -5459,26 +5462,26 @@ function EarningsTab() {
     <div className="panel">
       <h3>Earnings & Payouts</h3>
       <div className="stats">
-        <Stat 
-          label="Total Earnings" 
+        <Stat
+          label="Total Earnings"
           value={totalEarnings === 0 ? '₹0' : `₹${totalEarnings.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
-          trend="Paid + Processed" 
+          trend="Paid + Processed"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>}
         />
-        <Stat 
-          label="Pending Earnings" 
+        <Stat
+          label="Pending Earnings"
           value={pendingEarnings === 0 ? '₹0' : `₹${pendingEarnings.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
-          trend="Awaiting payout" 
+          trend="Awaiting payout"
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>}
         />
-        <Stat 
-          label="Active Courses" 
+        <Stat
+          label="Active Courses"
           value={activeCourses.toString()}
           trend={`${activeCourses} course${activeCourses !== 1 ? 's' : ''}`}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>}
         />
-        <Stat 
-          label="Avg. Rating" 
+        <Stat
+          label="Avg. Rating"
           value={avgRating}
           trend={parseFloat(avgRating) > 0 ? `${feedbackList.length} reviews` : 'No reviews yet'}
           icon={<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>}
@@ -5527,12 +5530,11 @@ function EarningsTab() {
               <div>{earning.transactionType || 'Course Sale'}</div>
               <div style={{ fontWeight: 'bold', color: '#00a67e' }}>₹{earning.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
               <div>
-                <span className={`badge ${
-                  earning.status === 'Paid' ? 'success' : 
-                  earning.status === 'Processed' ? 'info' : 
-                  earning.status === 'Pending' ? 'warning' : 
-                  'error'
-                }`}>
+                <span className={`badge ${earning.status === 'Paid' ? 'success' :
+                  earning.status === 'Processed' ? 'info' :
+                    earning.status === 'Pending' ? 'warning' :
+                      'error'
+                  }`}>
                   {earning.status}
                 </span>
               </div>
@@ -5554,11 +5556,26 @@ function LecturerDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [profileOpen, setProfileOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [notification, setNotification] = useState({ show: false, title: '', message: '', type: 'success' });
+
+  const showNotification = (title, message, type = 'success') => {
+    setNotification({ show: true, title, message, type });
+    // Auto-hide after 5 seconds if it's a success message
+    if (type === 'success') {
+      setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
+    }
+  };
+
+  const closeNotification = () => {
+    setNotification(prev => ({ ...prev, show: false }));
+  };
 
   useEffect(() => {
     const raw = localStorage.getItem('lecturer_user');
     if (!raw) {
-      window.alert('Please login as lecturer');
+      showNotification('Login Required', 'Please login as lecturer to access the dashboard.', 'error');
     }
   }, []);
 
@@ -5669,7 +5686,7 @@ function LecturerDashboard({ onLogout }) {
         <div className="main">
           {activeTab === 'overview' && <OverviewTab />}
 
-          {activeTab === 'courses' && <CoursesTab />}
+          {activeTab === 'courses' && <CoursesTab showNotification={showNotification} />}
           {activeTab === 'students' && <StudentsTab />}
           {activeTab === 'uploads' && <UploadsTab />}
           {activeTab === 'submissions' && <SubmissionsTab />}
@@ -5679,7 +5696,113 @@ function LecturerDashboard({ onLogout }) {
         </div>
       </div>
       <ProfileSlideOver open={profileOpen} onClose={() => setProfileOpen(false)} />
-      
+
+      {/* Custom Notification Modal */}
+      {notification.show && (
+        <div
+          className="notification-modal-overlay"
+          onClick={closeNotification}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            animation: 'fadeIn 0.3s ease-out'
+          }}
+        >
+          <div
+            className="notification-modal-card"
+            onClick={e => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '20px',
+              padding: '2rem',
+              width: '90%',
+              maxWidth: '400px',
+              textAlign: 'center',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              animation: 'slideUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}
+          >
+            <div
+              className="notification-icon"
+              style={{
+                width: '70px',
+                height: '70px',
+                borderRadius: '50%',
+                backgroundColor: notification.type === 'success' ? '#e6fdf5' : '#fff1f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.5rem',
+                color: notification.type === 'success' ? '#10b981' : '#f43f5e'
+              }}
+            >
+              {notification.type === 'success' ? (
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              ) : (
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              )}
+            </div>
+            <h3 style={{
+              fontSize: '1.5rem',
+              fontWeight: '700',
+              color: '#1f2937',
+              marginBottom: '0.5rem',
+              fontFamily: "'Inter', sans-serif"
+            }}>
+              {notification.title}
+            </h3>
+            <p style={{
+              color: '#6b7280',
+              fontSize: '1rem',
+              lineHeight: '1.5',
+              marginBottom: '1.5rem'
+            }}>
+              {notification.message}
+            </p>
+            <button
+              onClick={closeNotification}
+              style={{
+                width: '100%',
+                padding: '0.875rem',
+                borderRadius: '12px',
+                backgroundColor: notification.type === 'success' ? '#10b981' : '#f43f5e',
+                color: 'white',
+                border: 'none',
+                fontSize: '1rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: `0 4px 14px ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'}`
+              }}
+              onMouseEnter={e => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => e.target.style.transform = 'translateY(0)'}
+            >
+              Great!
+            </button>
+          </div>
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
+        </div>
+      )}
+
       {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div style={{

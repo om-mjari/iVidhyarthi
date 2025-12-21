@@ -49,7 +49,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
-  
+
   // Custom modal states
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState({ title: '', message: '', type: 'info' });
@@ -116,7 +116,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   // Ref for video section and video player
   const videoSectionRef = React.useRef(null);
   const videoPlayerRef = React.useRef(null);
-  
+
   // Timer for tracking video watch time
   const trackingIntervalRef = React.useRef(null);
 
@@ -244,7 +244,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (isPageVisible) {
         accumulatedTime += 1;
         const progressPercentage = Math.min((accumulatedTime / videoDuration) * 100, 100);
-        
+
         setVideoWatchProgress(prev => ({
           ...prev,
           [videoId]: progressPercentage
@@ -458,13 +458,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               completedVideos: result.data.completedVideos,
               completionPercentage: result.data.videoProgress
             });
-            
+
             // Set overall progress from database
             setProgress(result.data.overallProgress);
-            
+
             // Fetch completed videos list from database
             await fetchCompletedVideosList(studentId, courseId);
-            
+
             console.log('✅ Initial progress loaded from database:', result.data);
           }
         } else {
@@ -737,7 +737,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   if (typeof instituteId === 'object') {
                     instituteId = instituteId._id || instituteId.Institute_Id || instituteId.id;
                   }
-                  
+
                   if (instituteId) {
                     const instituteResponse = await fetch(`http://localhost:5000/api/institutes/${instituteId}`);
                     const instituteResult = await instituteResponse.json();
@@ -858,13 +858,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       console.warn('⚠️ Cannot refresh progress - missing studentId or selectedCourse');
       return;
     }
-    
+
     try {
       const courseId = selectedCourse.id || selectedCourse.Course_Id;
       const authToken = localStorage.getItem('auth_token');
-      
+
       console.log('📊 Calculating progress for:', { studentId, courseId });
-      
+
       // Calculate and update overall progress in database
       const calculateResponse = await fetch(
         'http://localhost:5000/api/progress/calculate',
@@ -891,10 +891,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           completedVideos: calculateResult.data.completedVideos,
           completionPercentage: calculateResult.data.videoProgress
         });
-        
+
         // Update overall progress from database
         setProgress(calculateResult.data.overallProgress);
-        
+
         console.log('✅ Progress updated:', {
           videoProgress: calculateResult.data.videoProgress,
           overallProgress: calculateResult.data.overallProgress,
@@ -903,7 +903,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       } else {
         console.error('❌ Failed to calculate progress:', calculateResult);
       }
-      
+
       // Fetch and set completed video IDs from database
       await fetchCompletedVideosList(studentId, courseId);
     } catch (error) {
@@ -1319,7 +1319,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (!video) {
         video = courseContent.videos.find(v => v.id === videoId);
       }
-      
+
       if (!video) {
         console.error('Video not found:', videoId);
         return false;
@@ -1369,7 +1369,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
       // Clone response to read it multiple times if needed
       const responseClone = response.clone();
-      
+
       let responseData;
       try {
         responseData = await response.json();
@@ -1533,8 +1533,24 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         return;
       }
 
+      // 🛑 STRICTOR QUIZ UNLOCKING LOGIC
+      // Check if course is marked as "Completed" by the lecturer
+      // This is verified via courseInfo which is fetched from the backend
+      const currentCourseStatus = courseInfo?.status || courseInfo?.data?.status || selectedCourse?.status;
+
+      if (currentCourseStatus !== 'Completed') {
+        setModalContent({
+          title: 'Quiz Locked',
+          message: 'The FINAL QUIZ is not yet available. Your instructor must mark the course as "Completed" in their dashboard before you can attempt it.',
+          type: 'warning'
+        });
+        setShowModal(true);
+        setLoadingQuiz(false);
+        return;
+      }
+
       const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
-      
+
       if (!courseId) {
         setModalContent({ title: 'Course Error', message: 'Course ID not found', type: 'error' });
         setShowModal(true);
@@ -1569,16 +1585,16 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (eligibilityData.isBlocked) {
         if (eligibilityData.blockExpiresAt) {
           const expiryDate = new Date(eligibilityData.blockExpiresAt).toLocaleDateString();
-          setModalContent({ 
-            title: 'Access Blocked', 
-            message: `You are temporarily blocked from attempting this quiz until ${expiryDate}.\n\nReason: ${eligibilityData.blockReason}`, 
-            type: 'error' 
+          setModalContent({
+            title: 'Access Blocked',
+            message: `You are temporarily blocked from attempting this quiz until ${expiryDate}.\n\nReason: ${eligibilityData.blockReason}`,
+            type: 'error'
           });
         } else {
-          setModalContent({ 
-            title: 'Access Blocked', 
-            message: `You are permanently blocked from attempting this quiz.\n\nReason: ${eligibilityData.blockReason}`, 
-            type: 'error' 
+          setModalContent({
+            title: 'Access Blocked',
+            message: `You are permanently blocked from attempting this quiz.\n\nReason: ${eligibilityData.blockReason}`,
+            type: 'error'
           });
         }
         setShowModal(true);
@@ -1588,10 +1604,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
       // Check if already passed
       if (eligibilityData.isPassed) {
-        setModalContent({ 
-          title: 'Quiz Already Passed', 
-          message: 'You have already passed this quiz! Check your certificates section.', 
-          type: 'success' 
+        setModalContent({
+          title: 'Quiz Already Passed',
+          message: 'You have already passed this quiz! Check your certificates section.',
+          type: 'success'
         });
         setShowModal(true);
         setLoadingQuiz(false);
@@ -1621,10 +1637,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         }
 
         const generatedData = await generateResponse.json();
-        setModalContent({ 
-          title: 'Quiz Generated!', 
-          message: `Quiz generated successfully! ${generatedData.totalQuestions} questions created.`, 
-          type: 'success' 
+        setModalContent({
+          title: 'Quiz Generated!',
+          message: `Quiz generated successfully! ${generatedData.totalQuestions} questions created.`,
+          type: 'success'
         });
         setShowModal(true);
         setTimeout(() => setShowModal(false), 2000);
@@ -1647,10 +1663,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       const quiz = await quizResponse.json();
 
       // Show attempt information
-      setModalContent({ 
-        title: 'Quiz Ready!', 
-        message: `Remaining attempts: ${eligibilityData.remainingAttempts}/5\n\nYou need 70% to pass and receive your certificate.`, 
-        type: 'info' 
+      setModalContent({
+        title: 'Quiz Ready!',
+        message: `Remaining attempts: ${eligibilityData.remainingAttempts}/5\n\nYou need 70% to pass and receive your certificate.`,
+        type: 'info'
       });
       setShowModal(true);
       setTimeout(() => {
@@ -1661,10 +1677,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       setLoadingQuiz(false);
     } catch (error) {
       console.error('Error starting quiz:', error);
-      setModalContent({ 
-        title: 'Error', 
-        message: `${error.message}. Please try again or contact support.`, 
-        type: 'error' 
+      setModalContent({
+        title: 'Error',
+        message: `${error.message}. Please try again or contact support.`,
+        type: 'error'
       });
       setShowModal(true);
       setLoadingQuiz(false);
@@ -2206,7 +2222,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                   const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                   const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                  return overallProgress < 100;
+
+                  // Final Quiz Unlock Condition: 100% Progress AND Course Marked as "Completed" by Lecturer
+                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                  return overallProgress < 100 || !isMarkedCompleted;
                 })()
               }
               style={{
@@ -2218,7 +2238,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
+                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                    return (overallProgress >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
                   })(),
                 color: 'white',
                 border: 'none',
@@ -2231,7 +2253,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? 'pointer' : 'not-allowed';
+                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                    return (overallProgress >= 100 && isMarkedCompleted) ? 'pointer' : 'not-allowed';
                   })(),
                 transition: 'all 0.3s ease',
                 display: 'flex',
@@ -2244,7 +2268,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    return overallProgress >= 100 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
+                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                    return (overallProgress >= 100 && isMarkedCompleted) ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
                   })()
               }}
               onMouseEnter={(e) => {
@@ -2252,7 +2278,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                 const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                 const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                if (overallProgress >= 100) {
+                const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                if (overallProgress >= 100 && isMarkedCompleted) {
                   e.target.style.transform = 'translateY(-2px)';
                   e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
                 }
@@ -2262,7 +2290,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                 const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                 const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                if (overallProgress >= 100) {
+                const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                if (overallProgress >= 100 && isMarkedCompleted) {
                   e.target.style.transform = 'translateY(0)';
                   e.target.style.boxShadow = '0 4px 15px rgba(139, 92, 246, 0.4)';
                 }
@@ -2274,7 +2304,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
                   const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                   const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                  return overallProgress >= 100 ? '📝' : '🔒';
+                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                  return (overallProgress >= 100 && isMarkedCompleted) ? '📝' : '🔒';
                 })()}
               </span>
               Attempt Quiz
@@ -2414,7 +2446,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   <button
                     onClick={async () => {
                       const currentWatchProgress = videoWatchProgress[selectedVideo.id] || 0;
-                      
+
                       // Only allow marking as completed if watched >= 80%
                       if (currentWatchProgress >= 80) {
                         // Check if already completed to prevent duplicate
@@ -2422,16 +2454,16 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                           alert('ℹ️ This video is already marked as completed!');
                           return;
                         }
-                        
+
                         console.log('🎯 Marking video as completed:', selectedVideo.id);
-                        
+
                         // Mark video as completed in database (pass selectedVideo as third parameter)
                         const saved = await updateVideoProgressInDB(selectedVideo.id, true, selectedVideo);
-                        
+
                         if (saved) {
                           // Wait a moment for database to update
                           await new Promise(resolve => setTimeout(resolve, 500));
-                          
+
                           // Refresh all progress data from database (single source of truth)
                           console.log('🔄 Refreshing progress from database...');
                           await refreshVideoProgress();
@@ -2868,7 +2900,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                       const isOwnFeedback = feedback.Student_Id === studentId;
                       const isEditing = editingFeedbackId === feedback.Feedback_Id;
                       const canEdit = isOwnFeedback && canEditFeedback(feedback.Posted_On);
-                      
+
                       return (
                         <div key={feedback.Feedback_Id || index} style={{
                           display: 'flex',
@@ -2959,7 +2991,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                                   </span>
                                 </div>
                               </div>
-                              
+
                               {/* Edit/Delete buttons */}
                               {canEdit && !isEditing && (
                                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -3346,11 +3378,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: '32px',
-              background: modalContent.type === 'error' ? '#fee' : 
-                         modalContent.type === 'success' ? '#efe' : '#e3f2fd'
+              background: modalContent.type === 'error' ? '#fee' :
+                modalContent.type === 'success' ? '#efe' : '#e3f2fd'
             }}>
-              {modalContent.type === 'error' ? '❌' : 
-               modalContent.type === 'success' ? '✅' : 'ℹ️'}
+              {modalContent.type === 'error' ? '❌' :
+                modalContent.type === 'success' ? '✅' : 'ℹ️'}
             </div>
 
             {/* Title */}
@@ -3383,7 +3415,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 width: '100%',
                 padding: '12px',
                 background: modalContent.type === 'error' ? '#ef4444' :
-                           modalContent.type === 'success' ? '#10b981' : '#667eea',
+                  modalContent.type === 'success' ? '#10b981' : '#667eea',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',

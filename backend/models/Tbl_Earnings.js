@@ -14,20 +14,32 @@ const earningsSchema = new mongoose.Schema(
       required: true,
       ref: "Tbl_Lecturers",
     },
-    Amount: {
+    Course_Id: {
+      type: String,
+      required: true,
+      ref: "Tbl_Courses",
+    },
+    Student_Id: {
+      type: String,
+      required: true,
+      ref: "Tbl_Students",
+    },
+    Enrollment_Id: {
+      type: String,
+      default: null,
+    },
+    Total_Amount: {
       type: Number,
       required: true,
       min: 0,
-      default: 0,
     },
-    Course_Id: {
-      type: String,
-      ref: "Tbl_Courses",
-      default: null,
+    Amount: {
+      type: Number,
+      required: true, // This will store the 70% share
+      min: 0,
     },
     Transaction_Type: {
       type: String,
-      enum: ["Course Sale", "Bonus", "Referral", "Adjustment", "Other"],
       default: "Course Sale",
     },
     Transaction_Date: {
@@ -37,16 +49,15 @@ const earningsSchema = new mongoose.Schema(
     Status: {
       type: String,
       enum: ["Pending", "Processed", "Paid", "Cancelled"],
-      default: "Pending",
+      default: "Paid",
     },
     Payment_Method: {
       type: String,
-      enum: ["Bank Transfer", "UPI", "Wallet", "Cheque", "Other", null],
-      default: null,
+      default: "Online",
     },
     Payment_Date: {
       type: Date,
-      default: null,
+      default: Date.now,
     },
     Notes: {
       type: String,

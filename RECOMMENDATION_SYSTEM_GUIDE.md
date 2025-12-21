@@ -81,11 +81,37 @@ GET /api/recommendations/student/:studentId?limit=10
 }
 ```
 
+**Response:**
+
+```json
+{
+  "success": true,
+  "count": 6,
+  "data": [
+    {
+      "Course_Id": "CS101",
+      "Title": "Advanced React Development",
+      "Category": "Web Development",
+      "Tags": "React, JavaScript, Frontend",
+      "matchScore": "92",
+      "matchDetails": {
+        "textSimilarity": "85.5",
+        "categoryMatch": true,
+        "tagsSimilarity": "67.3",
+        "levelMatch": true
+      }
+    }
+  ]
+}
+```
+
 ### 2. **Get Similar Courses for a Specific Course**
 
 ```
-GET /api/recommendations/course/:courseId?limit=10
+GET /api/recommendations/course/:courseId?limit=10&studentId=STU001
 ```
+
+This endpoint now accepts an optional `studentId` parameter to filter out courses the student is already enrolled in.
 
 ### 3. **Get Recommendations Based on Multiple Courses**
 
@@ -95,15 +121,20 @@ Content-Type: application/json
 
 {
   "courseIds": ["CS101", "CS102", "CS103"],
+  "studentId": "STU001",
   "limit": 10
 }
 ```
 
+This endpoint now accepts an optional `studentId` parameter to filter out courses the student is already enrolled in.
+
 ### 4. **Get Popular Courses (Fallback)**
 
 ```
-GET /api/recommendations/popular?limit=10
+GET /api/recommendations/popular?limit=10&studentId=STU001
 ```
+
+This endpoint now accepts an optional `studentId` parameter to filter out courses the student is already enrolled in.
 
 ---
 

@@ -126,15 +126,15 @@ Each recommended course shows a percentage badge indicating how well it matches 
 GET /api/recommendations/student/:studentId?limit=10
 ```
 
-Returns personalized recommendations based on enrolled courses.
+Returns personalized recommendations based on enrolled courses. This endpoint automatically filters out courses the student is already enrolled in.
 
 ### 2. Course Similarity
 
 ```
-GET /api/recommendations/course/:courseId?limit=10
+GET /api/recommendations/course/:courseId?limit=10&studentId=STU001
 ```
 
-Returns courses similar to a specific course.
+Returns courses similar to a specific course. Accepts an optional `studentId` parameter to filter out courses the student is already enrolled in.
 
 ### 3. Bulk Recommendations
 

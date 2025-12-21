@@ -4857,6 +4857,51 @@ function CoursesTab() {
     setViewingCourse(null);
   };
 
+  const toggleCourseCompletion = async (course) => {
+    try {
+      const isCurrentlyCompleted = course.status === 'Completed';
+      
+      const response = await fetch(`${API_BASE_URL}/tbl-courses/${course.id}/complete`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isCompleted: !isCurrentlyCompleted
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Update local state
+        setCourses(prevCourses => 
+          prevCourses.map(c => 
+            c.id === course.id 
+              ? { ...c, status: !isCurrentlyCompleted ? 'Completed' : 'approved' }
+              : c
+          )
+        );
+        
+        // Also update viewingCourse if it's the same course
+        if (viewingCourse && viewingCourse.id === course.id) {
+          setViewingCourse(prev => ({
+            ...prev,
+            status: !isCurrentlyCompleted ? 'Completed' : 'approved'
+          }));
+        }
+        
+        // Show success message
+        alert(`Course ${!isCurrentlyCompleted ? 'marked as completed' : 'unmarked as completed'} successfully!`);
+      } else {
+        throw new Error(result.message || 'Failed to update course status');
+      }
+    } catch (error) {
+      console.error('Error toggling course completion:', error);
+      alert(`Error: ${error.message || 'Failed to update course status'}`);
+    }
+  };
+
   return (
     <div className="panel">
       <h3>Course Management</h3>
@@ -5091,6 +5136,16 @@ function CoursesTab() {
                   <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
                     Category: {categories.find(c => c.categoryId === course.categoryId)?.categoryName || 'N/A'}
                   </div>
+                  <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                    Status: <span style={{ 
+                      color: course.status === 'Completed' ? '#4ade80' : 
+                             course.status === 'approved' ? '#60a5fa' : 
+                             '#fbbf24',
+                      fontWeight: 'bold'
+                    }}>
+                      {course.status || 'pending'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
@@ -5101,6 +5156,16 @@ function CoursesTab() {
                   {viewingCourse?.id === course.id ? 'Hide' : 'View'}
                 </button>
                 <button className="button ghost sm" onClick={() => startEdit(course)}>Edit</button>
+                <button 
+                  className="button ghost sm" 
+                  onClick={() => toggleCourseCompletion(course)}
+                  style={{
+                    backgroundColor: course.status === 'Completed' ? '#10b981' : '#f59e0b',
+                    color: 'white'
+                  }}
+                >
+                  {course.status === 'Completed' ? 'Unmark' : 'Complete'}
+                </button>
                 <button className="button ghost sm" onClick={() => handleDeleteClick(course)}>Delete</button>
               </div>
             </div>
@@ -5214,6 +5279,23 @@ function CoursesTab() {
                       <span className="inline-stat-badge">
                         <span>⏱️</span>
                         <span>{viewingCourse.duration || 'N/A'}</span>
+                      </span>
+                      <span className="inline-stat-badge" style={{ 
+                        backgroundColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.2)' : 
+                                       viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.2)' : 
+                                       'rgba(251, 191, 36, 0.2)',
+                        borderColor: viewingCourse.status === 'Completed' ? 'rgba(74, 222, 128, 0.5)' : 
+                                     viewingCourse.status === 'approved' ? 'rgba(96, 165, 250, 0.5)' : 
+                                     'rgba(251, 191, 36, 0.5)'
+                      }}>
+                        <span>{viewingCourse.status === 'Completed' ? '✅' : '⏳'}</span>
+                        <span style={{ 
+                          color: viewingCourse.status === 'Completed' ? '#4ade80' : 
+                                 viewingCourse.status === 'approved' ? '#60a5fa' : 
+                                 '#fbbf24'
+                        }}>
+                          {viewingCourse.status || 'pending'}
+                        </span>
                       </span>
                     </div>
                   </div>

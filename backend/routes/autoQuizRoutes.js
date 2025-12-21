@@ -5,6 +5,7 @@ const attemptManagementService = require('../services/attemptManagementService')
 const certificateService = require('../services/certificateService');
 const Tbl_Enrollments = require('../models/Tbl_Enrollments');
 const Tbl_ProgressTracking = require('../models/Tbl_ProgressTracking');
+const Tbl_Courses = require('../models/Tbl_Courses');
 
 router.post('/generate', async (req, res) => {
   try {
@@ -81,15 +82,25 @@ router.get('/check-progress', async (req, res) => {
       return res.status(404).json({ error: 'Enrollment not found' });
     }
 
+    // Check course status
+    const course = await Tbl_Courses.findOne({ Course_Id: parseInt(courseId) });
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
     const progress = enrollment.Progress_Percentage || 0;
-    const canAttemptQuiz = progress >= 100;
+    const isCourseCompleted = course.status === 'Completed'; // Assuming we add a 'Completed' status
+    const canAttemptQuiz = progress >= 100 && isCourseCompleted;
 
     res.status(200).json({
       progress,
+      isCourseCompleted,
       canAttemptQuiz,
       message: canAttemptQuiz 
         ? 'You can now attempt the quiz' 
-        : `Complete ${100 - progress}% more to unlock the quiz`
+        : isCourseCompleted 
+          ? `Complete ${100 - progress}% more to unlock the quiz`
+          : 'This course is not yet ready for quizzes. Please wait for the instructor to finalize the course.'
     });
 
   } catch (error) {

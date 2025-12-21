@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Enrollment = require("../models/Tbl_Enrollments");
 const Course = require("../models/Tbl_Courses");
+const Lecturer = require("../models/Tbl_Lecturers");
 
 // Create new enrollment
 router.post("/create", async (req, res) => {
@@ -79,9 +80,23 @@ router.get("/student/:studentId", async (req, res) => {
           console.log(`   ✅ Found course: ${course.Title}`);
         }
 
+        // Fetch lecturer information to get Full_Name instead of email
+        let lecturerName = null;
+        if (course && course.Lecturer_Id) {
+          const lecturer = await Lecturer.findOne({ Lecturer_Id: course.Lecturer_Id });
+          if (lecturer) {
+            lecturerName = lecturer.Full_Name;
+          }
+        }
+
+        const courseObj = course ? course.toObject() : null;
+        if (courseObj && lecturerName) {
+          courseObj.Instructor_Name = lecturerName;
+        }
+
         return {
           ...enrollment.toObject(),
-          courseDetails: course ? course.toObject() : null,
+          courseDetails: courseObj,
         };
       })
     );

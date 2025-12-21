@@ -63,20 +63,105 @@ router.post("/create", async (req, res) => {
 // Get feedback for a course
 router.get("/course/:courseId", async (req, res) => {
   try {
+    const Tbl_Students = require('../models/Tbl_Students');
+    const Tbl_Courses = require('../models/Tbl_Courses');
+    
     console.log('📋 Fetching feedbacks for courseId:', req.params.courseId);
+    
+    const limit = parseInt(req.query.limit) || 5;
+    const skip = parseInt(req.query.skip) || 0;
     
     const feedbacks = await Feedback.find({
       Course_Id: req.params.courseId.toString(),
-    }).sort({ Posted_On: -1 }).lean().catch(err => {
+    }).sort({ Posted_On: -1 }).skip(skip).limit(limit).lean().catch(err => {
       console.error('Database query error:', err);
       return [];
     });
 
-    console.log('✅ Found', feedbacks.length, 'feedbacks');
+    // Populate student names
+    const enrichedFeedbacks = await Promise.all(
+      feedbacks.map(async (feedback) => {
+        try {
+          console.log('Processing feedback with Student_Id:', feedback.Student_Id);
+          let student = null;
+          
+          // Handle seed data format (STU_001, STU_002, etc.)
+          const seedDataMap = {
+            'STU_001': 'Demo Student',
+            'STU_002': 'Test Student',
+            'STU_003': 'Sample Student'
+          };
+          
+          if (feedback.Student_Id && feedback.Student_Id.startsWith('STU_')) {
+            console.log('✅ Matched seed data format:', feedback.Student_Id, '→', seedDataMap[feedback.Student_Id]);
+            return {
+              ...feedback,
+              Student_Name: seedDataMap[feedback.Student_Id] || 'Student'
+            };
+          }
+          
+          // Try finding by User_Id first (Student_Id in feedback is actually User_Id)
+          try {
+            student = await Tbl_Students.findOne({ User_Id: feedback.Student_Id }).lean();
+            if (student) {
+              console.log('✅ Found student by User_Id:', student.Full_Name);
+            }
+          } catch (e) {
+            console.log('Error finding by User_Id:', e.message);
+          }
+          
+          // If not found by User_Id, try _id
+          if (!student) {
+            try {
+              student = await Tbl_Students.findById(feedback.Student_Id);
+              if (student) {
+                console.log('✅ Found student by _id:', student.Full_Name);
+              }
+            } catch (e) {
+              console.log('Not found by _id');
+            }
+          }
+          
+          // If still not found, try email lookup
+          if (!student) {
+            const User = require('../models/User');
+            const user = await User.findOne({ email: feedback.Student_Id }).lean();
+            if (user) {
+              student = await Tbl_Students.findOne({ User_Id: user._id }).lean();
+              if (student) {
+                console.log('✅ Found student by email lookup:', student.Full_Name);
+              }
+            }
+          }
+          
+          const finalName = student ? student.Full_Name : 'Unknown Student';
+          console.log('Final student name:', finalName);
+          
+          return {
+            ...feedback,
+            Student_Name: finalName
+          };
+        } catch (err) {
+          console.error('❌ Error fetching student for ID:', feedback.Student_Id, err);
+          return {
+            ...feedback,
+            Student_Name: 'Unknown Student'
+          };
+        }
+      })
+    );
+
+    const totalCount = await Feedback.countDocuments({
+      Course_Id: req.params.courseId.toString(),
+    });
+
+    console.log('✅ Found', enrichedFeedbacks.length, 'feedbacks out of', totalCount);
 
     res.json({
       success: true,
-      data: feedbacks || [],
+      data: enrichedFeedbacks || [],
+      total: totalCount,
+      hasMore: skip + limit < totalCount
     });
   } catch (error) {
     console.error('❌ Error fetching feedback:', error);
@@ -161,12 +246,12 @@ router.put("/update-comment/:feedbackId", async (req, res) => {
       });
     }
 
-    // Check if feedback was posted within last 24 hours
+    // Check if feedback was posted within last 2 hours
     const hoursSincePosted = (new Date() - new Date(feedback.Posted_On)) / (1000 * 60 * 60);
-    if (hoursSincePosted > 24) {
+    if (hoursSincePosted > 2) {
       return res.status(403).json({
         success: false,
-        message: "You can only update feedback within 24 hours of posting",
+        message: "You can only update feedback within 2 hours of posting",
       });
     }
 
@@ -222,12 +307,12 @@ router.delete("/delete/:feedbackId", async (req, res) => {
       });
     }
 
-    // Check if feedback was posted within last 24 hours
+    // Check if feedback was posted within last 2 hours
     const hoursSincePosted = (new Date() - new Date(feedback.Posted_On)) / (1000 * 60 * 60);
-    if (hoursSincePosted > 24) {
+    if (hoursSincePosted > 2) {
       return res.status(403).json({
         success: false,
-        message: "You can only delete feedback within 24 hours of posting",
+        message: "You can only delete feedback within 2 hours of posting",
       });
     }
 

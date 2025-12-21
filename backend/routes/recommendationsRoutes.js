@@ -33,19 +33,19 @@ router.get("/student/:studentId", async (req, res) => {
 
     // 1. Get student's enrolled courses
     const enrollments = await Tbl_Enrollments.find({ Student_Id: studentId });
-    const enrolledCourseIds = enrollments.map((e) => e.Course_Id);
+    const enrolledCourseIds = enrollments.map((e) => e.Course_Id.toString());
 
     // 2. Get all courses
     const allCourses = await Tbl_Courses.find({ Status: "Active" });
 
     // 3. Get courses that student is NOT enrolled in
     const unenrolledCourses = allCourses.filter(
-      (course) => !enrolledCourseIds.includes(course.Course_Id)
+      (course) => !enrolledCourseIds.includes(course.Course_Id.toString())
     );
 
     // 4. Get enrolled course details
     const enrolledCourses = allCourses.filter((course) =>
-      enrolledCourseIds.includes(course.Course_Id)
+      enrolledCourseIds.includes(course.Course_Id.toString())
     );
 
     // 5. Generate recommendations
@@ -78,7 +78,8 @@ router.get("/student/:studentId", async (req, res) => {
 router.get("/course/:courseId", async (req, res) => {
   try {
     const { courseId } = req.params;
-    const limit = parseInt(req.query.limit) || 10;
+    const { studentId, limit: limitParam } = req.query;
+    const limit = parseInt(limitParam) || 10;
 
     // 1. Get the target course
     const targetCourse = await Tbl_Courses.findOne({ Course_Id: courseId });
@@ -91,12 +92,27 @@ router.get("/course/:courseId", async (req, res) => {
     }
 
     // 2. Get all other active courses
-    const allCourses = await Tbl_Courses.find({
+    let allCourses = await Tbl_Courses.find({
       Status: "Active",
       Course_Id: { $ne: courseId },
     });
 
-    // 3. Generate recommendations
+    // 3. If studentId is provided, filter out courses the student is already enrolled in
+    if (studentId) {
+      console.log('🔍 Filtering out courses already enrolled by student:', studentId);
+      const studentEnrollments = await Tbl_Enrollments.find({ Student_Id: studentId }).lean();
+      const enrolledCourseIds = new Set(studentEnrollments.map(e => e.Course_Id.toString()));
+      
+      console.log('📚 Student is enrolled in courses:', Array.from(enrolledCourseIds));
+      
+      allCourses = allCourses.filter(course => 
+        !enrolledCourseIds.has(course.Course_Id.toString())
+      );
+      
+      console.log('✅ After filtering,', allCourses.length, 'courses remain');
+    }
+
+    // 4. Generate recommendations
     const recommendations = recommendationEngine.generateRecommendations(
       targetCourse,
       allCourses,
@@ -129,7 +145,7 @@ router.get("/course/:courseId", async (req, res) => {
  */
 router.post("/bulk", async (req, res) => {
   try {
-    const { courseIds, limit = 10 } = req.body;
+    const { courseIds, studentId, limit = 10 } = req.body;
 
     if (!courseIds || !Array.isArray(courseIds) || courseIds.length === 0) {
       return res.status(400).json({
@@ -145,12 +161,27 @@ router.post("/bulk", async (req, res) => {
     });
 
     // 2. Get all other courses
-    const unenrolledCourses = await Tbl_Courses.find({
+    let unenrolledCourses = await Tbl_Courses.find({
       Course_Id: { $nin: courseIds },
       Status: "Active",
     });
 
-    // 3. Generate recommendations
+    // 3. If studentId is provided, filter out courses the student is already enrolled in
+    if (studentId) {
+      console.log('🔍 Filtering out courses already enrolled by student:', studentId);
+      const studentEnrollments = await Tbl_Enrollments.find({ Student_Id: studentId }).lean();
+      const enrolledCourseIds = new Set(studentEnrollments.map(e => e.Course_Id.toString()));
+      
+      console.log('📚 Student is enrolled in courses:', Array.from(enrolledCourseIds));
+      
+      unenrolledCourses = unenrolledCourses.filter(course => 
+        !enrolledCourseIds.has(course.Course_Id.toString())
+      );
+      
+      console.log('✅ After filtering,', unenrolledCourses.length, 'courses remain');
+    }
+
+    // 4. Generate recommendations
     const recommendations =
       recommendationEngine.generateMultiCourseRecommendations(
         enrolledCourses,
@@ -183,12 +214,31 @@ router.post("/bulk", async (req, res) => {
  */
 router.get("/popular", async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const { studentId, limit: limitParam } = req.query;
+    const limit = parseInt(limitParam) || 10;
 
     // Get courses sorted by rating and enrollment count
-    const popularCourses = await Tbl_Courses.find({ Status: "Active" })
+    let popularCourses = await Tbl_Courses.find({ Status: "Active" })
       .sort({ Rating: -1, Enrolled_Students: -1 })
-      .limit(limit);
+      .limit(limit * 2); // Get more courses to allow filtering
+
+    // If studentId is provided, filter out courses the student is already enrolled in
+    if (studentId) {
+      console.log('🔍 Filtering out courses already enrolled by student:', studentId);
+      const studentEnrollments = await Tbl_Enrollments.find({ Student_Id: studentId }).lean();
+      const enrolledCourseIds = new Set(studentEnrollments.map(e => e.Course_Id.toString()));
+      
+      console.log('📚 Student is enrolled in courses:', Array.from(enrolledCourseIds));
+      
+      popularCourses = popularCourses.filter(course => 
+        !enrolledCourseIds.has(course.Course_Id.toString())
+      );
+      
+      console.log('✅ After filtering,', popularCourses.length, 'courses remain');
+      
+      // Limit to requested number after filtering
+      popularCourses = popularCourses.slice(0, limit);
+    }
 
     res.json({
       success: true,
@@ -217,7 +267,8 @@ router.get("/popular", async (req, res) => {
 router.get("/also-enrolled/:courseId", async (req, res) => {
   try {
     const { courseId } = req.params;
-    const limit = parseInt(req.query.limit) || 6;
+    const { studentId, limit: limitParam } = req.query;
+    const limit = parseInt(limitParam) || 6;
 
     console.log('🔍 Finding co-enrolled courses for courseId:', courseId);
 
@@ -257,7 +308,7 @@ router.get("/also-enrolled/:courseId", async (req, res) => {
     // 4. Sort by frequency and get top courses
     const sortedCourses = Object.entries(courseFrequency)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
+      .slice(0, limit * 2) // Get more courses to allow filtering
       .map(([courseId, count]) => ({ courseId, enrollmentCount: count }));
 
     console.log('📊 Top co-enrolled courses:', sortedCourses);
@@ -273,14 +324,14 @@ router.get("/also-enrolled/:courseId", async (req, res) => {
     }
 
     // 5. Fetch course details
-    const courseIds = sortedCourses.map(c => c.courseId);
+    const courseIds = sortedCourses.map(c => Number(c.courseId));
     const courses = await Tbl_Courses.find({
       Course_Id: { $in: courseIds },
       Status: "Active"
     }).lean();
 
     // 6. Merge course details with enrollment counts
-    const recommendations = sortedCourses
+    let recommendations = sortedCourses
       .map(item => {
         const course = courses.find(c => c.Course_Id.toString() === item.courseId.toString());
         if (!course) return null;
@@ -299,6 +350,24 @@ router.get("/also-enrolled/:courseId", async (req, res) => {
         };
       })
       .filter(Boolean);
+
+    // 7. If studentId is provided, filter out courses the student is already enrolled in
+    if (studentId) {
+      console.log('🔍 Filtering out courses already enrolled by student:', studentId);
+      const studentEnrollments = await Tbl_Enrollments.find({ Student_Id: studentId }).lean();
+      const enrolledCourseIds = new Set(studentEnrollments.map(e => e.Course_Id.toString()));
+      
+      console.log('📚 Student is enrolled in courses:', Array.from(enrolledCourseIds));
+      
+      recommendations = recommendations.filter(rec => 
+        !enrolledCourseIds.has(rec.Course_Id.toString())
+      );
+      
+      console.log('✅ After filtering,', recommendations.length, 'recommendations remain');
+    }
+
+    // 8. Limit to requested number of recommendations
+    recommendations = recommendations.slice(0, limit);
 
     console.log('✅ Returning', recommendations.length, 'recommendations');
 

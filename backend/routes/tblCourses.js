@@ -353,6 +353,48 @@ router.put("/:id", async (req, res) => {
   }
 });
 
+// Mark course as completed
+router.patch("/:id/complete", async (req, res) => {
+  try {
+    const courseId = Number(req.params.id);
+    const { isCompleted } = req.body;
+
+    // Validate input
+    if (typeof isCompleted !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: "isCompleted field is required and must be a boolean",
+      });
+    }
+
+    // Find and update course
+    const course = await Tbl_Courses.findOneAndUpdate(
+      { Course_Id: courseId },
+      { status: isCompleted ? 'Completed' : 'approved' },
+      { new: true }
+    );
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: "Course not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Course ${isCompleted ? 'marked as completed' : 'unmarked as completed'} successfully`,
+      data: course,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error updating course status",
+      error: error.message,
+    });
+  }
+});
+
 // Delete course
 router.delete("/:id", async (req, res) => {
   try {

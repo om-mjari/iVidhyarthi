@@ -24,18 +24,37 @@ const RecommendedCourses = ({ onNavigate }) => {
       
       // Priority 1: If user is viewing a course, show co-enrolled courses
       if (currentCourseId) {
+        const queryParams = new URLSearchParams({
+          limit: '6'
+        });
+        
+        // Add studentId if available for filtering
+        if (studentId) {
+          queryParams.append('studentId', studentId);
+        }
+        
         console.log('🎯 Fetching co-enrolled courses for course:', currentCourseId);
-        response = await fetch(`http://localhost:5000/api/recommendations/also-enrolled/${currentCourseId}?limit=6`);
+        response = await fetch(`http://localhost:5000/api/recommendations/also-enrolled/${currentCourseId}?${queryParams}`);
       }
       // Priority 2: If user is logged in, show personalized recommendations
       else if (studentId) {
         console.log('👤 Fetching personalized recommendations for student:', studentId);
+        // The student endpoint already filters enrolled courses, but we can still pass studentId for consistency
         response = await fetch(`http://localhost:5000/api/recommendations/student/${studentId}?limit=6`);
       }
       // Priority 3: Show popular courses for non-logged-in users
       else {
+        const popularParams = new URLSearchParams({
+          limit: '6'
+        });
+        
+        // Add studentId if available for filtering
+        if (studentId) {
+          popularParams.append('studentId', studentId);
+        }
+        
         console.log('🌟 Fetching popular courses');
-        response = await fetch('http://localhost:5000/api/recommendations/popular?limit=6');
+        response = await fetch(`http://localhost:5000/api/recommendations/popular?${popularParams}`);
       }
 
       if (!response.ok) {
@@ -88,7 +107,7 @@ const RecommendedCourses = ({ onNavigate }) => {
     // Save course to localStorage and navigate to course details
     localStorage.setItem('selected_course', JSON.stringify(course));
     if (onNavigate) {
-      onNavigate('course-details');
+      onNavigate('course');
     }
   };
 

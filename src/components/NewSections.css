@@ -1,3 +1,205 @@
+/* =============================
+   Lecturer Dashboard Popups
+============================= */
+.lecturer-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(16, 24, 40, 0.18);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.lecturer-modal {
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 8px 40px rgba(20, 184, 166, 0.13), 0 1.5px 0 rgba(20, 184, 166, 0.04);
+  max-width: 700px;
+  width: 96vw;
+  min-width: 340px;
+  padding: 2.5rem 2.2rem 2.2rem 2.2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.lecturer-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+.lecturer-modal-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: 'Poppins', sans-serif;
+}
+.lecturer-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.7rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.lecturer-modal-close:hover {
+  color: #14b8a6;
+}
+.lecturer-modal-content {
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  max-height: 60vh;
+}
+.student-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(20, 184, 166, 0.07), 0 1.5px 0 rgba(20, 184, 166, 0.04);
+  margin-bottom: 2rem;
+}
+.student-table th, .student-table td {
+  padding: 1.1rem 1.2rem;
+  text-align: left;
+  font-size: 1.04rem;
+  font-family: 'Inter', sans-serif;
+}
+.student-table th {
+  background: linear-gradient(90deg, #f1f5f9 80%, #e0f2fe 100%);
+  color: #0f172a;
+  font-weight: 700;
+  border-bottom: 2px solid #e2e8f0;
+  letter-spacing: 0.02em;
+}
+.student-table tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.18s;
+}
+.student-table tr:hover {
+  background: #f0fdfa;
+}
+.student-table td {
+  color: #334155;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.student-table th:first-child, .student-table td:first-child {
+  border-left: none;
+}
+.student-table th:last-child, .student-table td:last-child {
+  border-right: none;
+}
+.status-badge.ACTIVE, .status-badge.active {
+  background: linear-gradient(90deg, #34d399 0%, #10b981 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 0.35rem 1.1rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(16,185,129,0.13);
+  border: none;
+  display: inline-block;
+}
+.student-table .view-details-btn {
+  background: linear-gradient(90deg, #38bdf8 0%, #0ea5e9 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.5rem 1.3rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(14,165,233,0.10);
+}
+.student-table .view-details-btn:hover {
+  background: linear-gradient(90deg, #0ea5e9 0%, #38bdf8 100%);
+  box-shadow: 0 4px 16px rgba(14,165,233,0.13);
+}
+/* Student Details Modal (dynamic progress, etc.) */
+.student-details-modal {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(20, 184, 166, 0.13), 0 1.5px 0 rgba(20, 184, 166, 0.04);
+  max-width: 520px;
+  width: 95vw;
+  padding: 2.2rem 2rem 2rem 2rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  overflow: hidden;
+}
+.student-details-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1.2rem;
+  font-family: 'Poppins', sans-serif;
+}
+.student-details-content {
+  overflow-y: auto;
+  max-height: 60vh;
+  padding-right: 0.5rem;
+}
+.student-progress-bar {
+  width: 100%;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  margin: 1.2rem 0 1.7rem 0;
+  overflow: hidden;
+  position: relative;
+}
+.student-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #14b8a6 0%, #0891b2 100%);
+  border-radius: 6px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.student-progress-label {
+  font-size: 1.05rem;
+  color: #0891b2;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.student-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.1rem;
+}
+.student-details-label {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 1.01rem;
+}
+.student-details-value {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 1.01rem;
+}
+@media (max-width: 700px) {
+  .lecturer-modal, .student-details-modal {
+    padding: 1.1rem 0.5rem 1.1rem 0.5rem;
+    min-width: 0;
+    max-width: 99vw;
+  }
+  .lecturer-modal-title, .student-details-header {
+    font-size: 1.1rem;
+  }
+  .student-table th, .student-table td {
+    padding: 0.7rem 0.5rem;
+    font-size: 0.97rem;
+  }
+}
 /* ========================================
 NEW SECTIONS - COMPREHENSIVE STYLING
 ======================================== */

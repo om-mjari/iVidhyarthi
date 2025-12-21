@@ -560,7 +560,7 @@ router.get("/student", async (req, res) => {
       .limit(10)
       .lean();
 
-    // Enrich with course names
+    // Enrich with course names and filter out ended sessions
     const enrichedSessions = await Promise.all(
       sessions.map(async (session) => {
         const course = await Tbl_Courses.findOne({ Course_Id: session.Course_Id });
@@ -568,7 +568,7 @@ router.get("/student", async (req, res) => {
         return {
           session_id: session.Session_Id,
           course_id: session.Course_Id,
-          course_name: course?.Course_Name || 'Unknown Course',
+          course_name: course?.Title || 'Unknown Course',
           title: session.Title,
           session_url: session.Session_Url,
           scheduled_at: session.Scheduled_At,
@@ -580,9 +580,16 @@ router.get("/student", async (req, res) => {
       })
     );
 
+    // Filter out sessions that have already ended (time-based check)
+    const activeSessions = enrichedSessions.filter(session => {
+      const scheduledTime = new Date(session.scheduled_at);
+      const endTime = new Date(scheduledTime.getTime() + session.duration * 60000);
+      return now <= endTime;
+    });
+
     res.json({
       success: true,
-      data: enrichedSessions
+      data: activeSessions
     });
   } catch (error) {
     console.error('❌ Student sessions fetch error:', error);

@@ -1,5 +1,6 @@
 const Tbl_QuizAttempts = require('../models/Tbl_QuizAttempts');
 const Tbl_Quiz = require('../models/Tbl_Quiz');
+const Tbl_Courses = require('../models/Tbl_Courses');
 
 class AttemptManagementService {
   constructor() {
@@ -22,6 +23,7 @@ class AttemptManagementService {
       bestScore: 0
     };
 
+    // Check if student has already passed
     const passedAttempt = attempts.find(a => a.Percentage >= this.passingPercentage);
     if (passedAttempt) {
       eligibility.isPassed = true;
@@ -30,6 +32,7 @@ class AttemptManagementService {
       return eligibility;
     }
 
+    // Check if student has exceeded maximum attempts
     if (attempts.length >= this.maxAttempts) {
       const lastAttempt = attempts[0];
       const blockExpiry = new Date(lastAttempt.Submitted_At);
@@ -45,6 +48,16 @@ class AttemptManagementService {
       eligibility.isBlocked = true;
       eligibility.blockReason = 'Permanently blocked after 5 failed attempts';
       return eligibility;
+    }
+
+    // Check course status - only allow quiz attempts if course is completed
+    if (courseId) {
+      const course = await Tbl_Courses.findOne({ Course_Id: parseInt(courseId) });
+      if (course && course.status !== 'Completed') {
+        eligibility.canAttempt = false;
+        eligibility.blockReason = 'This course is not yet ready for quizzes. Please wait for the instructor to finalize the course.';
+        return eligibility;
+      }
     }
 
     eligibility.canAttempt = true;

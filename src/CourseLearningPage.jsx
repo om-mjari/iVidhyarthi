@@ -65,6 +65,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [doubtSessions, setDoubtSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
 
+  // Reviews state
+  const [showAllReviews, setShowAllReviews] = useState(false);
+  const [editingFeedbackId, setEditingFeedbackId] = useState(null);
+  const [editFeedbackData, setEditFeedbackData] = useState({ rating: 5, comment: '' });
+
   // Dynamic video progress state
   const [videoProgress, setVideoProgress] = useState({
     totalVideos: 0,
@@ -492,10 +497,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         console.log('Setting selected course:', parsedCourse);
 
         // Ensure the course has required fields
-        if (!parsedCourse.name || !parsedCourse.instructor) {
-          console.warn('Course missing required fields, setting defaults');
+        if (!parsedCourse.name) {
+          console.warn('Course missing name field, setting default');
           parsedCourse.name = parsedCourse.name || parsedCourse.Title || 'Course';
-          parsedCourse.instructor = parsedCourse.instructor || parsedCourse.Instructor_Name || 'Instructor';
           parsedCourse.image = parsedCourse.image || parsedCourse.image_url || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=300&fit=crop';
         }
 
@@ -510,7 +514,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         console.error('Error parsing saved course:', error);
         const defaultCourse = {
           name: "Maths with AI",
-          instructor: "22bmiti09@gmail.com",
           image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=300&fit=crop"
         };
         console.log('Setting default course:', defaultCourse);
@@ -520,7 +523,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       console.warn('No saved course found in localStorage');
       const defaultCourse = {
         name: "Maths with AI",
-        instructor: "22bmiti09@gmail.com",
         image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=300&fit=crop"
       };
       console.log('Setting default course (no saved course):', defaultCourse);
@@ -943,14 +945,21 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   };
 
   // Fetch course feedbacks
-  const fetchCourseFeedbacks = async (courseId) => {
+  const fetchCourseFeedbacks = async (courseId, loadMore = false) => {
     try {
       setLoadingFeedbacks(true);
-      const response = await fetch(`http://localhost:5000/api/feedback/course/${courseId}`);
+      const skip = loadMore ? courseFeedbacks.length : 0;
+      const limit = loadMore ? 5 : 5;
+      const response = await fetch(`http://localhost:5000/api/feedback/course/${courseId}?skip=${skip}&limit=${limit}`);
       const result = await response.json();
 
       if (result.success) {
-        setCourseFeedbacks(result.data || []);
+        if (loadMore) {
+          setCourseFeedbacks(prev => [...prev, ...(result.data || [])]);
+        } else {
+          setCourseFeedbacks(result.data || []);
+        }
+        setShowAllReviews(loadMore || !result.hasMore);
       }
     } catch (error) {
       console.error('Error fetching feedbacks:', error);
@@ -963,7 +972,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const submitFeedback = async () => {
     // Validate inputs
     if (!feedbackData.comment.trim()) {
-      alert('Please provide feedback comment');
+      setModalContent({
+        title: 'Feedback Required',
+        message: 'Please provide feedback comment',
+        type: 'error'
+      });
+      setShowModal(true);
       return;
     }
 
@@ -983,12 +997,22 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     }
 
     if (!finalStudentId) {
-      alert('Please login to submit feedback');
+      setModalContent({
+        title: 'Login Required',
+        message: 'Please login to submit feedback',
+        type: 'error'
+      });
+      setShowModal(true);
       return;
     }
 
     if (!selectedCourse) {
-      alert('Course information not found');
+      setModalContent({
+        title: 'Course Not Found',
+        message: 'Course information not found',
+        type: 'error'
+      });
+      setShowModal(true);
       return;
     }
 
@@ -1019,17 +1043,137 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       console.log('Feedback response:', result);
 
       if (result.success) {
-        alert('✅ Thank you for your feedback! Your feedback has been submitted successfully.');
+        setModalContent({
+          title: 'Thank You!',
+          message: 'Your feedback has been submitted successfully.',
+          type: 'success'
+        });
+        setShowModal(true);
         setFeedbackData({ rating: 5, comment: '' });
         // Refresh feedbacks after submission
         fetchCourseFeedbacks(courseId);
       } else {
-        alert('Failed to submit feedback: ' + (result.message || 'Unknown error'));
+        setModalContent({
+          title: 'Submission Failed',
+          message: 'Failed to submit feedback: ' + (result.message || 'Unknown error'),
+          type: 'error'
+        });
+        setShowModal(true);
       }
     } catch (error) {
       console.error('Error submitting feedback:', error);
-      alert('Error submitting feedback. Please try again.');
+      setModalContent({
+        title: 'Error',
+        message: 'Error submitting feedback. Please try again.',
+        type: 'error'
+      });
+      setShowModal(true);
     }
+  };
+
+  // Update feedback
+  const updateFeedback = async (feedbackId) => {
+    if (!editFeedbackData.comment.trim()) {
+      setModalContent({
+        title: 'Comment Required',
+        message: 'Please provide a comment',
+        type: 'error'
+      });
+      setShowModal(true);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/feedback/update-comment/${feedbackId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Student_Id: studentId,
+          Comment: editFeedbackData.comment,
+          Rating: editFeedbackData.rating
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setModalContent({
+          title: 'Updated!',
+          message: 'Your review has been updated successfully.',
+          type: 'success'
+        });
+        setShowModal(true);
+        setEditingFeedbackId(null);
+        const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+        fetchCourseFeedbacks(courseId);
+      } else {
+        setModalContent({
+          title: 'Update Failed',
+          message: result.message || 'Failed to update review',
+          type: 'error'
+        });
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Error updating feedback:', error);
+      setModalContent({
+        title: 'Error',
+        message: 'Error updating review. Please try again.',
+        type: 'error'
+      });
+      setShowModal(true);
+    }
+  };
+
+  // Delete feedback
+  const deleteFeedback = async (feedbackId) => {
+    if (!confirm('Are you sure you want to delete your review? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/feedback/delete/${feedbackId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Student_Id: studentId
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setModalContent({
+          title: 'Deleted!',
+          message: 'Your review has been deleted successfully.',
+          type: 'success'
+        });
+        setShowModal(true);
+        const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+        fetchCourseFeedbacks(courseId);
+      } else {
+        setModalContent({
+          title: 'Delete Failed',
+          message: result.message || 'Failed to delete review',
+          type: 'error'
+        });
+        setShowModal(true);
+      }
+    } catch (error) {
+      console.error('Error deleting feedback:', error);
+      setModalContent({
+        title: 'Error',
+        message: 'Error deleting review. Please try again.',
+        type: 'error'
+      });
+      setShowModal(true);
+    }
+  };
+
+  // Check if feedback can be edited (within 2 hours)
+  const canEditFeedback = (postedOn) => {
+    const hoursSincePosted = (new Date() - new Date(postedOn)) / (1000 * 60 * 60);
+    return hoursSincePosted <= 2;
   };
 
   // Fetch doubt solving sessions for the enrolled course
@@ -1127,8 +1271,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         "Develop skills to design and implement IoT applications",
         "Explore real-world IoT use cases and industry applications"
       ]),
-      instructor: lecturerInfo?.Name || courseInfo?.Instructor || selectedCourse?.instructor || "Instructor",
-      institution: instituteInfo?.Institute_Name || courseInfo?.Institution || "IIT Kharagpur",
+      instructor: lecturerInfo?.Full_Name || courseInfo?.Instructor || selectedCourse?.instructor || "Instructor",
+      institution: instituteInfo?.Institute_Name || courseInfo?.Institution || "Institute",
       duration: selectedCourse?.duration || courseInfo?.Duration || "12 Weeks",
       level: courseInfo?.Level || "Beginner to Intermediate"
     },
@@ -1325,11 +1469,12 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           const convertedData = {
             Assignment_Id: latestSubmission.Assignment_Id,
             Marks: assignment?.Marks || assignment?.marks || 100,
+            Score: latestSubmission.Score || latestSubmission.Grade,
             File_Url: latestSubmission.File_Url,
             Submission_Data: {
               Student_Id: latestSubmission.Student_Id,
               Course_Id: latestSubmission.Course_Id,
-              Score: latestSubmission.Score,
+              Score: latestSubmission.Score || latestSubmission.Grade,
               Time_Spent: latestSubmission.Time_Spent,
               Submitted_On: latestSubmission.Submitted_On,
               Feedback: latestSubmission.Feedback,
@@ -1616,7 +1761,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <div className="submission-stats">
               <div className="stat-item">
                 <span className="stat-label">Score:</span>
-                <span className="stat-value">{selectedSubmission.Submission_Data?.Score || selectedSubmission.Score || 0} / {selectedSubmission.Marks || 10}</span>
+                <span className="stat-value">{selectedSubmission.Score || selectedSubmission.Submission_Data?.Score || 0} / {selectedSubmission.Marks || 10}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Submitted:</span>
@@ -1728,7 +1873,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           </button>
           <div className="nptel-course-title-section">
             <h1 className="nptel-course-title">{selectedCourse.name}</h1>
-            <p className="nptel-instructor">by {selectedCourse.instructor}</p>
+            <p className="nptel-instructor">by {lecturerInfo?.Full_Name || courseContent.info.instructor}</p>
           </div>
         </div>
         <div className="nptel-divider"></div>
@@ -2697,15 +2842,6 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 gap: '10px'
               }}>
                 💬 Student Reviews
-                {courseFeedbacks.length > 0 && (
-                  <span style={{
-                    fontSize: '0.9rem',
-                    color: '#666',
-                    fontWeight: 'normal'
-                  }}>
-                    ({courseFeedbacks.length})
-                  </span>
-                )}
               </h3>
 
               {loadingFeedbacks ? (
@@ -2726,109 +2862,264 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                   <p>Be the first to share your experience with this course!</p>
                 </div>
               ) : (
-                <div style={{
-                  display: 'grid',
-                  gap: '20px'
-                }}>
-                  {courseFeedbacks.map((feedback, index) => {
-                    const isOwnFeedback = feedback.Student_Id === studentId;
-                    return (
-                      <div key={feedback.Feedback_Id || index} style={{
-                        background: isOwnFeedback ? '#f0f9ff' : 'white',
-                        borderRadius: '8px',
-                        padding: '20px',
-                        border: isOwnFeedback ? '2px solid #3b82f6' : '1px solid #e0e0e0',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-                      }}>
-                        {/* Student Name and Course Name */}
-                        <div style={{
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {courseFeedbacks.map((feedback, index) => {
+                      const isOwnFeedback = feedback.Student_Id === studentId;
+                      const isEditing = editingFeedbackId === feedback.Feedback_Id;
+                      const canEdit = isOwnFeedback && canEditFeedback(feedback.Posted_On);
+                      
+                      return (
+                        <div key={feedback.Feedback_Id || index} style={{
                           display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '12px'
+                          gap: '16px',
+                          paddingBottom: '24px',
+                          borderBottom: index < courseFeedbacks.length - 1 ? '1px solid #e0e0e0' : 'none'
                         }}>
-                          <div>
+                          {/* Avatar */}
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '1.2rem',
+                            fontWeight: '700',
+                            flexShrink: 0
+                          }}>
+                            {(feedback.Student_Name || 'U').charAt(0).toUpperCase()}
+                          </div>
+
+                          {/* Content */}
+                          <div style={{ flex: 1 }}>
+                            {/* Header */}
                             <div style={{
-                              fontWeight: '700',
-                              fontSize: '1.1rem',
-                              color: '#1a1a1a',
                               display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px'
+                              justifyContent: 'space-between',
+                              alignItems: 'flex-start',
+                              marginBottom: '8px'
                             }}>
-                              {feedback.Student_Name || 'Unknown Student'}
-                              {isOwnFeedback && (
-                                <span style={{
-                                  fontSize: '0.7rem',
-                                  background: '#3b82f6',
-                                  color: 'white',
-                                  padding: '3px 10px',
-                                  borderRadius: '12px',
-                                  fontWeight: '600'
-                                }}>You</span>
+                              <div>
+                                <div style={{
+                                  fontWeight: '700',
+                                  fontSize: '1rem',
+                                  color: '#1a1a1a',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px'
+                                }}>
+                                  {feedback.Student_Name || 'Unknown Student'}
+                                  {isOwnFeedback && (
+                                    <span style={{
+                                      fontSize: '0.7rem',
+                                      background: '#3b82f6',
+                                      color: 'white',
+                                      padding: '2px 8px',
+                                      borderRadius: '10px',
+                                      fontWeight: '600'
+                                    }}>You</span>
+                                  )}
+                                </div>
+                                {/* Stars and Date */}
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  marginTop: '4px'
+                                }}>
+                                  <div style={{
+                                    display: 'flex',
+                                    gap: '2px',
+                                    fontSize: '0.9rem'
+                                  }}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <span key={star} style={{
+                                        color: star <= (feedback.Rating || 0) ? '#f59e0b' : '#d1d5db'
+                                      }}>★</span>
+                                    ))}
+                                  </div>
+                                  <span style={{
+                                    fontSize: '0.85rem',
+                                    color: '#6b7280'
+                                  }}>
+                                    {feedback.Posted_On ? (() => {
+                                      const date = new Date(feedback.Posted_On);
+                                      const now = new Date();
+                                      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                                      if (diffDays === 0) return 'Today';
+                                      if (diffDays === 1) return '1 day ago';
+                                      if (diffDays < 7) return `${diffDays} days ago`;
+                                      if (diffDays < 30) return `${Math.floor(diffDays / 7)} ${Math.floor(diffDays / 7) === 1 ? 'week' : 'weeks'} ago`;
+                                      if (diffDays < 365) return `${Math.floor(diffDays / 30)} ${Math.floor(diffDays / 30) === 1 ? 'month' : 'months'} ago`;
+                                      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+                                    })() : 'Recently'}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Edit/Delete buttons */}
+                              {canEdit && !isEditing && (
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <button
+                                    onClick={() => {
+                                      setEditingFeedbackId(feedback.Feedback_Id);
+                                      setEditFeedbackData({
+                                        rating: feedback.Rating,
+                                        comment: feedback.Comment
+                                      });
+                                    }}
+                                    style={{
+                                      padding: '4px 12px',
+                                      fontSize: '0.85rem',
+                                      color: '#3b82f6',
+                                      background: 'transparent',
+                                      border: '1px solid #3b82f6',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => deleteFeedback(feedback.Feedback_Id)}
+                                    style={{
+                                      padding: '4px 12px',
+                                      fontSize: '0.85rem',
+                                      color: '#ef4444',
+                                      background: 'transparent',
+                                      border: '1px solid #ef4444',
+                                      borderRadius: '4px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               )}
                             </div>
-                            <div style={{
-                              fontSize: '0.9rem',
-                              color: '#666',
-                              marginTop: '4px'
-                            }}>
-                              {feedback.Course_Name || 'Course'}
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* Comment */}
-                        <div style={{
-                          color: '#333',
-                          fontSize: '0.95rem',
-                          lineHeight: '1.6',
-                          marginBottom: '12px',
-                          padding: '12px',
-                          background: '#f8f9fa',
-                          borderRadius: '6px',
-                          borderLeft: '3px solid #3b82f6'
-                        }}>
-                          {feedback.Comment}
-                        </div>
-
-                        {/* Rating and Date */}
-                        <div style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          {/* Rating Stars */}
-                          <div style={{
-                            display: 'flex',
-                            gap: '3px',
-                            fontSize: '1.1rem'
-                          }}>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <span key={star} style={{
-                                color: star <= (feedback.Rating || 0) ? '#ffc107' : '#e0e0e0'
+                            {/* Comment */}
+                            {isEditing ? (
+                              <div style={{ marginTop: '12px' }}>
+                                {/* Rating */}
+                                <div style={{ marginBottom: '12px' }}>
+                                  <div style={{ fontSize: '1.5rem', display: 'flex', gap: '4px' }}>
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <span
+                                        key={star}
+                                        onClick={() => setEditFeedbackData({ ...editFeedbackData, rating: star })}
+                                        style={{
+                                          cursor: 'pointer',
+                                          color: star <= editFeedbackData.rating ? '#ffc107' : '#e0e0e0'
+                                        }}
+                                      >★</span>
+                                    ))}
+                                  </div>
+                                </div>
+                                {/* Comment textarea */}
+                                <textarea
+                                  value={editFeedbackData.comment}
+                                  onChange={(e) => setEditFeedbackData({ ...editFeedbackData, comment: e.target.value })}
+                                  style={{
+                                    width: '100%',
+                                    minHeight: '100px',
+                                    padding: '12px',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '8px',
+                                    fontSize: '0.95rem',
+                                    fontFamily: 'inherit',
+                                    resize: 'vertical'
+                                  }}
+                                  placeholder="Update your review..."
+                                />
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                  <button
+                                    onClick={() => updateFeedback(feedback.Feedback_Id)}
+                                    style={{
+                                      padding: '8px 16px',
+                                      background: '#3b82f6',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontWeight: '600',
+                                      fontSize: '0.9rem'
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingFeedbackId(null)}
+                                    style={{
+                                      padding: '8px 16px',
+                                      background: '#e5e7eb',
+                                      color: '#374151',
+                                      border: 'none',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      fontWeight: '600',
+                                      fontSize: '0.9rem'
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p style={{
+                                color: '#374151',
+                                fontSize: '0.95rem',
+                                lineHeight: '1.6',
+                                margin: '12px 0 0 0',
+                                textAlign: 'left'
                               }}>
-                                ★
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* Date */}
-                          <div style={{
-                            fontSize: '0.85rem',
-                            color: '#999'
-                          }}>
-                            {feedback.Posted_On ? new Date(feedback.Posted_On).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric'
-                            }) : 'Recently'}
+                                {feedback.Comment}
+                              </p>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Show More Button */}
+                  {!showAllReviews && (
+                    <button
+                      onClick={() => {
+                        const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                        fetchCourseFeedbacks(courseId, true);
+                      }}
+                      style={{
+                        marginTop: '24px',
+                        padding: '12px 24px',
+                        background: 'white',
+                        color: '#3b82f6',
+                        border: '2px solid #3b82f6',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                        fontSize: '1rem',
+                        width: '100%',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#3b82f6';
+                        e.target.style.color = 'white';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = 'white';
+                        e.target.style.color = '#3b82f6';
+                      }}
+                    >
+                      Show More Reviews
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

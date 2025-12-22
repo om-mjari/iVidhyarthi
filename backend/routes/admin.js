@@ -934,6 +934,7 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
     const Tbl_Sessions = require("../models/Tbl_Sessions");
     const Tbl_Courses = require("../models/Tbl_Courses");
     const Tbl_Lecturers = require("../models/Tbl_Lecturers");
+    const Tbl_Enrollments = require("../models/Tbl_Enrollments");
     const Users = require("../models/User");
 
     // Fetch all sessions sorted by scheduled date (most recent first)
@@ -948,6 +949,7 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
       sessions.map(async (session) => {
         let courseName = "Unknown Course";
         let instructorName = "Unknown Instructor";
+        let enrolledCount = 0;
 
         try {
           // Get course details - try both Course_Id formats
@@ -962,30 +964,44 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
             }).lean();
           }
 
-          console.log(`Session ${session.Session_Id} - Course lookup:`, course ? 'Found' : 'Not found');
-
           if (course) {
             courseName = course.Title || course.Course_Name || course.Name || courseName;
 
+            // Get enrollment count for this course
+            enrolledCount = await Tbl_Enrollments.countDocuments({
+              $or: [
+                { Course_Id: course.Course_Id.toString() },
+                { Course_Id: parseInt(course.Course_Id) }
+              ],
+              Status: 'Active'
+            });
+
             // Get lecturer details from course
             if (course.Lecturer_Id) {
-              // Try finding lecturer by Lecturer_Id
-              const lecturer = await Tbl_Lecturers.findOne({
-                Lecturer_Id: parseInt(course.Lecturer_Id),
+              // Try finding by email in Users table first (very common in this project)
+              const user = await Users.findOne({
+                email: course.Lecturer_Id.toLowerCase(),
               }).lean();
 
-              if (lecturer) {
-                instructorName = lecturer.Full_Name || instructorName;
-                console.log(`Found lecturer: ${instructorName}`);
+              if (user) {
+                // Find lecturer by User_Id
+                const lecturer = await Tbl_Lecturers.findOne({ User_Id: user._id }).lean();
+                instructorName = lecturer ? lecturer.Full_Name : (user.name || instructorName);
               } else {
-                // Try finding by email in Users table
-                const user = await Users.findOne({
-                  email: course.Lecturer_Id.toLowerCase(),
-                }).lean();
+                // Try finding lecturer directly by ID if Lecturer_Id is an ObjectId string or Number
+                try {
+                  const lecturer = await Tbl_Lecturers.findOne({
+                    $or: [
+                      { _id: course.Lecturer_Id },
+                      { Lecturer_Id: parseInt(course.Lecturer_Id) || -1 }
+                    ]
+                  }).lean();
 
-                if (user) {
-                  instructorName = user.name || instructorName;
-                  console.log(`Found user: ${instructorName}`);
+                  if (lecturer) {
+                    instructorName = lecturer.Full_Name || instructorName;
+                  }
+                } catch (e) {
+                  // Ignore invalid ID errors
                 }
               }
             }
@@ -1000,16 +1016,55 @@ router.get("/sessions", authenticateAdmin, async (req, res) => {
           title: session.Title,
           course_name: courseName,
           instructor: instructorName,
-          participants: session.Participants || 0,
-          status: session.Status,
+          participants: enrolledCount, // Display enrollment count as participants count
+          enrolled_students: enrolledCount,
+          status: (() => {
+            const now = new Date();
+            let schedDate = new Date(session.Scheduled_At);
+
+            // Handle potentially invalid date formats
+            if (isNaN(schedDate.getTime()) && typeof session.Scheduled_At === 'string') {
+              const parts = session.Scheduled_At.split(/[\/\- \:]/);
+              if (parts.length >= 3) {
+                const d = parseInt(parts[0]);
+                const m = parseInt(parts[1]) - 1;
+                const y = parts[2].length === 2 ? 2000 + parseInt(parts[2]) : parseInt(parts[2]);
+                const h = parseInt(parts[3]) || 0;
+                const min = parseInt(parts[4]) || 0;
+                const tempDate = new Date(y, m, d, h, min);
+                if (!isNaN(tempDate.getTime())) schedDate = tempDate;
+              }
+            }
+
+            if (isNaN(schedDate.getTime())) return session.Status || 'Upcoming';
+
+            const durationMins = parseInt(session.Duration) || 60;
+            const sessionEnd = new Date(schedDate.getTime() + (durationMins * 60000));
+            const isWayPast = now.getTime() > (sessionEnd.getTime() + (60 * 60 * 1000)); // 1 hour buffer
+
+            if (session.Status === 'Completed') return 'Completed';
+            if (session.Status === 'Cancelled') return 'Cancelled';
+
+            if (session.Status === 'Ongoing') {
+              return isWayPast ? 'Completed' : 'Ongoing';
+            }
+
+            if (schedDate > now) {
+              return 'Upcoming';
+            }
+            return 'Never Started';
+          })(),
           scheduled_at: session.Scheduled_At,
           duration: session.Duration,
           session_url: session.Session_Url,
-          meeting_link: session.Session_Url, // Add meeting_link for frontend
+          meeting_link: session.Session_Url,
           description: session.Description,
         };
       })
     );
+
+    console.log(`✅ Enrichment complete for ${enrichedSessions.length} sessions.`);
+    enrichedSessions.forEach(s => console.log(`Session: ${s.title}, DB_Status: ${sessions.find(orig => orig.Session_Id === s.id).Status}, Calculated: ${s.status}`));
 
     res.json({
       success: true,

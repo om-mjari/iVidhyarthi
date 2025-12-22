@@ -39,33 +39,73 @@
    ANIMATIONS
 ============================================ */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: var(--shadow-md); }
-  50% { box-shadow: 0 8px 32px rgba(46, 139, 255, 0.15); }
+
+  0%,
+  100% {
+    box-shadow: var(--shadow-md);
+  }
+
+  50% {
+    box-shadow: 0 8px 32px rgba(46, 139, 255, 0.15);
+  }
 }
 
 /* ============================================
@@ -296,7 +336,7 @@
 }
 
 /* Allow dropdowns to be visible outside panel */
-.panel > div:first-of-type {
+.panel>div:first-of-type {
   overflow: visible;
 }
 
@@ -866,7 +906,9 @@ select.input:focus {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .lec-profile-loading p {
@@ -1057,23 +1099,23 @@ select.input:focus {
   .lec-profile-panel {
     width: 100vw;
   }
-  
+
   .lec-profile-header {
     padding: 1.5rem;
   }
-  
+
   .lec-profile-header h3 {
     font-size: 1.4rem;
   }
-  
+
   .lec-profile-form {
     padding: 1.5rem;
   }
-  
+
   .profile-section {
     padding: 1rem;
   }
-  
+
   .radio-group {
     flex-direction: column;
     gap: 0.75rem;
@@ -1509,35 +1551,35 @@ select.input:focus {
   .lec-modal-body {
     padding: 1.5rem;
   }
-  
+
   .view-course-header {
     flex-direction: column;
     align-items: flex-start;
     padding: 1.25rem;
     gap: 1.25rem;
   }
-  
+
   .view-course-image {
     width: 100%;
   }
-  
+
   .view-course-title {
     font-size: 1.35rem;
   }
-  
+
   .view-course-meta {
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   .view-topic-header {
     padding: 0.875rem 1rem;
   }
-  
+
   .view-subtopic-item {
     padding: 0.625rem 1rem 0.625rem 2.5rem;
   }
-  
+
   .view-section-title {
     font-size: 1.15rem;
   }
@@ -1547,24 +1589,24 @@ select.input:focus {
   .lec-modal-large {
     width: 96vw;
   }
-  
+
   .lec-modal-body {
     padding: 1rem;
   }
-  
+
   .view-course-header {
     padding: 1rem;
   }
-  
+
   .view-course-title {
     font-size: 1.2rem;
   }
-  
+
   .view-topic-title,
   .view-topic-number {
     font-size: 0.95rem;
   }
-  
+
   .view-subtopic-item {
     padding: 0.5rem 0.75rem 0.5rem 2rem;
   }
@@ -1688,12 +1730,12 @@ select.input:focus {
     padding: 1.5rem;
   }
 
-  .t-row > div {
+  .t-row>div {
     display: flex;
     justify-content: space-between;
   }
 
-  .t-row > div::before {
+  .t-row>div::before {
     content: attr(data-label);
     font-weight: 700;
     color: var(--text-medium);
@@ -1751,14 +1793,37 @@ select.input:focus {
 /* ============================================
    ANIMATIONS FOR SMOOTH LOADING
 ============================================ */
-.panel > *:nth-child(1) { animation-delay: 0.1s; }
-.panel > *:nth-child(2) { animation-delay: 0.2s; }
-.panel > *:nth-child(3) { animation-delay: 0.3s; }
-.panel > *:nth-child(4) { animation-delay: 0.4s; }
-.stat:nth-child(1) { animation-delay: 0.1s; }
-.stat:nth-child(2) { animation-delay: 0.2s; }
-.stat:nth-child(3) { animation-delay: 0.3s; }
-.stat:nth-child(4) { animation-delay: 0.4s; }
+.panel>*:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.panel>*:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.panel>*:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.panel>*:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.stat:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.stat:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stat:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.stat:nth-child(4) {
+  animation-delay: 0.4s;
+}
 
 /* ============================================
    DETAIL MODAL STYLES
@@ -1781,12 +1846,17 @@ select.input:focus {
   background: white;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
-  max-width: 900px;
+  max-width: 1400px !important;
   width: 90%;
-  max-height: 85vh;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
   animation: scaleIn 0.3s ease;
+}
+
+.modal-content-wide {
+  max-width: 1600px !important;
+  width: 95% !important;
 }
 
 .modal-header {
@@ -1840,11 +1910,11 @@ select.input:focus {
     width: 95%;
     max-height: 90vh;
   }
-  
+
   .modal-header {
     padding: 16px 20px;
   }
-  
+
   .modal-body {
     padding: 16px 20px;
   }
@@ -1867,6 +1937,7 @@ select.input:focus {
     max-height: 0;
     opacity: 0;
   }
+
   to {
     max-height: 2000px;
     opacity: 1;
@@ -1884,6 +1955,7 @@ select.input:focus {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -3010,4 +3082,3 @@ select.input:focus {
     font-size: 13px;
   }
 }
-

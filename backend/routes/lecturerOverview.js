@@ -15,7 +15,7 @@ router.get("/:lecturerId", async (req, res) => {
 
     // Resolve lecturer identifier (email or ID) to actual lecturer identity
     let lecturerIdentifier = lecturerId;
-    
+
     // If it's an email, find the user and then the lecturer
     if (lecturerId.includes('@')) {
       const user = await User.findOne({ email: lecturerId.toLowerCase() });
@@ -25,7 +25,7 @@ router.get("/:lecturerId", async (req, res) => {
           message: "User not found"
         });
       }
-      
+
       const lecturer = await Tbl_Lecturers.findOne({ User_Id: user._id });
       if (!lecturer) {
         return res.status(404).json({
@@ -33,16 +33,16 @@ router.get("/:lecturerId", async (req, res) => {
           message: "Lecturer profile not found"
         });
       }
-      
+
       // Use the email as the lecturer identifier for courses
       lecturerIdentifier = lecturerId.toLowerCase();
     }
 
     // Get all courses by this lecturer (Lecturer_Id stores email)
-    const lecturerCourses = await Tbl_Courses.find({ 
-      Lecturer_Id: lecturerIdentifier 
+    const lecturerCourses = await Tbl_Courses.find({
+      Lecturer_Id: lecturerIdentifier
     });
-    
+
     const courseIds = lecturerCourses.map(course => course.Course_Id);
 
     // If no courses found, return zero stats
@@ -76,7 +76,7 @@ router.get("/:lecturerId", async (req, res) => {
     });
 
     // Count active courses
-    const activeCourses = lecturerCourses.filter(course => 
+    const activeCourses = lecturerCourses.filter(course =>
       course.Status === 'Active' || course.Is_Active === true
     ).length;
 
@@ -189,16 +189,43 @@ router.get("/:lecturerId", async (req, res) => {
           const studentUser = await User.findById(enrollment.Student_Id);
           const course = await Tbl_Courses.findOne({ Course_Id: enrollment.Course_Id });
 
+          // Get progress from Tbl_ProgressTracking
+          let progress = 0;
+          let lastActive = enrollment.Enrolled_On;
+
+          try {
+            const Tbl_ProgressTracking = require('../models/Tbl_ProgressTracking');
+            const progressRecord = await Tbl_ProgressTracking.findOne({
+              Student_Id: enrollment.Student_Id,
+              Course_Id: enrollment.Course_Id
+            });
+
+            if (progressRecord) {
+              progress = progressRecord.Progress_Percent || 0;
+              lastActive = progressRecord.Last_Accessed || enrollment.Enrolled_On;
+              console.log(`Progress for ${studentUser?.email}: ${progress}% (Last Active: ${lastActive})`);
+            } else {
+              console.log(`No progress record found for ${studentUser?.email}`);
+            }
+          } catch (err) {
+            console.log('Error fetching progress:', err.message);
+            progress = 0;
+          }
+
           return {
             id: enrollment.Enrollment_Id,
             studentName: student ? student.Full_Name : 'Unknown Student',
             email: studentUser ? studentUser.email : 'N/A',
             course: course ? course.Title : 'Unknown Course',
             enrollDate: enrollment.Enrolled_On,
-            status: enrollment.Status
+            status: enrollment.Status,
+            progress: progress,
+            lastActive: lastActive
           };
         })
       );
+
+      console.log(`✅ Fetched ${studentsDetail.length} students with progress data`);
 
       // Get courses detail
       const coursesDetail = await Promise.all(
@@ -206,7 +233,7 @@ router.get("/:lecturerId", async (req, res) => {
           const enrollmentCount = await Tbl_Enrollments.countDocuments({
             Course_Id: course.Course_Id
           });
-          
+
           return {
             id: course.Course_Id,
             title: course.Title,
@@ -225,7 +252,7 @@ router.get("/:lecturerId", async (req, res) => {
       const materialsDetail = await Promise.all(
         materials.map(async (material) => {
           const course = await Tbl_Courses.findOne({ Course_Id: material.Course_Id });
-          
+
           return {
             id: material.Content_Id,
             title: material.Title,
@@ -245,7 +272,7 @@ router.get("/:lecturerId", async (req, res) => {
       const assignmentsDetail = await Promise.all(
         assignments.map(async (assignment) => {
           const course = await Tbl_Courses.findOne({ Course_Id: assignment.Course_Id });
-          
+
           return {
             id: assignment.Assignment_Id,
             title: assignment.Title,

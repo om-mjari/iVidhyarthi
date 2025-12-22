@@ -40,11 +40,63 @@ router.get("/:lecturerId", async (req, res) => {
 
     // Enrich feedback with student names and course names
     const Student = require("../models/Tbl_Students");
+    const User = require("../models/User");
     const feedbackList = await Promise.all(
       feedbackRecords.map(async (feedback) => {
-        const student = await Student.findOne({
-          _id: feedback.Student_Id,
-        }).lean();
+        let student = null;
+
+        // Handle seed data format (STU_001, STU_002, etc.)
+        const seedDataMap = {
+          'STU_001': 'Demo Student',
+          'STU_002': 'Test Student',
+          'STU_003': 'Sample Student'
+        };
+
+        if (feedback.Student_Id && feedback.Student_Id.startsWith('STU_')) {
+          const courseId =
+            typeof feedback.Course_Id === "string"
+              ? parseInt(feedback.Course_Id)
+              : feedback.Course_Id;
+          const course = lecturerCourses.find((c) => c.Course_Id === courseId);
+
+          return {
+            id: feedback.Feedback_Id || feedback._id,
+            studentName: seedDataMap[feedback.Student_Id] || 'Student',
+            courseName: course ? course.Title : "Unknown Course",
+            rating: feedback.Rating || 0,
+            comment: feedback.Comments || feedback.Comment || "",
+            date: feedback.Created_At || feedback.Posted_On || new Date(),
+          };
+        }
+
+        // Try finding by User_Id first (Student_Id in feedback is actually User_Id)
+        try {
+          student = await Student.findOne({ User_Id: feedback.Student_Id }).lean();
+        } catch (e) {
+          // Continue to next method
+        }
+
+        // If not found by User_Id, try _id
+        if (!student) {
+          try {
+            student = await Student.findById(feedback.Student_Id).lean();
+          } catch (e) {
+            // Continue to next method
+          }
+        }
+
+        // If still not found, try email lookup
+        if (!student) {
+          try {
+            const user = await User.findOne({ email: feedback.Student_Id }).lean();
+            if (user) {
+              student = await Student.findOne({ User_Id: user._id }).lean();
+            }
+          } catch (e) {
+            // Continue
+          }
+        }
+
         const courseId =
           typeof feedback.Course_Id === "string"
             ? parseInt(feedback.Course_Id)

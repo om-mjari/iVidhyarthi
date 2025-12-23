@@ -1498,6 +1498,7 @@ const AdminDashboard = ({ onLogout }) => {
         setShowRespondModal(false);
         setSelectedFeedback(null);
         setRespondMessage('');
+        showNotification('Response sent properly', 'success');
         fetchFeedback(); // Refresh data
       } else {
         console.error('Failed to send response:', result.message);
@@ -2585,17 +2586,6 @@ const AdminDashboard = ({ onLogout }) => {
                     placeholder="Type your response here... The student will receive a notification."
                     value={respondMessage}
                     onChange={(e) => setRespondMessage(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      background: 'rgba(255,255,255,0.1)',
-                      color: 'black',
-                      fontSize: '1rem',
-                      marginTop: '0.5rem',
-                      resize: 'vertical'
-                    }}
                   />
                 </div>
               </div>

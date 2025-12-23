@@ -1188,4 +1188,45 @@ router.get("/student-profile/:userId", async (req, res) => {
   }
 });
 
+// Update student profile by User ID
+router.put("/update-student-profile/:userId", async (req, res) => {
+  try {
+    const { phone, branch, semester } = req.body;
+    const updateData = {};
+    
+    if (phone !== undefined) updateData.Mobile_No = phone;
+    if (branch !== undefined) updateData.Branch = branch;
+    if (semester !== undefined) updateData.Semester = semester;
+
+    console.log(`Updating student profile for user: ${req.params.userId}`, updateData);
+
+    const student = await Students.findOneAndUpdate(
+      { User_Id: req.params.userId },
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!student) {
+      console.log(`Student profile not found for user: ${req.params.userId}`);
+      return res.status(404).json({
+        success: false,
+        message: "Student profile not found",
+      });
+    }
+
+    console.log(`Successfully updated student profile for user: ${req.params.userId}`);
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: student,
+    });
+  } catch (error) {
+    console.error("Error updating student profile:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during profile update",
+    });
+  }
+});
+
 module.exports = router;

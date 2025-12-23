@@ -330,10 +330,6 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
             </div>
             <div className="section-content">
               <div className="info-row">
-                <div className="info-label">Enrollment Year</div>
-                <div className="info-value">{profileData.enrollmentYear || 'N/A'}</div>
-              </div>
-              <div className="info-row">
                 <div className="info-label">Course/Program</div>
                 <div className="info-value">{profileData.course || 'N/A'}</div>
               </div>
@@ -366,10 +362,6 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
                 ) : (
                   <div className="info-value">{profileData.semester || 'N/A'}</div>
                 )}
-              </div>
-              <div className="info-row">
-                <div className="info-label">Highest Qualification</div>
-                <div className="info-value">{profileData.qualification || 'N/A'}</div>
               </div>
             </div>
           </div>

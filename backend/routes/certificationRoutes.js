@@ -49,52 +49,202 @@ const sendCertificateEmail = async (email, studentName, courseName, pdfBuffer) =
   return transporter.sendMail(mailOptions);
 };
 
-// Generate and Send Certificate
+// Helper: Generate PDF Buffer (Strictly 1 Page)
+const generatePDFBuffer = async (studentName, courseName, certId) => {
+  return new Promise((resolve) => {
+    // Standard Landscape A4: 841.89 x 595.28
+    const doc = new PDFDocument({
+      layout: "landscape",
+      size: "A4",
+      margin: 0,
+      autoFirstPage: false
+    });
+
+    doc.addPage();
+    const buffers = [];
+    doc.on("data", (chunk) => buffers.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(buffers)));
+
+    const w = doc.page.width;
+    const h = doc.page.height;
+
+    // --- REFINED PREMIUM DESIGN ---
+
+    // 1. Navy Blue Polygon (Left)
+    doc.save()
+      .moveTo(0, 0)
+      .lineTo(w * 0.22, 0)
+      .lineTo(w * 0.12, h)
+      .lineTo(0, h)
+      .closePath()
+      .fill("#1a1a40");
+
+    // 2. Gold Horizontal Bars (Top & Bottom)
+    doc.rect(0, 0, w, 15).fill("#d4af37");
+    doc.rect(0, h - 15, w, 15).fill("#d4af37");
+
+    // 3. Gold Medal Icon
+    const mx = 85;
+    const my = h / 2 - 10;
+    doc.circle(mx, my, 45).fill("#b8860b");
+    doc.circle(mx, my, 40).fill("#f1c40f");
+    doc.circle(mx, my, 35).lineWidth(1).stroke("#ffffff");
+
+    // Star inside medal
+    doc.save().translate(mx, my).scale(0.7);
+    doc.moveTo(0, -30).lineTo(9, -9).lineTo(31, -9).lineTo(13, 5).lineTo(20, 27).lineTo(0, 13).lineTo(-20, 27).lineTo(-13, 5).lineTo(-31, -9).lineTo(-9, -9).closePath().fill("#1a1a40");
+    doc.restore();
+
+    // 4. Main Text Area (Centered in the remaining 78% width)
+    const centerX = w * 0.22 + (w * 0.78 / 2);
+
+    doc.fillColor("#333333")
+      .font("Helvetica-Bold")
+      .fontSize(45)
+      .text("CERTIFICATE", w * 0.22, 100, { width: w * 0.78, align: "center", characterSpacing: 2 });
+
+    doc.fillColor("#666666")
+      .font("Helvetica")
+      .fontSize(16)
+      .text("OF ACHIEVEMENT", w * 0.22, 155, { width: w * 0.78, align: "center", characterSpacing: 1 });
+
+    doc.fillColor("#1a1a40")
+      .font("Helvetica-Bold")
+      .fontSize(38)
+      .text(studentName, w * 0.22, 220, { width: w * 0.78, align: "center" });
+
+    doc.fillColor("#555555")
+      .font("Helvetica")
+      .fontSize(14)
+      .text("has successfully completed the online course", w * 0.22, 285, { width: w * 0.78, align: "center" });
+
+    doc.fillColor("#333333")
+      .font("Helvetica-Bold")
+      .fontSize(24)
+      .text(courseName, w * 0.22, 315, { width: w * 0.78, align: "center" });
+
+    // 5. Signature and Date Section
+    const lineY = h - 110;
+    const itemW = 140;
+    const gap = 100;
+    const totalW = (itemW * 2) + gap;
+    const startX = w * 0.22 + (w * 0.78 - totalW) / 2;
+
+    // Date
+    doc.moveTo(startX, lineY).lineTo(startX + itemW, lineY).lineWidth(1).strokeColor("#333333").stroke();
+    doc.fillColor("#333333").font("Helvetica-Bold").fontSize(12).text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), startX, lineY - 18, { width: itemW, align: "center" });
+    doc.font("Helvetica").fontSize(10).text("DATE", startX, lineY + 6, { width: itemW, align: "center" });
+
+    // Signature
+    const sigX = startX + itemW + gap;
+    doc.moveTo(sigX, lineY).lineTo(sigX + itemW, lineY).stroke();
+    doc.fillColor("#1a1a40").font("Times-BoldItalic").fontSize(20).text("iVidhyarthi", sigX, lineY - 22, { width: itemW, align: "center" });
+    doc.fillColor("#333333").font("Helvetica").fontSize(10).text("SIGNATURE", sigX, lineY + 6, { width: itemW, align: "center" });
+
+    // 6. Footer Info
+    doc.fontSize(8.5).fillColor("#999999").text(`Certificate ID: ${certId}`, 0, h - 35, { width: w, align: "center" });
+    doc.text("Verify this certificate at www.ividhyarthi.com", 0, h - 25, { width: w, align: "center" });
+
+    doc.end();
+  });
+};
+
+// Check if certificate exists (GET)
+router.get("/check/:courseId/:studentId", async (req, res) => {
+  try {
+    const { courseId, studentId } = req.params;
+
+    // Robust course lookup
+    let course = await Course.findOne({ Course_Id: courseId });
+    if (!course && !isNaN(courseId)) course = await Course.findOne({ Course_Id: Number(courseId) });
+    if (!course) course = await Course.findById(courseId);
+
+    if (!course) return res.json({ success: false, message: "Course not found" });
+
+    // Robust student lookup
+    let student = await Student.findOne({ _id: studentId });
+    if (!student) student = await Student.findOne({ User_Id: studentId });
+
+    if (!student) {
+      console.log(`⚠️ Student check: No student found for ID ${studentId}`);
+      return res.json({ success: true, alreadyExists: false });
+    }
+
+    // NEW ROBUST LOOKUP: Check for the exact ID provided, the Student _id, AND the User_Id
+    // This solves the problem where some records store the User ID and others store the Student ID.
+    const searchTerms = [student._id.toString(), studentId];
+    if (student.User_Id) searchTerms.push(student.User_Id.toString());
+
+    const existingCert = await Certificate.findOne({
+      Course_Id: course.Course_Id.toString(),
+      Student_Id: { $in: searchTerms }
+    });
+
+    if (existingCert) {
+      console.log(`✅ Found certificate for student ${studentId} using terms:`, searchTerms);
+      const pdfBuffer = await generatePDFBuffer(student.Full_Name, course.Title, existingCert.Certificate_Id);
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        pdfBase64: pdfBuffer.toString("base64")
+      });
+    }
+
+    res.json({ success: true, alreadyExists: false });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Generate and Send Certificate (POST)
 router.post("/generate", async (req, res) => {
   try {
-    const { courseId, studentId } = req.body;
-    console.log("🎓 Processing certificate generation for:", { courseId, studentId });
+    const { courseId, studentId, checkOnly } = req.body;
 
-    if (!courseId || !studentId) {
-      console.warn("⚠️ Missing fields in request:", { courseId, studentId });
-      return res.status(400).json({ success: false, message: "Missing required fields" });
-    }
-
-    // 1. Get Student and User info (robust lookup)
+    // Robust student lookup
     let student = await Student.findOne({ _id: studentId }).populate("User_Id");
-    if (!student) {
-      console.log(`🔍 Student not found by _id, trying by User_Id: ${studentId}`);
-      student = await Student.findOne({ User_Id: studentId }).populate("User_Id");
-    }
+    if (!student) student = await Student.findOne({ User_Id: studentId }).populate("User_Id");
+    if (!student || !student.User_Id) return res.status(404).json({ success: false, message: "Student not found" });
 
-    if (!student || !student.User_Id) {
-      console.error(`❌ Student or User not found for ID: ${studentId}`);
-      return res.status(404).json({ success: false, message: "Student record not found. Please ensure your profile is complete." });
-    }
-
-    // 2. Get Course info (robust course lookup)
+    // Robust course lookup
     let course = await Course.findOne({ Course_Id: courseId });
-    if (!course && !isNaN(courseId)) {
-      course = await Course.findOne({ Course_Id: Number(courseId) });
-    }
-    if (!course) {
-      console.log(`🔍 Course not found by Course_Id, trying by MongoDB _id: ${courseId}`);
-      course = await Course.findById(courseId);
-    }
-
-    if (!course) {
-      console.error(`❌ Course not found for ID: ${courseId}`);
-      return res.status(404).json({ success: false, message: "Course details not found." });
-    }
+    if (!course && !isNaN(courseId)) course = await Course.findOne({ Course_Id: Number(courseId) });
+    if (!course) course = await Course.findById(courseId);
+    if (!course) return res.status(404).json({ success: false, message: "Course not found" });
 
     const studentName = student.Full_Name;
     const studentEmail = student.User_Id.email;
     const courseName = course.Title;
 
-    console.log("✅ Found details:", { studentName, studentEmail, courseName });
+    // 1. Check if exists using robust search terms
+    const searchTerms = [student._id.toString(), studentId];
+    if (student.User_Id) searchTerms.push(student.User_Id.toString());
 
-    // 3. Create Certificate record
-    const newCertificate = await Certificate.create({
+    let existingCert = await Certificate.findOne({
+      Course_Id: course.Course_Id.toString(),
+      Student_Id: { $in: searchTerms }
+    });
+
+    if (existingCert) {
+      console.log(`♻️ Certificate already exists for ${studentId}, resending...`);
+      const pdfBuffer = await generatePDFBuffer(studentName, courseName, existingCert.Certificate_Id);
+
+      // ONLY resend email if it's NOT a background check
+      if (!checkOnly) {
+        try { await sendCertificateEmail(studentEmail, studentName, courseName, pdfBuffer); } catch (e) { }
+      }
+
+      return res.json({
+        success: true,
+        alreadyExists: true,
+        pdfBase64: pdfBuffer.toString("base64")
+      });
+    }
+
+    if (checkOnly) return res.json({ success: true, alreadyExists: false });
+
+    // 2. Create New
+    const newCert = await Certificate.create({
       Course_Id: course.Course_Id.toString(),
       Student_Id: student._id.toString(),
       Percentage: 100,
@@ -102,93 +252,37 @@ router.post("/generate", async (req, res) => {
       Status: "Active"
     });
 
-    console.log("📄 Certificate record created:", newCertificate.Certificate_Id);
+    const pdfBuffer = await generatePDFBuffer(studentName, courseName, newCert.Certificate_Id);
 
-    // 4. Generate PDF
-    const doc = new PDFDocument({ layout: "landscape", size: "A4" });
-    let buffers = [];
-    doc.on("data", buffers.push.bind(buffers));
+    // 3. Send Email
+    try { await sendCertificateEmail(studentEmail, studentName, courseName, pdfBuffer); } catch (e) { }
 
-    return new Promise((resolve, reject) => {
-      doc.on("end", async () => {
-        const pdfData = Buffer.concat(buffers);
-        try {
-          // Send Email
-          console.log(`📧 Sending certificate to: ${studentEmail}`);
-          await sendCertificateEmail(studentEmail, studentName, courseName, pdfData);
-          res.json({ success: true, message: "Certificate generated and sent to email", data: newCertificate });
-          resolve();
-        } catch (emailErr) {
-          console.error("❌ Error sending certificate email:", emailErr);
-          res.status(500).json({ success: false, message: "Certificate created but email failed to send. Check SMTP settings." });
-          resolve();
-        }
-      });
-
-      // PDF Design
-      const width = doc.page.width;
-      const height = doc.page.height;
-
-      // Professional Border
-      doc.rect(20, 20, width - 40, height - 40).lineWidth(8).stroke("#14b8a6");
-      doc.rect(35, 35, width - 70, height - 70).lineWidth(2).stroke("#f59e0b");
-
-      // Content
-      doc.moveDown(3);
-      doc.fillColor("#1f2937").fontSize(45).font('Helvetica-Bold').text("CERTIFICATE", { align: "center", characterSpacing: 2 });
-      doc.fontSize(20).font('Helvetica').text("OF COMPLETION", { align: "center", characterSpacing: 1 });
-
-      doc.moveDown(2);
-      doc.fontSize(18).fillColor("#4b5563").text("This is to certify that", { align: "center" });
-
-      doc.moveDown(1);
-      doc.fillColor("#14b8a6").fontSize(40).font('Helvetica-Bold').text(studentName, { align: "center" });
-
-      doc.moveDown(1);
-      doc.fillColor("#4b5563").fontSize(18).font('Helvetica').text("has successfully completed the online course", { align: "center" });
-
-      doc.moveDown(1);
-      doc.fillColor("#1f2937").fontSize(28).font('Helvetica-Bold').text(courseName, { align: "center" });
-
-      doc.moveDown(2);
-      doc.fillColor("#6b7280").fontSize(14).font('Helvetica').text(`Awarded on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: "center" });
-
-      doc.moveDown(1);
-      doc.fontSize(10).text(`Certificate ID: ${newCertificate.Certificate_Id}`, { align: "center" });
-
-      // Footer
-      doc.fontSize(20).fillColor("#14b8a6").text("iVidhyarthi", 50, height - 80, { align: "left" });
-      doc.fontSize(10).fillColor("#9ca3af").text("Learn • Build • Shine", 50, height - 55);
-
-      doc.end();
+    return res.json({
+      success: true,
+      alreadyExists: false,
+      pdfBase64: pdfBuffer.toString("base64")
     });
-
   } catch (error) {
-    console.error("❌ Error generating certificate:", error);
-    res.status(500).json({ success: false, message: "Internal server error: " + error.message });
+    console.error("❌ Certificate Error:", error);
+    res.status(500).json({ success: false, message: "Server error: " + error.message });
   }
 });
 
-// Get certificates by student ID
+// Standard list routes
 router.get("/:studentId", async (req, res) => {
   try {
-    const certificates = await Certificate.find({
-      Student_Id: req.params.studentId,
-    });
+    const certificates = await Certificate.find({ Student_Id: req.params.studentId });
     res.json({ success: true, data: certificates });
   } catch (error) {
-    console.error("Error fetching certificates:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
-// Get all certificates (Admin)
 router.get("/all/list", async (req, res) => {
   try {
     const certificates = await Certificate.find().sort({ createdAt: -1 });
     res.json({ success: true, data: certificates });
   } catch (error) {
-    console.error("Error fetching all certificates:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });

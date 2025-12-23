@@ -52,6 +52,8 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [notification, setNotification] = useState(null);
   const [generatingCertificate, setGeneratingCertificate] = useState(false);
+  const [hasCertificate, setHasCertificate] = useState(false);
+  const [certificateBase64, setCertificateBase64] = useState(null);
 
   // Custom modal states
   const [showModal, setShowModal] = useState(false);
@@ -546,6 +548,45 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       fetchDoubtSessions();
     }
   }, [selectedCourse]);
+
+  // Check if certificate already exists
+  const checkCertificate = async () => {
+    if (!selectedCourse || !studentId) return;
+
+    try {
+      const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+      console.log('🔍 Background check for certificate:', { courseId, studentId });
+      const response = await fetch(`http://localhost:5000/api/certifications/check/${courseId}/${studentId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+
+      const result = await response.json();
+      console.log('📦 Certificate check result:', result);
+      if (result.success && result.alreadyExists) {
+        setHasCertificate(true);
+        setCertificateBase64(result.pdfBase64);
+        console.log('✅ Certificate state restored');
+      } else {
+        setHasCertificate(false);
+        setCertificateBase64(null);
+      }
+    } catch (error) {
+      console.error('Error checking certificate:', error);
+    }
+  };
+
+  useEffect(() => {
+    checkCertificate();
+  }, [selectedCourse, studentId]);
+
+  // Secondary check when course info or progress is loaded to ensure button state stays synced
+  useEffect(() => {
+    if (courseInfo || videoProgress.completionPercentage >= 100) {
+      checkCertificate();
+    }
+  }, [courseInfo, videoProgress]);
 
   const fetchSubmittedAssignments = async () => {
     if (!studentId) return;
@@ -2254,88 +2295,89 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
                     const result = await response.json();
                     if (result.success) {
-                      setNotification({ message: '🏆 Certificate generated and sent to your email!', type: 'success' });
+                      setNotification({ message: result.alreadyExists ? '🏆 Certificate sent to your email!' : '🏆 Certificate generated and sent to your email!', type: 'success' });
+                      setHasCertificate(true);
+                      setCertificateBase64(result.pdfBase64);
+
+                      // PERSIST STATE IN LOCALSTORAGE FOR REFRESH RESILIENCE
+                      localStorage.setItem(`cert_${courseId}_${studentId}`, result.pdfBase64);
+
+                      // Open the certificate PDF immediately
+                      if (result.pdfBase64) {
+                        const byteCharacters = atob(result.pdfBase64);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: 'application/pdf' });
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                      }
                     } else {
                       setNotification({ message: result.message || 'Failed to generate certificate', type: 'error' });
                     }
                   } catch (error) {
-                    console.error('Error generating certificate:', error);
-                    setNotification({ message: 'Failed to generate certificate. Please try again.', type: 'error' });
+                    console.error('Error in certification process:', error);
+                    setNotification({ message: 'Error processing certificate. Please try again.', type: 'error' });
                   } finally {
                     setGeneratingCertificate(false);
                   }
                 }}
                 disabled={
                   (() => {
+                    const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                    if (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) return false;
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = submittedAssignmentsInCourseCount;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                    return overallProgress < 100 || !isMarkedCompleted || generatingCertificate;
+                    return videoCompletion < 100 || !isMarkedCompleted || generatingCertificate;
                   })()
                 }
                 style={{
                   padding: '0.6rem 1.25rem',
                   background:
                     (() => {
+                      const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                      if (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) return 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)';
                       const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                      const submittedCount = submittedAssignmentsInCourseCount;
-                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                       const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                      return (overallProgress >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' : '#cbd5e1';
+                      return (videoCompletion >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' : '#cbd5e1';
                     })(),
                   color: 'white',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '0.9rem',
                   fontWeight: '600',
-                  cursor:
-                    (() => {
-                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                      const submittedCount = submittedAssignmentsInCourseCount;
-                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                      return (overallProgress >= 100 && isMarkedCompleted) ? 'pointer' : 'not-allowed';
-                    })(),
+                  cursor: (hasCertificate || !generatingCertificate) ? 'pointer' : 'default',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow:
-                    (() => {
-                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                      const submittedCount = submittedAssignmentsInCourseCount;
-                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                      return (overallProgress >= 100 && isMarkedCompleted) ? '0 4px 15px rgba(20, 184, 166, 0.4)' : 'none';
-                    })()
+                  boxShadow: (hasCertificate || progress >= 100) ? '0 4px 15px rgba(20, 184, 166, 0.4)' : 'none'
                 }}
                 onMouseEnter={(e) => {
+                  const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
                   const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
                   const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-                  if (videoCompletion >= 100 && isMarkedCompleted) {
-                    e.target.style.transform = 'translateY(-2px)';
+                  if ((hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`) || videoCompletion >= 100) && isMarkedCompleted) {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
                   }
                 }}
                 onMouseLeave={(e) => {
+                  const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
                   const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
                   const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-                  if (videoCompletion >= 100 && isMarkedCompleted) {
-                    e.target.style.transform = 'translateY(0)';
+                  if ((hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`) || videoCompletion >= 100) && isMarkedCompleted) {
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }
                 }}
               >
                 <span>{generatingCertificate ? '⌛' : '🎓'}</span>
-                {generatingCertificate ? 'Generating...' : 'Generate Certificate'}
+                {(() => {
+                  const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                  return generatingCertificate ? 'Generating...' : (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) ? 'Show Certificate' : 'Generate Certificate';
+                })()}
               </button>
 
               <button

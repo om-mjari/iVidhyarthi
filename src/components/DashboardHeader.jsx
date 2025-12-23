@@ -3,7 +3,7 @@ import Logo from '../Logo';
 import StudentDropdownMenu from './StudentDropdownMenu';
 import './DashboardHeader.css';
 
-const DashboardHeader = ({ user, onLogout, onNavigate, notifications = [], unreadCount = 0, onShowNotifications }) => {
+const DashboardHeader = ({ user, onLogout, onNavigate }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -39,60 +39,6 @@ const DashboardHeader = ({ user, onLogout, onNavigate, notifications = [], unrea
         </nav>
       
         <div className="header-actions" ref={dropdownRef}>
-           {/* Notification Bell */}
-           <div 
-              className="notification-bell" 
-              onClick={() => onShowNotifications?.()}
-              style={{ 
-                cursor: 'pointer', 
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '40px',
-                height: '40px',
-                background: 'rgba(255,255,255,0.1)',
-                borderRadius: '50%',
-                backdropFilter: 'blur(5px)',
-                marginRight: '0.75rem',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <span style={{ fontSize: '1.2rem' }}>🔔</span>
-              {unreadCount > 0 && (
-                <span 
-                  className="notification-badge"
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    background: '#EF4444',
-                    color: 'white',
-                    borderRadius: '50%',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold',
-                    boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)',
-                    animation: 'pulse 2s infinite'
-                  }}
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </div>
-
            <div 
               className="user-email-trigger" 
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}

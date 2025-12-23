@@ -122,6 +122,7 @@ router.post("/register", async (req, res) => {
         u = await University.create({
           University_Name: name.trim(),
           Verification_Status: "pending",
+          createdAt: new Date(), // Explicitly set current timestamp
         });
       }
       return u;
@@ -174,6 +175,14 @@ router.post("/register", async (req, res) => {
           (await findOrCreateUniversity(
             universityName || "Unknown University"
           ));
+        
+        if (usedUni) {
+          // Force university to pending status so it appears in Admin Dashboard for verification
+          usedUni.Verification_Status = "pending";
+          await usedUni.save();
+          console.log(`🏛️ University ${usedUni.University_Name} set to pending for registrar approval`);
+        }
+
         await Registrars.create({
           User_Id: user._id,
           Contact_No: commonPhone || undefined,

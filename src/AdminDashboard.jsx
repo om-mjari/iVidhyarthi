@@ -17,6 +17,7 @@ const AdminDashboard = ({ onLogout }) => {
     activeCourses: 0,
     totalCourses: 0,
     pendingApprovals: 0,
+    approvedUniversities: 0,
     totalFeedback: 0,
     liveSessions: 0,
     upcomingSessions: 0,
@@ -47,7 +48,7 @@ const AdminDashboard = ({ onLogout }) => {
   const [confirmData, setConfirmData] = useState(null);
 
   // All university requests (pending, approved, rejected)
-  const [pendingUniversities, setPendingUniversities] = useState([]);
+  const [allUniversities, setAllUniversities] = useState([]);
   const [universitiesLoading, setUniversitiesLoading] = useState(false);
   const [viewingUniversity, setViewingUniversity] = useState(null);
 
@@ -155,13 +156,16 @@ const AdminDashboard = ({ onLogout }) => {
 
       console.log('Admin Dashboard - Universities with Contact:', universitiesWithContact);
 
-      setPendingUniversities(universitiesWithContact);
+      setAllUniversities(universitiesWithContact);
 
       // Update stats with real data
-      const pendingCount = universitiesWithContact.filter(u => u.Verification_Status === 'pending').length;
+      const pendingCount = universitiesWithContact.filter(u => (u.Verification_Status || '').toLowerCase() === 'pending').length;
+      const approvedCount = universitiesWithContact.filter(u => (u.Verification_Status || '').toLowerCase() === 'verified').length;
+
       setStats(prev => ({
         ...prev,
-        pendingApprovals: pendingCount
+        pendingApprovals: pendingCount,
+        approvedUniversities: approvedCount
       }));
     } catch (error) {
       console.error('Error fetching universities:', error);
@@ -178,7 +182,7 @@ const AdminDashboard = ({ onLogout }) => {
         if (fallbackResponse.ok) {
           const fallbackResult = await fallbackResponse.json();
           if (fallbackResult.success) {
-            setPendingUniversities(fallbackResult.data.map(uni => ({ ...uni, Contact_No: '—' })));
+            setAllUniversities(fallbackResult.data.map(uni => ({ ...uni, Contact_No: '—' })));
           }
         }
       } catch (fallbackError) {
@@ -296,9 +300,11 @@ const AdminDashboard = ({ onLogout }) => {
         const approvalsResult = await approvalsResponse.json();
         console.log('📊 Approvals Stats Response:', approvalsResult);
         if (approvalsResult.success) {
-          const pendingCount = approvalsResult.data.filter(u => u.Verification_Status === 'pending').length;
+          const pendingCount = approvalsResult.data.filter(u => (u.Verification_Status || '').toLowerCase() === 'pending').length;
+          const approvedCount = approvalsResult.data.filter(u => (u.Verification_Status || '').toLowerCase() === 'verified').length;
           updatedStats.pendingApprovals = pendingCount;
-          console.log('✅ Pending approvals updated:', pendingCount);
+          updatedStats.approvedUniversities = approvedCount;
+          console.log('✅ Pending approvals updated:', pendingCount, 'Approved:', approvedCount);
         }
       } else {
         console.error('❌ Approvals stats failed:', approvalsResponse.status, await approvalsResponse.text());
@@ -938,8 +944,13 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+        setConfirmData(null);
+        showNotification(`${result.data?.name || 'University'} has been approved successfully.`, 'success');
         fetchPendingUniversities(); // Refresh the list
       } else {
+        showNotification(result.message || 'Failed to approve university.', 'error');
         console.error('Failed to approve university:', result.message);
       }
     } catch (error) {
@@ -969,8 +980,13 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
 
       if (result.success) {
+        setShowConfirmModal(false);
+        setConfirmAction(null);
+        setConfirmData(null);
+        showNotification(`${result.data?.name || 'University'} has been rejected.`, 'error');
         fetchPendingUniversities(); // Refresh the list
       } else {
+        showNotification(result.message || 'Failed to reject university.', 'error');
         console.error('Failed to reject university:', result.message);
       }
     } catch (error) {
@@ -1758,6 +1774,17 @@ const AdminDashboard = ({ onLogout }) => {
                   : '✓ All clear'
               )}
             </span>
+          </div>
+        </div>
+
+        <div className="stat-card commission" onClick={() => setActivePanel('approvals')}>
+          <div className="stat-icon">✅</div>
+          <div className="stat-content">
+            <h3 className={statsLoading ? 'loading' : ''}>
+              {statsLoading ? 'Loading...' : (stats.approvedUniversities || 0).toLocaleString('en-IN')}
+            </h3>
+            <p>Approved Universities</p>
+            <span className="stat-trend">Successfully verified</span>
           </div>
         </div>
       </div>
@@ -3206,7 +3233,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   // Apply sorting and filtering
   const getSortedAndFilteredUniversities = () => {
-    let filtered = [...pendingUniversities];
+    let filtered = [...allUniversities];
 
     // Apply search filter
     if (searchTerm) {
@@ -3220,8 +3247,9 @@ const AdminDashboard = ({ onLogout }) => {
 
     // Apply status filter
     if (statusFilter !== 'All Requests') {
+      const dbStatus = statusFilter === 'Approved' ? 'verified' : statusFilter.toLowerCase();
       filtered = filtered.filter(uni =>
-        uni.Verification_Status && uni.Verification_Status.toLowerCase() === statusFilter.toLowerCase()
+        uni.Verification_Status && uni.Verification_Status.toLowerCase() === dbStatus
       );
     }
 
@@ -3268,16 +3296,16 @@ const AdminDashboard = ({ onLogout }) => {
           <h2>✅ University Approvals</h2>
           <div className="approvals-stats">
             <span className="stat-badge">
-              <span className="stat-label">Total:</span> {pendingUniversities.length}
+              <span className="stat-label">Total:</span> {allUniversities.length}
             </span>
             <span className="stat-badge">
-              <span className="stat-label">Pending:</span> {pendingUniversities.filter(u => u.Verification_Status === 'pending').length}
+              <span className="stat-label">Pending:</span> {allUniversities.filter(u => (u.Verification_Status || '').toLowerCase() === 'pending').length}
             </span>
             <span className="stat-badge">
-              <span className="stat-label">Approved:</span> {pendingUniversities.filter(u => u.Verification_Status === 'verified').length}
+              <span className="stat-label">Approved:</span> {allUniversities.filter(u => (u.Verification_Status || '').toLowerCase() === 'verified').length}
             </span>
             <span className="stat-badge">
-              <span className="stat-label">Rejected:</span> {pendingUniversities.filter(u => u.Verification_Status === 'rejected').length}
+              <span className="stat-label">Rejected:</span> {allUniversities.filter(u => (u.Verification_Status || '').toLowerCase() === 'rejected').length}
             </span>
           </div>
         </div>
@@ -3331,24 +3359,13 @@ const AdminDashboard = ({ onLogout }) => {
                     </span>
                   </div>
                 </th>
-                <th
-                  className="sortable"
-                  onClick={() => requestSort('createdAt')}
-                >
-                  <div className="sort-header">
-                    Request Date
-                    <span className={`sort-indicator ${sortConfig.key === 'createdAt' ? 'active' : ''}`}>
-                      {getSortIndicator('createdAt')}
-                    </span>
-                  </div>
-                </th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {universitiesLoading ? (
                 <tr>
-                  <td colSpan="5" className="loading-row">
+                  <td colSpan="4" className="loading-row">
                     <div className="loading-spinner">
                       <div className="spinner"></div>
                       <span>Loading universities...</span>
@@ -3357,7 +3374,7 @@ const AdminDashboard = ({ onLogout }) => {
                 </tr>
               ) : sortedAndFilteredUniversities.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="empty-state">
+                  <td colSpan="4" className="empty-state">
                     <div className="empty-icon">📭</div>
                     <h3>No matching universities found</h3>
                     <p>Try adjusting your search or filter criteria</p>
@@ -3394,16 +3411,6 @@ const AdminDashboard = ({ onLogout }) => {
                       <span className={`status-badge ${university.Verification_Status ? university.Verification_Status.toLowerCase() : ''}`}>
                         {university.Verification_Status || '—'}
                       </span>
-                    </td>
-                    <td>
-                      <div className="date-cell">
-                        <span className="date">
-                          {university.createdAt ? new Date(university.createdAt).toLocaleDateString() : '—'}
-                        </span>
-                        <span className="time">
-                          {university.createdAt ? new Date(university.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                      </div>
                     </td>
                     <td>
                       <div className="action-buttons">

@@ -172,7 +172,7 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
     <>
       {/* Overlay */}
       <div className={`registrar-profile-overlay ${open ? 'open' : ''}`} onClick={onClose} />
-      
+
       {/* Slide-Over Panel */}
       <aside className={`registrar-profile-panel ${open ? 'open' : ''}`} aria-hidden={!open}>
         {/* Modal Header */}
@@ -211,125 +211,125 @@ function ProfileModal({ open, onClose, profileData, onProfileUpdate }) {
 
         {/* Modal Body */}
         <div className="registrar-profile-body">{activeTab === 'profile' ? (
-            <form onSubmit={saveProfile} className="profile-form">
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">✉️</span>
-                  Email Address
-                </label>
-                <input
-                  className="form-input-modern disabled"
-                  value={profileData?.email || ''}
-                  disabled
-                />
-                <span className="input-hint">This field cannot be changed</span>
-              </div>
+          <form onSubmit={saveProfile} className="profile-form">
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">✉️</span>
+                Email Address
+              </label>
+              <input
+                className="form-input-modern disabled"
+                value={profileData?.email || ''}
+                disabled
+              />
+              <span className="input-hint">This field cannot be changed</span>
+            </div>
 
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">🏛️</span>
-                  University
-                </label>
-                <input
-                  className="form-input-modern disabled"
-                  value={profileData?.university || ''}
-                  disabled
-                />
-                <span className="input-hint">Assigned by system administrator</span>
-              </div>
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">🏛️</span>
+                University
+              </label>
+              <input
+                className="form-input-modern disabled"
+                value={profileData?.university || ''}
+                disabled
+              />
+              <span className="input-hint">Assigned by system administrator</span>
+            </div>
 
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">📱</span>
-                  Contact Number
-                </label>
-                <input
-                  type="tel"
-                  className="form-input-modern"
-                  name="contact"
-                  value={form.contact || ''}
-                  onChange={handleChange}
-                  placeholder="+1 (555) 000-0000"
-                />
-              </div>
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">📱</span>
+                Contact Number
+              </label>
+              <input
+                type="tel"
+                className="form-input-modern"
+                name="contact"
+                value={form.contact || ''}
+                onChange={handleChange}
+                placeholder="+1 (555) 000-0000"
+              />
+            </div>
 
-              <div className="modal-actions">
-                <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
-                  <span>✕</span> Cancel
-                </button>
-                <button type="submit" className="modal-btn save-btn">
-                  <span>✓</span> Save Changes
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={changePassword} className="profile-form">
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">🔒</span>
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  className="form-input-modern"
-                  name="currentPassword"
-                  value={form.currentPassword || ''}
-                  onChange={handleChange}
-                  placeholder="Enter current password"
-                  required
-                />
-              </div>
+            <div className="modal-actions">
+              <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
+                <span>✕</span> Cancel
+              </button>
+              <button type="submit" className="modal-btn save-btn">
+                <span>✓</span> Save Changes
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={changePassword} className="profile-form">
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">🔒</span>
+                Current Password
+              </label>
+              <input
+                type="password"
+                className="form-input-modern"
+                name="currentPassword"
+                value={form.currentPassword || ''}
+                onChange={handleChange}
+                placeholder="Enter current password"
+                required
+              />
+            </div>
 
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">🔑</span>
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  className="form-input-modern"
-                  name="newPassword"
-                  value={form.newPassword || ''}
-                  onChange={handleChange}
-                  placeholder="Minimum 6 characters"
-                  required
-                />
-              </div>
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">🔑</span>
+                New Password
+              </label>
+              <input
+                type="password"
+                className="form-input-modern"
+                name="newPassword"
+                value={form.newPassword || ''}
+                onChange={handleChange}
+                placeholder="Minimum 6 characters"
+                required
+              />
+            </div>
 
-              <div className="form-group-modern">
-                <label className="form-label-modern">
-                  <span className="label-icon">✓</span>
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  className="form-input-modern"
-                  name="confirmPassword"
-                  value={form.confirmPassword || ''}
-                  onChange={handleChange}
-                  placeholder="Re-enter new password"
-                  required
-                />
-              </div>
+            <div className="form-group-modern">
+              <label className="form-label-modern">
+                <span className="label-icon">✓</span>
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                className="form-input-modern"
+                name="confirmPassword"
+                value={form.confirmPassword || ''}
+                onChange={handleChange}
+                placeholder="Re-enter new password"
+                required
+              />
+            </div>
 
-              <div className="modal-actions">
-                <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
-                  <span>✕</span> Cancel
-                </button>
-                <button type="submit" className="modal-btn save-btn">
-                  <span>🔐</span> Change Password
-                </button>
-              </div>
-            </form>
-          )}
+            <div className="modal-actions">
+              <button type="button" className="modal-btn cancel-btn" onClick={onClose}>
+                <span>✕</span> Cancel
+              </button>
+              <button type="submit" className="modal-btn save-btn">
+                <span>🔐</span> Change Password
+              </button>
+            </div>
+          </form>
+        )}
         </div>
-        
+
         {/* Toast Notification */}
         {toast && (
-          <Toast 
-            message={toast.message} 
-            type={toast.type} 
-            onClose={() => setToast(null)} 
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
           />
         )}
       </aside>
@@ -404,7 +404,7 @@ function LoginActivityModal({ open, onClose, loginHistory, onSeedData }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h4 className="timeline-title" style={{ margin: 0 }}>Recent Activity</h4>
               {loginHistory.length === 0 && onSeedData && (
-                <button 
+                <button
                   onClick={onSeedData}
                   style={{
                     padding: '0.5rem 1rem',
@@ -607,7 +607,7 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
       <div className="panel-controls">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', width: '100%', marginBottom: '1rem' }}>
           <div>
-            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Institute Name</label>
+            <label style={{ display: 'block', color: 'rgba(21, 20, 20, 0.8)', marginBottom: '0.5rem' }}>Institute Name</label>
             <input
               className="search-input"
               value={form.name}
@@ -616,7 +616,7 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             />
           </div>
           <div>
-            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem' }}>Courses Offered</label>
+            <label style={{ display: 'block', color: 'rgba(8, 8, 8, 0.8)', marginBottom: '0.5rem' }}>Courses Offered</label>
             <input
               className="search-input"
               value={form.courses}
@@ -625,14 +625,14 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             />
           </div>
         </div>
-        <button className="btn-primary" onClick={addInstitute}>Add Institute</button>
+        <button className="btn-primary" style={{ width: 'fit-content', padding: '0.6rem 2rem', marginTop: '0.5rem' }} onClick={addInstitute}>Add Institute</button>
       </div>
 
       {/* Search Filters */}
       <div className="panel-controls" style={{ marginTop: '1.5rem', marginBottom: '1rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', width: '100%' }}>
           <div>
-            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+            <label style={{ display: 'block', color: 'rgba(6, 6, 6, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
               🔍 Search by Institute Name
             </label>
             <input
@@ -643,7 +643,7 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             />
           </div>
           <div>
-            <label style={{ display: 'block', color: 'rgba(255, 255, 255, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+            <label style={{ display: 'block', color: 'rgba(14, 14, 14, 0.8)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
               🔍 Search by Course
             </label>
             <input
@@ -670,9 +670,9 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
             {(() => {
               // Filter institutes based on search criteria
               const filteredInstitutes = institutes.filter(inst => {
-                const nameMatch = searchName.trim() === '' || 
+                const nameMatch = searchName.trim() === '' ||
                   (inst.name || '').toLowerCase().includes(searchName.toLowerCase());
-                const courseMatch = searchCourse.trim() === '' || 
+                const courseMatch = searchCourse.trim() === '' ||
                   (inst.courses || '').toLowerCase().includes(searchCourse.toLowerCase());
                 return nameMatch && courseMatch;
               });
@@ -681,7 +681,7 @@ function InstitutesTab({ institutes, onInstitutesUpdate }) {
                 return (
                   <tr>
                     <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                      {institutes.length === 0 
+                      {institutes.length === 0
                         ? 'No institutes added yet. Add your first institute above.'
                         : 'No institutes match your search criteria.'}
                     </td>
@@ -813,7 +813,7 @@ function ChartsTab({ analyticsData, institutes }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         setMonthlyEnrollments(result.data || []);
       }
@@ -832,7 +832,7 @@ function ChartsTab({ analyticsData, institutes }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         setTopCourses(result.data || []);
       }
@@ -851,7 +851,7 @@ function ChartsTab({ analyticsData, institutes }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         setRecentActivities(result.data || []);
       }
@@ -886,7 +886,7 @@ function ChartsTab({ analyticsData, institutes }) {
           institutes.forEach(inst => {
             const coursesStr = inst.courses || inst.Courses_Offered || '';
             const coursesList = coursesStr.trim() ? coursesStr.split(',').map(c => c.trim()).filter(c => c) : [];
-            
+
             if (coursesList.length > 0) {
               coursesList.forEach(course => {
                 instituteCoursePairs.push({
@@ -920,9 +920,9 @@ function ChartsTab({ analyticsData, institutes }) {
                   </div>
                   <div className="chart-bars">
                     <div className="bar-container">
-                      <div 
-                        className="bar institutes" 
-                        style={{ 
+                      <div
+                        className="bar institutes"
+                        style={{
                           width: '100%',
                           backgroundColor: '#14b8a6'
                         }}
@@ -1113,7 +1113,7 @@ function RegistrarDashboard({ onLogout }) {
         const isApproved = profileResult.data.universityApproved;
         setUniversityApproved(isApproved);
         localStorage.setItem('registrar_approved', String(!!isApproved));
-        
+
         // Update profile data with actual values from backend
         setProfileData({
           email: profileResult.data.email,
@@ -1122,7 +1122,7 @@ function RegistrarDashboard({ onLogout }) {
           universityApproved: isApproved,
           universityStatus: isApproved ? 'Verified' : 'Pending Approval'
         });
-        
+
         return isApproved;
       }
     } catch (error) {
@@ -1143,12 +1143,12 @@ function RegistrarDashboard({ onLogout }) {
       const response = await fetch(`${API_BASE_URL}/registrar/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         const data = result.data;
-        
+
         // Update profile data state
         setProfileData({
           email: data.email,
@@ -1168,7 +1168,7 @@ function RegistrarDashboard({ onLogout }) {
         // Update approval status
         setUniversityApproved(data.universityApproved || false);
         localStorage.setItem('registrar_approved', String(!!data.universityApproved));
-        
+
         console.log('✅ Profile data loaded:', data);
       } else {
         console.error('Failed to fetch profile:', result.message);
@@ -1191,7 +1191,7 @@ function RegistrarDashboard({ onLogout }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         setLoginHistory(result.data || []);
         console.log('✅ Login history fetched:', result.data);
@@ -1219,7 +1219,7 @@ function RegistrarDashboard({ onLogout }) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const result = await response.json();
-      
+
       if (result.success) {
         showToast(`Added ${result.count} sample login records!`, 'success');
         fetchLoginHistory(); // Refresh the data
@@ -1371,7 +1371,7 @@ function RegistrarDashboard({ onLogout }) {
               <div className="institute-name">{institute.Institute_Name}</div>
               <div className="institute-id">ID: {institute.University_Id}</div>
               <div className="institute-date">
-                {new Date(institute.createdAt).toLocaleDateString()}
+                {new Date(institute.createdAt || Date.now()).toLocaleDateString()}
               </div>
             </li>
           ))}
@@ -1582,7 +1582,7 @@ function RegistrarDashboard({ onLogout }) {
                   <span className="activity-label">Total Logins</span>
                 </div>
               </div>
-              <button 
+              <button
                 className="card-action-btn secondary-btn"
                 onClick={() => {
                   setLoginActivityOpen(true);
@@ -1662,7 +1662,7 @@ function RegistrarDashboard({ onLogout }) {
             <span>{menuItems.find(item => item.id === activePanel)?.label}</span>
           </div>
           <div className="admin-user-info">
-            <span 
+            <span
               style={{ cursor: 'pointer', transition: 'color 0.2s' }}
               onClick={() => setProfileOpen(true)}
               onMouseEnter={(e) => e.target.style.color = '#14b8a6'}
@@ -1670,8 +1670,8 @@ function RegistrarDashboard({ onLogout }) {
             >
               Welcome, {user?.name || 'Registrar'}
             </span>
-            <div 
-              className="admin-avatar" 
+            <div
+              className="admin-avatar"
               style={{ cursor: 'pointer' }}
               onClick={() => setProfileOpen(true)}
             >
@@ -1722,26 +1722,26 @@ function RegistrarDashboard({ onLogout }) {
             boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
             textAlign: 'center'
           }}>
-            <h3 style={{ 
-              margin: '0 0 1rem 0', 
-              color: '#333', 
+            <h3 style={{
+              margin: '0 0 1rem 0',
+              color: '#333',
               fontSize: '1.5rem',
               fontWeight: '600'
             }}>
               Confirm Logout
             </h3>
-            <p style={{ 
-              margin: '0 0 2rem 0', 
+            <p style={{
+              margin: '0 0 2rem 0',
               color: '#666',
               fontSize: '1rem',
               lineHeight: '1.5'
             }}>
               Are you sure you want to logout?
             </p>
-            <div style={{ 
-              display: 'flex', 
-              gap: '1rem', 
-              justifyContent: 'center' 
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              justifyContent: 'center'
             }}>
               <button
                 onClick={() => setShowLogoutConfirm(false)}

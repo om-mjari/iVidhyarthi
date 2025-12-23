@@ -84,8 +84,15 @@
 }
 
 @keyframes buttonPulse {
-  0%, 100% { box-shadow: 0 4px 15px rgba(20, 184, 166, 0.3); }
-  50% { box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5); }
+
+  0%,
+  100% {
+    box-shadow: 0 4px 15px rgba(20, 184, 166, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+  }
 }
 
 /* ============================================
@@ -252,7 +259,7 @@
   margin-bottom: 1rem;
 }
 
-.quick-actions > div {
+.quick-actions>div {
   color: #6B7280;
   font-size: 0.9rem;
   font-weight: 600;
@@ -438,8 +445,8 @@
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
+  width: fit-content;
   min-width: 100px;
   display: inline-flex;
   align-items: center;
@@ -1243,8 +1250,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .profile-modal-container {
@@ -1268,6 +1280,7 @@
     opacity: 0;
     transform: translate(-50%, -45%) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -1304,8 +1317,15 @@
 }
 
 @keyframes iconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .modal-title {
@@ -1566,6 +1586,7 @@
     opacity: 0;
     transform: translateX(100%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -1992,4 +2013,3 @@
 .modal-close-btn:hover {
   color: #0f766e;
 }
-

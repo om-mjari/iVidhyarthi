@@ -172,16 +172,31 @@ router.get("/get-registrars", async (req, res) => {
 // Get dashboard stats
 router.get("/stats", authenticateRegistrar, async (req, res) => {
   try {
-    const registrar = await Registrars.findOne({ User_Id: req.user._id });
+    const registrar = await Registrars.findOne({ User_Id: req.user._id }).populate("University_Id");
     if (!registrar) {
       return res
         .status(404)
         .json({ success: false, message: "Registrar not found" });
     }
 
+    // If university is not approved, return zeroed stats
+    if (registrar.University_Id?.Verification_Status !== "verified") {
+      return res.json({
+        success: true,
+        data: {
+          totalInstitutes: 0,
+          totalStudents: 0,
+          totalLecturers: 0,
+          activeCourses: 0,
+          pendingApprovals: 0,
+          isApproved: false
+        },
+      });
+    }
+
     // Get institutes under this registrar's university
     const institutes = await Institutes.find({
-      University_Id: registrar.University_Id,
+      University_Id: registrar.University_Id._id,
     });
 
     // Get students from these institutes
@@ -217,11 +232,80 @@ router.get("/stats", authenticateRegistrar, async (req, res) => {
         totalStudents,
         totalLecturers,
         activeCourses,
-        pendingApprovals: 0, // You can implement approval logic
+        pendingApprovals: 0,
+        isApproved: true
       },
     });
   } catch (error) {
     console.error("Error fetching registrar stats:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Full dashboard endpoint for frontend
+router.get("/dashboard", authenticateRegistrar, async (req, res) => {
+  try {
+    const registrar = await Registrars.findOne({ User_Id: req.user._id }).populate("University_Id");
+    if (!registrar) {
+      return res.status(404).json({ success: false, message: "Registrar not found" });
+    }
+
+    const isApproved = registrar.University_Id?.Verification_Status === "verified";
+
+    if (!isApproved) {
+      return res.json({
+        success: true,
+        data: {
+          stats: {
+            totalInstitutes: 0,
+            totalStudents: 0,
+            totalLecturers: 0,
+            activeCourses: 0,
+            pendingApprovals: 0
+          },
+          latestInstitutes: [],
+          latestStudents: [],
+          isApproved: false
+        }
+      });
+    }
+
+    // Fetch stats
+    const institutes = await Institutes.find({ University_Id: registrar.University_Id._id }).sort({ createdAt: -1 });
+    const instituteIds = institutes.map(inst => inst._id);
+    const students = await Students.find({ Institution_Id: { $in: instituteIds } }).sort({ createdAt: -1 });
+    const lecturers = await Lecturers.find({ Institute_Id: { $in: instituteIds } });
+    const lecturerIds = lecturers.map(lec => lec._id.toString());
+    const activeCourses = await Courses.countDocuments({ Lecturer_Id: { $in: lecturerIds }, status: "approved" });
+
+    res.json({
+      success: true,
+      data: {
+        stats: {
+          totalInstitutes: institutes.length,
+          totalStudents: students.length,
+          totalLecturers: lecturers.length,
+          activeCourses: activeCourses,
+          pendingApprovals: 0
+        },
+        latestInstitutes: institutes.slice(0, 5).map(inst => ({
+          _id: inst._id,
+          Institute_Name: inst.Institute_Name,
+          University_Id: registrar.University_Id?.University_Name,
+          createdAt: inst.createdAt
+        })),
+        latestStudents: students.slice(0, 5).map(s => ({
+          _id: s._id,
+          name: s.Full_Name,
+          email: s.Email_Id || "—",
+          institute: institutes.find(i => i._id.toString() === s.Institution_Id.toString())?.Institute_Name || "—"
+        })),
+        isApproved: true
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching registrar dashboard:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });

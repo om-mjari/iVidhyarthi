@@ -997,13 +997,19 @@ const AdminDashboard = ({ onLogout }) => {
         setCourses(result.data);
 
         // Update stats
-        const pendingCount = result.data.filter(c => c.status === 'pending').length;
-        const approvedCount = result.data.filter(c => c.status === 'approved').length;
+        const pendingCount = result.data.filter(c => {
+          const s = (c.status || 'pending').toLowerCase();
+          return s !== 'approved' && s !== 'rejected' && s !== 'completed';
+        }).length;
+        const approvedCount = result.data.filter(c => {
+          const s = (c.status || '').toLowerCase();
+          return s === 'approved' || s === 'completed';
+        }).length;
 
         setStats(prev => ({
           ...prev,
           activeCourses: approvedCount,
-          pendingApprovals: prev.pendingApprovals + pendingCount
+          pendingApprovals: pendingCount // Current count of courses needing approval
         }));
       }
     } catch (error) {
@@ -1655,7 +1661,7 @@ const AdminDashboard = ({ onLogout }) => {
   const menuItems = [
     { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
     { id: 'users', label: 'User Management', icon: '👥' },
-    { id: 'courses', label: 'Course Categories', icon: '📚' },
+    { id: 'courses', label: 'Courses & Categories', icon: '📚' },
     { id: 'payments', label: 'Payments & Transactions', icon: '💳' },
     { id: 'feedback', label: 'Feedback & Reviews', icon: '⭐' },
     { id: 'live', label: 'Live Session Monitor', icon: '🎥' },
@@ -2180,7 +2186,10 @@ const AdminDashboard = ({ onLogout }) => {
               <div className="spinner"></div>
               <p>Loading courses...</p>
             </div>
-          ) : courses.filter(course => (course.status || 'pending') === 'pending').length > 0 ? (
+          ) : courses.filter(course => {
+            const s = (course.status || 'pending').toLowerCase();
+            return s !== 'approved' && s !== 'rejected' && s !== 'completed';
+          }).length > 0 ? (
             <table className="courses-table">
               <thead>
                 <tr>
@@ -2196,7 +2205,10 @@ const AdminDashboard = ({ onLogout }) => {
               </thead>
               <tbody>
                 {courses
-                  .filter(course => (course.status || 'pending') === 'pending')
+                  .filter(course => {
+                    const s = (course.status || 'pending').toLowerCase();
+                    return s !== 'approved' && s !== 'rejected' && s !== 'completed';
+                  })
                   .map((course) => (
                     <tr key={course.Course_Id || course._id}>
                       <td className="course-title-cell">{course.Title}</td>
@@ -2255,7 +2267,10 @@ const AdminDashboard = ({ onLogout }) => {
               <div className="spinner"></div>
               <p>Loading courses...</p>
             </div>
-          ) : courses.filter(course => course.status === 'approved').length > 0 ? (
+          ) : courses.filter(course => {
+            const s = (course.status || '').toLowerCase();
+            return s === 'approved' || s === 'completed';
+          }).length > 0 ? (
             <table className="courses-table">
               <thead>
                 <tr>
@@ -2271,7 +2286,10 @@ const AdminDashboard = ({ onLogout }) => {
               </thead>
               <tbody>
                 {courses
-                  .filter(course => course.status === 'approved')
+                  .filter(course => {
+                    const s = (course.status || '').toLowerCase();
+                    return s === 'approved' || s === 'completed';
+                  })
                   .map((course) => (
                     <tr key={course.Course_Id || course._id}>
                       <td className="course-title-cell">{course.Title}</td>

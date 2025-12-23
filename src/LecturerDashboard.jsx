@@ -4183,7 +4183,7 @@ function FeedbackTab() {
   );
 }
 
-function CoursesTab() {
+function CoursesTab({ showNotification }) {
   const API_BASE_URL = 'http://localhost:5000/api';
 
   // Load categories from MongoDB API

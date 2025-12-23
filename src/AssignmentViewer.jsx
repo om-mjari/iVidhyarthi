@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
 import './AssignmentViewer.css';
+import Notification from './components/Notification';
 
-const AssignmentViewer = ({ 
-  assignment, 
-  onBack, 
-  studentId, 
-  totalAssignments, 
+const AssignmentViewer = ({
+  assignment,
+  onBack,
+  studentId,
+  totalAssignments,
   submittedCount,
-  onSubmissionComplete 
+  onSubmissionComplete
 }) => {
   // Submission form states
   const [learningAnswer, setLearningAnswer] = useState('');
@@ -18,6 +18,7 @@ const AssignmentViewer = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionData, setSubmissionData] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   // Word count states
   const [learningWordCount, setLearningWordCount] = useState(0);
@@ -62,18 +63,18 @@ const AssignmentViewer = ({
         const submission = result.data.find(
           s => s.Assignment_Id === assignment.Assignment_Id
         );
-        
+
         if (submission) {
           setIsSubmitted(true);
           setSubmissionData(submission);
-          
+
           // Pre-fill the form with submission data if available
           if (submission.Submission_Data) {
             setLearningAnswer(submission.Submission_Data.learningAnswer || '');
             setChallengeAnswer(submission.Submission_Data.challengeAnswer || '');
             setApplicationAnswer(submission.Submission_Data.applicationAnswer || '');
             setTextSubmission(submission.Submission_Data.textSubmission || '');
-            
+
             // If there's an uploaded file, show its info
             if (submission.Submission_Data.uploadedFile) {
               setUploadedFile({
@@ -92,14 +93,14 @@ const AssignmentViewer = ({
   // Validation for submit button
   const canSubmit = () => {
     if (isPastDueDate || isSubmitted) return false;
-    
-    const hasValidAnswers = 
-      learningWordCount >= 20 && 
-      challengeWordCount >= 10 && 
+
+    const hasValidAnswers =
+      learningWordCount >= 20 &&
+      challengeWordCount >= 10 &&
       applicationWordCount >= 10;
-    
+
     const hasContent = uploadedFile || textSubmission.trim().length > 0;
-    
+
     return hasValidAnswers && hasContent;
   };
 
@@ -111,7 +112,7 @@ const AssignmentViewer = ({
       if (validTypes.includes(file.type)) {
         setUploadedFile(file);
       } else {
-        alert('Please upload only PDF, Text, or Image files');
+        setNotification({ message: 'Please upload only PDF, Text, or Image files', type: 'error' });
       }
     }
   };
@@ -127,14 +128,14 @@ const AssignmentViewer = ({
       formData.append('Student_Id', studentId);
       formData.append('Assignment_Id', assignment.Assignment_Id);
       formData.append('Course_Id', assignment.Course_Id);
-      
+
       const submissionContent = {
         learningAnswer,
         challengeAnswer,
         applicationAnswer,
         textSubmission
       };
-      
+
       formData.append('Submission_Data', JSON.stringify(submissionContent));
 
       if (uploadedFile) {
@@ -151,23 +152,23 @@ const AssignmentViewer = ({
       if (result.success) {
         setIsSubmitted(true);
         setSubmissionData(result.data);
-        alert('✅ Assignment submitted successfully!');
-        
+        setNotification({ message: 'Assignment submitted successfully!', type: 'success' });
+
         // Notify parent component and redirect back
         if (onSubmissionComplete) {
           onSubmissionComplete();
         }
-        
+
         // Redirect back to course page
         if (onBack) {
           setTimeout(() => onBack(), 1000);
         }
       } else {
-        alert('❌ Failed to submit assignment. Please try again.');
+        setNotification({ message: 'Failed to submit assignment. Please try again.', type: 'error' });
       }
     } catch (error) {
       console.error('Error submitting assignment:', error);
-      alert('❌ Error submitting assignment. Please try again.');
+      setNotification({ message: 'Error submitting assignment. Please try again.', type: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -184,6 +185,13 @@ const AssignmentViewer = ({
 
   return (
     <div className="assignment-viewer-container">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="assignment-viewer-header">
         <button className="back-button" onClick={onBack}>
           <span className="back-icon">←</span> Back to Course
@@ -222,8 +230,8 @@ const AssignmentViewer = ({
               <h4 className="subsection-title">📑 Assignment Material</h4>
               <button
                 onClick={() => {
-                  const url = assignment.File_URL.startsWith('http') 
-                    ? assignment.File_URL 
+                  const url = assignment.File_URL.startsWith('http')
+                    ? assignment.File_URL
                     : `http://localhost:5000${assignment.File_URL}`;
                   window.open(url, '_blank');
                 }}
@@ -349,14 +357,14 @@ const AssignmentViewer = ({
           {/* Upload Section */}
           <div className="upload-section">
             <h4 className="subsection-title">📎 Upload Your Work</h4>
-            
+
             {isSubmitted && uploadedFile && uploadedFile.path ? (
               <div className="submitted-file-display">
                 <div className="file-info">
                   <span className="file-icon">📄</span>
                   <div className="file-details">
                     <span className="file-name">{uploadedFile.name}</span>
-                    <a 
+                    <a
                       href={`http://localhost:5000${uploadedFile.path}`}
                       target="_blank"
                       rel="noopener noreferrer"

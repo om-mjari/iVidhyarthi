@@ -3079,11 +3079,11 @@ function SessionsTab() {
         setTimeout(() => setSuccessMessage(''), 3000);
         fetchSessions();
       } else {
-        alert(result.message || 'Failed to start meeting');
+        showNotification('Error', result.message || 'Failed to start meeting', 'error');
       }
     } catch (error) {
       console.error('Error starting meeting:', error);
-      alert('Failed to start meeting');
+      showNotification('Error', 'Failed to start meeting', 'error');
     }
   };
 
@@ -3101,11 +3101,11 @@ function SessionsTab() {
         setTimeout(() => setSuccessMessage(''), 3000);
         fetchSessions();
       } else {
-        alert(result.message || 'Failed to end meeting');
+        showNotification('Error', result.message || 'Failed to end meeting', 'error');
       }
     } catch (error) {
       console.error('Error ending meeting:', error);
-      alert('Failed to end meeting');
+      showNotification('Error', 'Failed to end meeting', 'error');
     }
   };
 
@@ -3431,7 +3431,7 @@ function SessionsTab() {
                                 onClick={(e) => {
                                   if (!session.session_url && !session.Session_URL) {
                                     e.preventDefault();
-                                    alert('Meeting link not available. Please check Zoom configuration.');
+                                    showNotification('Link Missing', 'Meeting link not available. Please check Zoom configuration.', 'error');
                                     console.log('Session data:', session);
                                   }
                                 }}

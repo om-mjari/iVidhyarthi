@@ -4,6 +4,7 @@ import WeeklyAssignments from './WeeklyAssignments';
 import QuizPage from './QuizPage';
 import AssignmentViewer from './AssignmentViewer';
 import './CourseLearningPage.css';
+import Notification from './components/Notification';
 
 // Helper function to remove autoplay from video URLs
 const removeAutoplay = (url) => {
@@ -49,6 +50,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [showQuiz, setShowQuiz] = useState(false);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   // Custom modal states
   const [showModal, setShowModal] = useState(false);
@@ -316,11 +318,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         });
         setShowTranscriptModal(true);
       } else {
-        alert('Failed to generate transcript: ' + result.message);
+        setNotification({ message: 'Failed to generate transcript: ' + result.message, type: 'error' });
       }
     } catch (error) {
       console.error('Error generating transcript:', error);
-      alert('Failed to generate transcript. Please try again.');
+      setNotification({ message: 'Failed to generate transcript. Please try again.', type: 'error' });
     } finally {
       setLoadingTranscript(prev => ({ ...prev, [videoKey]: false }));
     }
@@ -355,11 +357,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Failed to download PDF');
+        setNotification({ message: 'Failed to download PDF', type: 'error' });
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
-      alert('Failed to download PDF. Please try again.');
+      setNotification({ message: 'Failed to download PDF. Please try again.', type: 'error' });
     }
   };
 
@@ -1505,11 +1507,11 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         setViewingSubmission(true);
         console.log('📝 Viewing submission from Tbl_Assignments:', assignmentsResult.data);
       } else {
-        alert('No submission found for this assignment.');
+        setNotification({ message: 'No submission found for this assignment.', type: 'warning' });
       }
     } catch (error) {
       console.error('Error fetching submission:', error);
-      alert('Error loading submission.');
+      setNotification({ message: 'Error loading submission. Please try again.', type: 'error' });
     }
   };
 
@@ -1880,6 +1882,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
   return (
     <div className="nptel-course-page">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       {/* NPTEL-Style Header */}
       <header className="nptel-header">
         <div className="nptel-header-inner">
@@ -2451,7 +2460,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                       if (currentWatchProgress >= 80) {
                         // Check if already completed to prevent duplicate
                         if (completedVideos.includes(selectedVideo.id)) {
-                          alert('ℹ️ This video is already marked as completed!');
+                          setNotification({ message: 'ℹ️ This video is already marked as completed!', type: 'info' });
                           return;
                         }
 

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
 import './WeeklyAssignments.css';
+import Notification from './components/Notification';
 import AssignmentPage from './AssignmentPage';
 import { generateTopicVideos, generateAssignmentQuestions, generateStudyMaterials } from './services/aiContentService';
 
@@ -18,6 +18,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   const [loadingContent, setLoadingContent] = useState({});
   const [viewingSubmission, setViewingSubmission] = useState(false);
   const [selectedSubmissionData, setSelectedSubmissionData] = useState(null);
+  const [notification, setNotification] = useState(null);
 
   // Weeks Structure - All 7 Weeks
   const weeksStructure = [
@@ -116,22 +117,22 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
       // Fetch assignments from backend
       const assignmentsResponse = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
       const assignmentsData = await assignmentsResponse.json();
-      
+
       // Fetch student submissions from BOTH Tbl_Submissions AND Tbl_Assignments
       // 1. Get from Tbl_Submissions
       const submissionsResponse = await fetch(`http://localhost:5000/api/submissions/student/${stuId}`);
       const submissionsData = await submissionsResponse.json();
-      
+
       // 2. Get from Tbl_Assignments (submitted assignments)
       const tblAssignmentsResponse = await fetch(`http://localhost:5000/api/assignments/course/${courseId}`);
       const tblAssignmentsData = await tblAssignmentsResponse.json();
-      
+
       // Filter submitted assignments for this student from Tbl_Assignments
-      const tblAssignmentSubmissions = tblAssignmentsData.success 
-        ? tblAssignmentsData.data.filter(a => 
-            a.Status === 'Submitted' && 
-            (a.Assignment_Id?.includes(`_${stuId}`) || a.Submission_Data?.Student_Id === stuId)
-          )
+      const tblAssignmentSubmissions = tblAssignmentsData.success
+        ? tblAssignmentsData.data.filter(a =>
+          a.Status === 'Submitted' &&
+          (a.Assignment_Id?.includes(`_${stuId}`) || a.Submission_Data?.Student_Id === stuId)
+        )
         : [];
 
       // Combine submissions from both sources and get latest for each assignment
@@ -146,9 +147,9 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
       const latestSubmissions = {};
       allSubmissions.forEach(submission => {
         const assignmentId = submission.Assignment_Id;
-        if (!latestSubmissions[assignmentId] || 
-            new Date(submission.Submitted_On || submission.Submission_Data?.Submitted_On) > 
-            new Date(latestSubmissions[assignmentId].Submitted_On || latestSubmissions[assignmentId].Submission_Data?.Submitted_On)) {
+        if (!latestSubmissions[assignmentId] ||
+          new Date(submission.Submitted_On || submission.Submission_Data?.Submitted_On) >
+          new Date(latestSubmissions[assignmentId].Submitted_On || latestSubmissions[assignmentId].Submission_Data?.Submitted_On)) {
           latestSubmissions[assignmentId] = submission;
         }
       });
@@ -159,7 +160,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
       if (assignmentsData.success) {
         // Filter out submissions, keep only original assignments
-        const originalAssignments = assignmentsData.data.filter(a => 
+        const originalAssignments = assignmentsData.data.filter(a =>
           a.Status !== 'Submitted' && !a.Assignment_Id?.includes('_')
         );
         setWeeklyAssignments(originalAssignments);
@@ -179,7 +180,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   };
 
   const getAssignmentStatus = (week) => {
-    const assignment = weeklyAssignments.find(a => 
+    const assignment = weeklyAssignments.find(a =>
       a.Title?.includes(`Week 0${week}`) || a.Title?.includes(`Week ${week}`)
     );
 
@@ -187,14 +188,14 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
     // Check for submission in Tbl_Assignments with key format: AssignmentId_StudentId
     const assignmentKey = `${assignment.Assignment_Id}_${studentId}`;
-    const submission = submissions.find(s => 
+    const submission = submissions.find(s =>
       s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
     );
-    
+
     if (submission) {
-      return { 
-        status: 'Submitted', 
-        color: '#28a745', 
+      return {
+        status: 'Submitted',
+        color: '#28a745',
         icon: '✅',
         score: submission.Submission_Data?.Score || submission.Score || 0,
         submittedOn: new Date(submission.Submission_Data?.Submitted_On || submission.Submitted_On || new Date()).toLocaleDateString()
@@ -222,18 +223,18 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
   };
 
   const handleStartAssignment = async (week) => {
-    const assignment = weeklyAssignments.find(a => 
+    const assignment = weeklyAssignments.find(a =>
       a.Title?.includes(`Week 0${week}`) || a.Title?.includes(`Week ${week}`)
     );
 
     if (!assignment) {
-      alert('Assignment not available yet. Please check back later.');
+      setNotification({ message: 'Assignment not available yet. Please check back later.', type: 'info' });
       return;
     }
 
     // Check if already submitted
     const assignmentKey = `${assignment.Assignment_Id}_${studentId}`;
-    const submission = submissions.find(s => 
+    const submission = submissions.find(s =>
       s.Assignment_Id === assignment.Assignment_Id || s.Assignment_Id === assignmentKey
     );
 
@@ -254,7 +255,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
     }
 
     setExpandedWeek(week);
-    
+
     // Load AI content if not already loaded
     if (!aiVideos[week]) {
       await loadAIContent(week);
@@ -304,14 +305,14 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
   const handleViewSubmission = async (assignmentId) => {
     if (!studentId) return;
-    
+
     try {
       // Try to get submission from Tbl_Assignments first
       const assignmentsResponse = await fetch(
         `http://localhost:5000/api/assignments/submission/${assignmentId}/${studentId}`
       );
       const assignmentsResult = await assignmentsResponse.json();
-      
+
       if (assignmentsResult.success && assignmentsResult.data) {
         setSelectedSubmissionData(assignmentsResult.data);
         setViewingSubmission(true);
@@ -323,7 +324,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
         `http://localhost:5000/api/submissions/student/${studentId}`
       );
       const submissionsResult = await submissionsResponse.json();
-      
+
       if (submissionsResult.success && submissionsResult.data) {
         const submission = submissionsResult.data.find(s => s.Assignment_Id === assignmentId);
         if (submission) {
@@ -347,11 +348,11 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
           return;
         }
       }
-      
-      alert('No submission found for this assignment.');
+
+      setNotification({ message: 'No submission found for this assignment.', type: 'warning' });
     } catch (error) {
       console.error('Error fetching submission:', error);
-      alert('Error loading submission.');
+      setNotification({ message: 'Error loading submission. Please try again.', type: 'error' });
     }
   };
 
@@ -536,6 +537,13 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
   return (
     <div className="weekly-assignments-page">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       {/* Header Section */}
       <div className="assignments-header">
         <button className="back-button" onClick={onBack}>
@@ -558,11 +566,11 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
             <span className="progress-percentage">{overallProgress}%</span>
           </div>
         </div>
-        
+
         <div className="progress-bar-container">
           <div className="progress-bar-track">
-            <div 
-              className="progress-bar-fill" 
+            <div
+              className="progress-bar-fill"
               style={{ width: `${overallProgress}%` }}
             >
               <span className="progress-label">{overallProgress}% Complete</span>
@@ -572,8 +580,8 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
 
         <div className="progress-milestones">
           {weeksStructure.map(week => (
-            <div 
-              key={week.week} 
+            <div
+              key={week.week}
               className={`milestone ${getAssignmentStatus(week.week).status === 'Submitted' ? 'completed' : ''}`}
             >
               <div className="milestone-marker">
@@ -588,7 +596,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
       <div className="announcements-banner">
         <div className="announcement-icon">📢</div>
         <div className="announcement-text">
-          <strong>Important:</strong> All assignments must be completed before the due date. 
+          <strong>Important:</strong> All assignments must be completed before the due date.
           Late submissions will not be accepted.
         </div>
       </div>
@@ -598,7 +606,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
         <div className="assignments-grid">
           {weeksStructure.map(week => {
             const status = getAssignmentStatus(week.week);
-            const assignment = weeklyAssignments.find(a => 
+            const assignment = weeklyAssignments.find(a =>
               a.Title?.includes(`Week 0${week.week}`) || a.Title?.includes(`Week ${week.week}`)
             );
             const isExpanded = expandedWeek === week.week;
@@ -668,7 +676,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
                             <div className="study-materials-section">
                               <h4 className="section-heading">📖 Study Materials</h4>
                               <p className="materials-summary">{weekMaterials.summary}</p>
-                              
+
                               <div className="learning-objectives">
                                 <h5>🎯 Learning Objectives:</h5>
                                 <ul>
@@ -756,7 +764,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
                 <div className="assignment-card-footer">
                   <div className="footer-actions">
                     {status.status === 'Submitted' ? (
-                      <button 
+                      <button
                         className="action-button completed"
                         onClick={() => handleStartAssignment(week.week)}
                       >
@@ -774,7 +782,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
                         Overdue
                       </button>
                     ) : (
-                      <button 
+                      <button
                         className="action-button start"
                         onClick={() => handleStartAssignment(week.week)}
                       >
@@ -782,8 +790,8 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
                         Start Assignment
                       </button>
                     )}
-                    
-                    <button 
+
+                    <button
                       className="action-button expand"
                       onClick={() => handleExpandWeek(week.week)}
                     >
@@ -817,7 +825,7 @@ const WeeklyAssignments = ({ courseId, courseName, onBack }) => {
             </div>
             <div className="summary-stat">
               <span className="stat-number">
-                {submissions.length > 0 
+                {submissions.length > 0
                   ? Math.round(submissions.reduce((sum, s) => sum + (s.Score || 0), 0) / submissions.length)
                   : 0
                 }

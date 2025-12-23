@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
 import './QuizPage.css';
+import Notification from './components/Notification';
 
 const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
   const [quizStarted, setQuizStarted] = useState(false);
@@ -15,6 +15,7 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
   const tabSwitchRef = useRef(0);
   const [isPassed, setIsPassed] = useState(false);
   const [percentage, setPercentage] = useState(0);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     // Get student ID from localStorage
@@ -53,12 +54,15 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         tabSwitchRef.current += 1;
-        
+
         if (tabSwitchRef.current === 1 && !warningShown) {
           setWarningShown(true);
-          alert('⚠️ WARNING: Tab switching is not allowed during the quiz!\n\nIf you switch tabs again, your quiz will be automatically submitted.');
+          setNotification({
+            message: '⚠️ WARNING: Tab switching is not allowed! If you switch again, your quiz will be auto-submitted.',
+            type: 'warning'
+          });
         } else if (tabSwitchRef.current >= 2) {
-          alert('🚫 Quiz auto-submitted due to multiple tab switches!');
+          setNotification({ message: '🚫 Quiz auto-submitted due to multiple tab switches!', type: 'error' });
           handleSubmit(true);
         }
       }
@@ -72,7 +76,7 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
         (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key))
       ) {
         e.preventDefault();
-        alert('🚫 Screenshots are not allowed during the quiz!');
+        setNotification({ message: '🚫 Screenshots are not allowed during the quiz!', type: 'error' });
         return false;
       }
     };
@@ -149,7 +153,7 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
 
       const response = await fetch('http://localhost:5000/api/auto-quiz/attempt', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`
         },
@@ -163,20 +167,26 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
       const result = await response.json();
 
       console.log('Quiz submission result:', result);
-      
+
       setScore(result.score);
       setPercentage(result.percentage);
       setIsPassed(result.isPassed);
       setShowResults(true);
-      
+
       if (result.isPassed) {
-        alert(`🎉 Congratulations! You PASSED!\n\nScore: ${result.score}/${result.totalMarks} (${result.percentage}%)\n\nYour certificate has been generated and emailed to you!`);
+        setNotification({
+          message: `🎉 Congratulations! You PASSED! Score: ${result.score}/${result.totalMarks} (${result.percentage}%)`,
+          type: 'success'
+        });
       } else {
-        alert(`❌ You did not pass this time.\n\nScore: ${result.score}/${result.totalMarks} (${result.percentage}%)\nRemaining attempts: ${result.remainingAttempts}\n\nYou need 70% to pass.`);
+        setNotification({
+          message: `❌ You did not pass. Score: ${result.score}/${result.totalMarks} (${result.percentage}%). Need 70% to pass.`,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error('❌ Error submitting quiz:', error);
-      alert('Error submitting quiz: ' + error.message);
+      setNotification({ message: 'Error submitting quiz: ' + error.message, type: 'error' });
       setSubmitting(false);
     }
   };
@@ -222,8 +232,8 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
             <button className="btn-back" onClick={onBack}>
               ← Cancel
             </button>
-            <button 
-              className="btn-start-quiz" 
+            <button
+              className="btn-start-quiz"
               onClick={() => setQuizStarted(true)}
             >
               Start Quiz 🚀
@@ -285,6 +295,13 @@ const QuizPage = ({ quiz, courseId, weekNumber, onBack, onComplete }) => {
 
   return (
     <div className="quiz-page">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="quiz-header">
         <button className="back-btn" onClick={onBack}>← Back</button>
         <h1>{quiz.Title}</h1>

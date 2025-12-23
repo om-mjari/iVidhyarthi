@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
 import './AssignmentPage.css';
+import Notification from './components/Notification';
 
 const AssignmentPage = ({ assignment, onBack, onComplete }) => {
   const [videoCompleted, setVideoCompleted] = useState(false);
@@ -14,6 +14,7 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submissionAnimation, setSubmissionAnimation] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [notification, setNotification] = useState(null);
 
   // Comprehensive subject-specific configurations
   const subjectConfigurations = {
@@ -749,12 +750,12 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
       } else {
         console.error('❌ Submission failed:', result.message);
         setSubmissionAnimation(false);
-        alert('Failed to submit assignment: ' + (result.message || 'Unknown error'));
+        setNotification({ message: 'Failed to submit assignment: ' + (result.message || 'Unknown error'), type: 'error' });
       }
     } catch (error) {
       console.error('❌ Error submitting assignment:', error);
       setSubmissionAnimation(false);
-      alert('Error submitting assignment. Please check console and try again.');
+      setNotification({ message: 'Error submitting assignment. Please check console and try again.', type: 'error' });
     } finally {
       setSubmitting(false);
     }
@@ -768,6 +769,13 @@ const AssignmentPage = ({ assignment, onBack, onComplete }) => {
 
   return (
     <div className="assignment-page" style={{ '--subject-color': subjectConfig.color }}>
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
       <div className="assignment-header" style={{ background: `linear-gradient(135deg, ${subjectConfig.color}15 0%, ${subjectConfig.color}30 100%)` }}>
         <button className="back-btn" onClick={onBack}>
           ← Back to Course

@@ -1,0 +1,111 @@
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  min-width: 300px;
+  max-width: 450px;
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-icon {
+  font-size: 20px;
+}
+
+.notification-message {
+  color: #1f2937;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.3s;
+}
+
+.notification-close:hover {
+  color: #4b5563;
+}
+
+/* Types */
+.notification-container.success {
+  background-color: rgba(236, 253, 245, 0.95);
+  border-left: 5px solid #10b981;
+}
+
+.notification-container.error {
+  background-color: rgba(254, 242, 242, 0.95);
+  border-left: 5px solid #ef4444;
+}
+
+.notification-container.warning {
+  background-color: rgba(255, 251, 235, 0.95);
+  border-left: 5px solid #f59e0b;
+}
+
+.notification-container.info {
+  background-color: rgba(239, 246, 255, 0.95);
+  border-left: 5px solid #3b82f6;
+}
+
+/* Animations */
+.slide-in {
+  animation: slideInRight 0.4s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Progress bar */
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.success .notification-progress { background: #10b981; }
+.error .notification-progress { background: #ef4444; }
+.warning .notification-progress { background: #f59e0b; }
+.info .notification-progress { background: #3b82f6; }
+
+.notification-container .notification-progress {
+  animation: progress 4s linear forwards;
+}
+
+@keyframes progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}

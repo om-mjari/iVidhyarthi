@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import './WeeklyAssignments.css';
 import Notification from './components/Notification';
 import AssignmentPage from './AssignmentPage';

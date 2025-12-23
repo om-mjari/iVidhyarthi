@@ -563,7 +563,16 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         // Group submissions by Assignment_Id and get the latest one
         const submissionsByAssignment = {};
 
+        // Get current course ID for filtering
+        const currentCourseId = (selectedCourse?.Course_Id || selectedCourse?.id || selectedCourse?.courseId || '').toString();
+
         submissionsResult.data.forEach(submission => {
+          // Only process submissions that belong to the current course 
+          // (or if course ID is missing, but excluding clearly different courses)
+          if (submission.Course_Id && currentCourseId && submission.Course_Id.toString() !== currentCourseId) {
+            return;
+          }
+
           const assignmentId = submission.Assignment_Id;
 
           // If we don't have this assignment yet, or this submission is newer
@@ -1285,6 +1294,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
   const totalVideos = courseContent.videos.length || 0;
   const totalAssignments = courseContent.assignments.length || 0;
+  const submittedAssignmentsInCourseCount = assignments.filter(a => submittedAssignments[a.Assignment_Id]).length;
   const completionPercentage = totalVideos > 0 ? (progress || Math.round((completedVideos.length / totalVideos) * 100)) : 0;
 
   // Calculate assignment progress (out of 7 weeks)
@@ -1750,7 +1760,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
         onBack={handleAssignmentBack}
         studentId={studentId}
         totalAssignments={assignments.length}
-        submittedCount={Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length}
+        submittedCount={submittedAssignmentsInCourseCount}
         onSubmissionComplete={() => {
           fetchSubmittedAssignments();
           fetchAssignments(selectedCourse?.Course_Id || selectedCourse?.id);
@@ -2228,7 +2238,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               disabled={
                 (() => {
                   const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const submittedCount = submittedAssignmentsInCourseCount;
                   const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                   const overallProgress = (videoCompletion + assignmentCompletion) / 2;
 
@@ -2244,7 +2254,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 background:
                   (() => {
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const submittedCount = submittedAssignmentsInCourseCount;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2259,7 +2269,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 cursor:
                   (() => {
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const submittedCount = submittedAssignmentsInCourseCount;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2274,7 +2284,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 boxShadow:
                   (() => {
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                    const submittedCount = submittedAssignmentsInCourseCount;
                     const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2284,7 +2294,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               }}
               onMouseEnter={(e) => {
                 const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                const submittedCount = submittedAssignmentsInCourseCount;
                 const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                 const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                 const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2296,7 +2306,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               }}
               onMouseLeave={(e) => {
                 const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                const submittedCount = submittedAssignmentsInCourseCount;
                 const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                 const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                 const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2310,7 +2320,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
               <span>
                 {(() => {
                   const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                  const submittedCount = Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length;
+                  const submittedCount = submittedAssignmentsInCourseCount;
                   const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                   const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                   const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
@@ -2646,14 +2656,14 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <div className="stat-card">
                   <span className="stat-label">SUBMITTED</span>
                   <span className="stat-value">
-                    {Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length}
+                    {submittedAssignmentsInCourseCount}
                   </span>
                 </div>
                 <div className="stat-card">
                   <span className="stat-label">PROGRESS</span>
                   <span className="stat-value">
                     {assignments.length > 0
-                      ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100).toFixed(1)
+                      ? ((submittedAssignmentsInCourseCount / assignments.length) * 100).toFixed(1)
                       : 0}%
                   </span>
                 </div>
@@ -2664,7 +2674,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     className="progress-bar-fill"
                     style={{
                       width: `${assignments.length > 0
-                        ? ((Object.keys(submittedAssignments).filter(key => submittedAssignments[key]).length / assignments.length) * 100)
+                        ? ((submittedAssignmentsInCourseCount / assignments.length) * 100)
                         : 0}%`
                     }}
                   ></div>

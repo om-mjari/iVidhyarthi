@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import './QuizPage.css';
 import Notification from './components/Notification';
 

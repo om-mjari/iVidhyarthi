@@ -114,10 +114,10 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
         const result = await response.json();
         // Extract array exactly from result.data
         const allCourses = Array.isArray(result.data) ? result.data : [];
-        // Keep only admin approved courses
+        // Keep only approved or completed courses
         const approvedCourses = allCourses.filter((course) => {
-          const statusValue = course.Status || course.status;
-          return typeof statusValue === 'string' && statusValue.toLowerCase() === 'approved';
+          const statusValue = (course.Status || course.status || '').toLowerCase();
+          return statusValue === 'approved' || statusValue === 'completed';
         });
         setCourses(approvedCourses);
         setFilteredCourses(approvedCourses);
@@ -211,25 +211,25 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
       if (authUser) {
         const user = JSON.parse(authUser);
         const userId = user.id || user._id;
-        
+
         console.log('👤 User ID:', userId);
-        
+
         // Check enrollment status
         const response = await fetch(`http://localhost:5000/api/enrollments/student/${userId}`);
         const result = await response.json();
-        
+
         console.log('📊 Enrollment data:', result);
-        
+
         if (result.success && result.data) {
           const isEnrolled = result.data.some(enrollment => {
-            const enrolled = enrollment.Course_Id == normalizedCourse.Course_Id || 
-                           enrollment.Course_Id == normalizedCourse.id;
+            const enrolled = enrollment.Course_Id == normalizedCourse.Course_Id ||
+              enrollment.Course_Id == normalizedCourse.id;
             console.log(`Comparing enrollment Course_Id: ${enrollment.Course_Id} with ${normalizedCourse.Course_Id}:`, enrolled);
             return enrolled;
           });
-          
+
           console.log('✅ Is enrolled:', isEnrolled);
-          
+
           if (isEnrolled) {
             // Already enrolled, redirect to CourseLearningPage
             console.log('✅ Already enrolled, redirecting to learning page');
@@ -376,9 +376,9 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
 
   return (
     <div className="dashboard">
-      <DashboardHeader 
-        user={user} 
-        onNavigate={onNavigate} 
+      <DashboardHeader
+        user={user}
+        onNavigate={onNavigate}
         onLogout={onLogout}
       />
 
@@ -555,14 +555,14 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
                 <p className="intro-subtitle">Enhance skills that meet your learning goals</p>
                 <div className="intro-divider"></div>
               </div>
-              
+
               <div className="intro-content">
                 <p className="intro-description">
-                  iVidhyarthi is a comprehensive online learning platform designed to provide quality education to anyone interested in upskilling. 
-                  Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience 
+                  iVidhyarthi is a comprehensive online learning platform designed to provide quality education to anyone interested in upskilling.
+                  Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience
                   with practical knowledge and real-world applications.
                 </p>
-                
+
                 <div className="intro-announcements">
                   <div className="announcement-item">
                     <span className="announcement-label">Current Session:</span>
@@ -632,7 +632,7 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
             {/* ========================================
                 STUDENT DASHBOARD ENHANCEMENT SECTIONS
             ======================================== */}
-            
+
             {/* My Enrolled Courses with Progress */}
             <EnrolledCourses onNavigate={onNavigate} />
 
@@ -649,7 +649,7 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
       {/* Profile Slide-over - Premium Modern UI */}
       <div className={`profile-overlay ${isProfileOpen ? 'open' : ''}`} onClick={closeProfile} />
       <aside className={`profile-panel-premium ${isProfileOpen ? 'open' : ''}`} aria-hidden={!isProfileOpen}>
-        
+
         {/* Close Button - Floating Top Right */}
         <button className="profile-close-premium" onClick={closeProfile} aria-label="Close profile">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -679,14 +679,14 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
 
         {/* Profile Form */}
         <form className="profile-form-premium" onSubmit={(e) => e.preventDefault()}>
-          
+
           {/* Personal Information Section */}
           <div className="glass-section">
             <div className="section-header">
               <h3 className="section-title-premium">Personal Information</h3>
               <div className="section-divider"></div>
             </div>
-            
+
             <div className="form-group-premium">
               <label className="field-label-premium">Full Name</label>
               <input
@@ -735,7 +735,7 @@ const StudentDashboard = ({ onNavigate, onLogout }) => {
               <h3 className="section-title-premium">Academic Information</h3>
               <div className="section-divider"></div>
             </div>
-            
+
             <div className="form-group-premium">
               <label className="field-label-premium">Course Interests</label>
               <textarea

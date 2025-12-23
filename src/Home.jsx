@@ -44,10 +44,10 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
         const result = await response.json();
         // Extract array exactly from result.data
         const allCourses = Array.isArray(result.data) ? result.data : [];
-        // Keep only admin approved courses
+        // Keep only approved or completed courses
         const approvedCourses = allCourses.filter((course) => {
-          const statusValue = course.Status || course.status;
-          return typeof statusValue === 'string' && statusValue.toLowerCase() === 'approved';
+          const statusValue = (course.Status || course.status || '').toLowerCase();
+          return statusValue === 'approved' || statusValue === 'completed';
         });
         setCourses(approvedCourses);
         setFilteredCourses(approvedCourses);
@@ -513,11 +513,11 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
                 <p className="intro-subtitle">Enhance skills that meet your learning goals</p>
                 <div className="intro-divider"></div>
               </div>
-              
+
               <div className="intro-content">
                 <p className="intro-description">
-                  iVidhyarthi is a comprehensive online learning platform designed to provide quality education to anyone interested in upskilling. 
-                  Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience 
+                  iVidhyarthi is a comprehensive online learning platform designed to provide quality education to anyone interested in upskilling.
+                  Our courses are created by expert educators and industry professionals, ensuring you receive the best learning experience
                   with practical knowledge and real-world applications.
                 </p>
               </div>
@@ -534,13 +534,13 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
                     <p>Showing {filteredAndSortedCourses.length} courses matching your filters</p>
                   </div>
                 )}
-                <div 
+                <div
                   className="courses-carousel-wrapper"
                   onMouseEnter={() => setIsHovered(true)}
                   onMouseLeave={() => setIsHovered(false)}
                 >
-                  <div 
-                    className={`courses-carousel ${!isHovered ? 'auto-scroll' : ''}`} 
+                  <div
+                    className={`courses-carousel ${!isHovered ? 'auto-scroll' : ''}`}
                     ref={carouselRef}
                   >
                     {/* Duplicate courses for seamless loop */}
@@ -586,7 +586,7 @@ const Home = ({ user, onNavigateLogin, onNavigateAdmin, onNavigateToPage }) => {
             {/* ========================================
                 NEW ENHANCED SECTIONS
             ======================================== */}
-            
+
             {/* Popular Categories Section */}
             <PopularCategories />
 

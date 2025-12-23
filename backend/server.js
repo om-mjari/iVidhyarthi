@@ -40,15 +40,20 @@ app.use("/uploads", express.static("uploads"));
 /* ============================
    MongoDB connection + GridFS
    ============================ */
+let isConnected = false;
 let gridfsBucket = null;
 mongoose
   .connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => console.log("✅ MongoDB connected"))
+  .then(() => {
+    console.log("✅ MongoDB connected");
+    isConnected = true;
+  })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
+    isConnected = false;
     process.exit(1);
   });
 

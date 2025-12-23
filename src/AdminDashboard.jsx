@@ -1820,67 +1820,35 @@ const AdminDashboard = ({ onLogout }) => {
             </ResponsiveContainer>
           </div>
 
-          {/* User Enrollment Trend */}
+          {/* Total Revenue Donut Chart */}
           <div className="chart-container">
-            <h4>📊 User Enrollment Trend</h4>
+            <h4>💰 Total Revenue</h4>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analyticsData.userGrowth || []}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} name="New Users" />
-                <Line type="monotone" dataKey="enrollments" stroke="#10b981" strokeWidth={2} name="Enrollments" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Course Categories */}
-          <div className="chart-container">
-            <h4>📚 Course Categories</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData.categoryDistribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="courses" fill="#6366f1" name="Courses" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Revenue vs Enrollments */}
-          <div className="chart-container">
-            <h4>🎯 Revenue vs Enrollments</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData.revenueEnrollments}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue (₹)" />
-                <Line yAxisId="right" type="monotone" dataKey="enrollments" stroke="#3b82f6" strokeWidth={2} name="Enrollments" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Top Courses */}
-          <div className="chart-container">
-            <h4>🏆 Top Courses</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={chartData.topCourses}
-                layout="vertical"
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="course" type="category" width={100} />
-                <Tooltip />
-                <Bar dataKey="students" fill="#3b82f6" name="Students" />
-              </BarChart>
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Total Revenue', value: stats.totalRevenue, fill: '#10b981' }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  dataKey="value"
+                  label={({ value }) => `₹${value.toLocaleString('en-IN')}`}
+                >
+                  <Cell fill="#10b981" />
+                </Pie>
+                <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+                <text
+                  x="50%"
+                  y="50%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{ fontSize: '24px', fontWeight: 'bold', fill: '#1f2937' }}
+                >
+                  ₹{stats.totalRevenue.toLocaleString('en-IN')}
+                </text>
+              </PieChart>
             </ResponsiveContainer>
           </div>
 
@@ -1919,25 +1887,6 @@ const AdminDashboard = ({ onLogout }) => {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Payment Methods */}
-          <div className="chart-container">
-            <h4>💳 Payment Methods</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={chartData.paymentMethods}
-                  cx="50%"
-                  cy="50%"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  dataKey="value"
-                />
-                <Tooltip formatter={(value) => `${value}%`} />
-                <Legend />
-              </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -3048,169 +2997,128 @@ const AdminDashboard = ({ onLogout }) => {
         ) : (
           <div className="charts-section">
             <div className="charts-grid">
-              {/* User Growth Bar Chart */}
-              <div className="chart-container">
-                <h4>📊 User Growth</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analyticsData.userGrowth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                      cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                    />
-                    <Bar dataKey="count" fill="var(--primary-color)" radius={[4, 4, 0, 0]} barSize={30} name="New Users" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {/* User Growth Bar Chart - Only show if data exists */}
+              {analyticsData.userGrowth && analyticsData.userGrowth.length > 0 && analyticsData.userGrowth.some(item => item.count > 0) && (
+                <div className="chart-container">
+                  <h4>📊 User Growth</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analyticsData.userGrowth} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                        cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                      />
+                      <Bar dataKey="count" fill="var(--primary-color)" radius={[4, 4, 0, 0]} barSize={30} name="New Users" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
 
-              {/* Revenue Distribution Pie Chart */}
-              <div className="chart-container">
-                <h4>💰 Revenue Distribution</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { name: 'Admin (30%)', value: stats.totalRevenue * 0.3, fill: '#8b5cf6' },
-                        { name: 'Lecturer (70%)', value: stats.totalRevenue * 0.7, fill: '#10b981' }
-                      ]}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      dataKey="value"
+              {/* Revenue Distribution Pie Chart - Only show if revenue exists */}
+              {stats.totalRevenue > 0 && (
+                <div className="chart-container">
+                  <h4>💰 Revenue Distribution</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Admin (30%)', value: stats.totalRevenue * 0.3, fill: '#8b5cf6' },
+                          { name: 'Lecturer (70%)', value: stats.totalRevenue * 0.7, fill: '#10b981' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={100}
+                        dataKey="value"
+                      >
+                        <Cell fill="#8b5cf6" />
+                        <Cell fill="#10b981" />
+                      </Pie>
+                      <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Total Revenue Donut Chart - Only show if revenue exists */}
+              {stats.totalRevenue > 0 && (
+                <div className="chart-container">
+                  <h4>💰 Total Revenue</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Total Revenue', value: stats.totalRevenue, fill: '#10b981' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        dataKey="value"
+                        label={({ value }) => `₹${value.toLocaleString('en-IN')}`}
+                      >
+                        <Cell fill="#10b981" />
+                      </Pie>
+                      <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+                      <text
+                        x="50%"
+                        y="50%"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{ fontSize: '24px', fontWeight: 'bold', fill: '#1f2937' }}
+                      >
+                        ₹{stats.totalRevenue.toLocaleString('en-IN')}
+                      </text>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Platform Activity - Only show if data exists */}
+              {chartData.platformActivity && chartData.platformActivity.length > 0 && (
+                <div className="chart-container">
+                  <h4>🔥 Platform Activity</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={chartData.platformActivity}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="day" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="morning" stroke="#fbbf24" strokeWidth={2} name="Morning" />
+                      <Line type="monotone" dataKey="afternoon" stroke="#f59e0b" strokeWidth={2} name="Afternoon" />
+                      <Line type="monotone" dataKey="evening" stroke="#ef4444" strokeWidth={2} name="Evening" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+
+              {/* Engagement Funnel - Only show if data exists */}
+              {chartData.engagementFunnel && chartData.engagementFunnel.length > 0 && (
+                <div className="chart-container">
+                  <h4>📉 Engagement Funnel</h4>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={chartData.engagementFunnel}
+                      layout="vertical"
                     >
-                      <Cell fill="#8b5cf6" />
-                      <Cell fill="#10b981" />
-                    </Pie>
-                    <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* User Enrollment Trend */}
-              <div className="chart-container">
-                <h4>📊 User Enrollment Trend</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analyticsData.userGrowth || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} name="New Users" />
-                    <Line type="monotone" dataKey="enrollments" stroke="#10b981" strokeWidth={2} name="Enrollments" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Course Categories */}
-              <div className="chart-container">
-                <h4>📚 Course Categories</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData.categoryDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="courses" fill="#6366f1" name="Courses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Revenue vs Enrollments */}
-              <div className="chart-container">
-                <h4>🎯 Revenue vs Enrollments</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData.revenueEnrollments}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue (₹)" />
-                    <Line yAxisId="right" type="monotone" dataKey="enrollments" stroke="#3b82f6" strokeWidth={2} name="Enrollments" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Top Courses */}
-              <div className="chart-container">
-                <h4>🏆 Top Courses</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={chartData.topCourses}
-                    layout="vertical"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="course" type="category" width={100} />
-                    <Tooltip />
-                    <Bar dataKey="students" fill="#3b82f6" name="Students" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Platform Activity */}
-              <div className="chart-container">
-                <h4>🔥 Platform Activity</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData.platformActivity}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="morning" stroke="#fbbf24" strokeWidth={2} name="Morning" />
-                    <Line type="monotone" dataKey="afternoon" stroke="#f59e0b" strokeWidth={2} name="Afternoon" />
-                    <Line type="monotone" dataKey="evening" stroke="#ef4444" strokeWidth={2} name="Evening" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Engagement Funnel */}
-              <div className="chart-container">
-                <h4>📉 Engagement Funnel</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={chartData.engagementFunnel}
-                    layout="vertical"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="stage" type="category" width={100} />
-                    <Tooltip />
-                    <Bar dataKey="count" name="Users">
-                      {chartData.engagementFunnel.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Payment Methods */}
-              <div className="chart-container">
-                <h4>💳 Payment Methods</h4>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={chartData.paymentMethods}
-                      cx="50%"
-                      cy="50%"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      dataKey="value"
-                    />
-                    <Tooltip formatter={(value) => `${value}%`} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="stage" type="category" width={100} />
+                      <Tooltip />
+                      <Bar dataKey="count" name="Users">
+                        {chartData.engagementFunnel.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './LecturerDashboardPremium.css';
 import './UploadsModule.css';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ============================================
 // AUTOMATIC COURSE IMAGE ASSIGNMENT SYSTEM
@@ -852,55 +853,6 @@ function OverviewTab() {
         type={modalState.type}
       />
 
-      <div className="charts" style={{ marginTop: '12px' }}>
-        <div className="chart-card">
-          <div className="chart-title">Student Enrollments</div>
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <div style={{ fontSize: '48px', fontWeight: '700', color: '#2e8bff', marginBottom: '8px' }}>
-              {overviewData.totalEnrollments || 0}
-            </div>
-            <div style={{ fontSize: '14px', color: '#6B7280' }}>
-              Total enrollments across all courses
-            </div>
-            {overviewData.recentEnrollments > 0 && (
-              <div style={{ marginTop: '12px', padding: '8px', background: '#E6FFF5', borderRadius: '8px', fontSize: '13px', color: '#00875A' }}>
-                +{overviewData.recentEnrollments} new in last 30 days
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="chart-card">
-          <div className="chart-title">Enrollments by Course</div>
-          {overviewData.courseEnrollmentData && overviewData.courseEnrollmentData.length > 0 ? (
-            <svg className="chart" viewBox="0 0 300 180">
-              {overviewData.courseEnrollmentData.map((course, index) => {
-                const maxEnrollments = Math.max(...overviewData.courseEnrollmentData.map(c => c.enrollments));
-                const barHeight = (course.enrollments / maxEnrollments) * 100;
-                const x = 30 + (index * 45);
-                const y = 150 - barHeight;
-                const colors = ['#b7dcff', '#4da3ff', '#89c3ff', '#2e8bff', '#1a75d9', '#0f5ca8'];
-                return (
-                  <g key={course.courseId}>
-                    <rect
-                      x={x}
-                      y={y}
-                      width="24"
-                      height={barHeight}
-                      fill={colors[index % colors.length]}
-                    />
-                    <title>{course.courseName}: {course.enrollments} students</title>
-                  </g>
-                );
-              })}
-              <line x1="20" y1="150" x2="280" y2="150" stroke="#e6f0fb" strokeWidth="2" />
-            </svg>
-          ) : (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#6B7280' }}>
-              No enrollment data available
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -5501,14 +5453,34 @@ function EarningsTab() {
           </svg>
         </div>
         <div className="chart-card">
-          <div className="chart-title">Enrollments This Month</div>
-          <svg className="chart" viewBox="0 0 300 180">
-            {generateEnrollmentBars()}
-            <line x1="20" y1="150" x2="280" y2="150" stroke="#e6f0fb" />
-            {enrollmentsChart.labels.map((label, i) => (
-              <text key={i} x={42 + (i * 60)} y="170" fontSize="10" textAnchor="middle" fill="#666">{label}</text>
-            ))}
-          </svg>
+          <div className="chart-title">Total Revenue (₹)</div>
+          <ResponsiveContainer width="100%" height={180}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: 'Total Revenue', value: totalEarnings, fill: '#4da3ff' }
+                ]}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={70}
+                dataKey="value"
+                label={({ value }) => `₹${value.toLocaleString('en-IN')}`}
+              >
+                <Cell fill="#4da3ff" />
+              </Pie>
+              <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+              <text
+                x="50%"
+                y="50%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                style={{ fontSize: '18px', fontWeight: 'bold', fill: '#1f2937' }}
+              >
+                ₹{totalEarnings.toLocaleString('en-IN')}
+              </text>
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
       <div className="table">

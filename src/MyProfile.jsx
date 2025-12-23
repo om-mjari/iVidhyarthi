@@ -24,6 +24,7 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
   });
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -148,7 +149,8 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
 
   const handleSendOTP = async () => {
     if (!otpData.email) {
-      alert('Please enter your email address');
+      setNotification({ show: true, message: 'Please enter your email address', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
       return;
     }
 
@@ -159,12 +161,14 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
       });
 
       if (response.data.success) {
-        alert('OTP sent to your email!');
+        setNotification({ show: true, message: 'OTP sent to your email!', type: 'success' });
+        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
         setOtpSent(true);
       }
     } catch (error) {
       console.error('Error sending OTP:', error);
-      alert('Failed to send OTP');
+      setNotification({ show: true, message: 'Failed to send OTP', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } finally {
       setLoading(false);
     }
@@ -172,11 +176,13 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
 
   const handleResetPasswordWithOTP = async () => {
     if (otpData.newPassword !== otpData.confirmPassword) {
-      alert('Passwords do not match!');
+      setNotification({ show: true, message: 'Passwords do not match!', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
       return;
     }
     if (otpData.newPassword.length < 6) {
-      alert('Password must be at least 6 characters long!');
+      setNotification({ show: true, message: 'Password must be at least 6 characters long!', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
       return;
     }
 
@@ -189,15 +195,19 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
       });
 
       if (response.data.success) {
-        alert('Password reset successfully!');
-        setShowForgotPassword(false);
-        setShowPasswordModal(false);
-        setOtpData({ email: '', otp: '', newPassword: '', confirmPassword: '' });
-        setOtpSent(false);
+        setNotification({ show: true, message: 'Password reset successfully!', type: 'success' });
+        setTimeout(() => {
+          setNotification({ show: false, message: '', type: '' });
+          setShowForgotPassword(false);
+          setShowPasswordModal(false);
+          setOtpData({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+          setOtpSent(false);
+        }, 2000);
       }
     } catch (error) {
       console.error('Error resetting password:', error);
-      alert(error.response?.data?.message || 'Failed to reset password');
+      setNotification({ show: true, message: error.response?.data?.message || 'Failed to reset password', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } finally {
       setLoading(false);
     }
@@ -466,7 +476,7 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
           setOtpSent(false);
           setOtpData({ email: '', otp: '', newPassword: '', confirmPassword: '' });
         }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-content-otp" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>🔑 Reset Password via OTP</h3>
               <button className="modal-close" onClick={() => {
@@ -478,7 +488,7 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
             <div className="modal-body">
               <div className="form-group">
                 <label>Email Address</label>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="input-with-button">
                   <input
                     type="email"
                     className="form-input"
@@ -486,14 +496,12 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
                     onChange={(e) => setOtpData({...otpData, email: e.target.value})}
                     placeholder="Enter your registered email"
                     disabled={otpSent}
-                    style={{ flex: 1 }}
                   />
                   {!otpSent && (
                     <button 
-                      className="btn-modal btn-primary" 
+                      className="btn-send-otp" 
                       onClick={handleSendOTP} 
                       disabled={loading}
-                      style={{ whiteSpace: 'nowrap' }}
                     >
                       {loading ? 'Sending...' : 'Send OTP'}
                     </button>
@@ -545,13 +553,22 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
               }}>
                 Back
               </button>
-              {otpSent && (
-                <button className="btn-modal btn-primary" onClick={handleResetPasswordWithOTP} disabled={loading}>
-                  {loading ? 'Resetting...' : 'Reset Password'}
-                </button>
-              )}
+              <button 
+                className="btn-modal btn-primary" 
+                onClick={handleResetPasswordWithOTP} 
+                disabled={loading || !otpSent}
+              >
+                {loading ? 'Resetting...' : 'Reset Password'}
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div className={`notification-toast ${notification.type}`}>
+          <span>{notification.message}</span>
         </div>
       )}
     </div>

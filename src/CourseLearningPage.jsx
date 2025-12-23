@@ -51,6 +51,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [loadingQuiz, setLoadingQuiz] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [generatingCertificate, setGeneratingCertificate] = useState(false);
 
   // Custom modal states
   const [showModal, setShowModal] = useState(false);
@@ -2233,25 +2234,38 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
           <div className="progress-card-header">
             <span className="progress-icon">📊</span>
             <h2>Course Progress</h2>
-            <button
-              onClick={() => handleQuizStart(1)}
-              disabled={
-                (() => {
-                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                  const submittedCount = submittedAssignmentsInCourseCount;
-                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+            <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
+              <button
+                onClick={async () => {
+                  setGeneratingCertificate(true);
+                  try {
+                    const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                    const response = await fetch('http://localhost:5000/api/certifications/generate', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                      },
+                      body: JSON.stringify({
+                        courseId: courseId,
+                        studentId: studentId
+                      })
+                    });
 
-                  // Final Quiz Unlock Condition: 100% Progress AND Course Marked as "Completed" by Lecturer
-                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                  return overallProgress < 100 || !isMarkedCompleted;
-                })()
-              }
-              style={{
-                marginLeft: 'auto',
-                padding: '0.6rem 1.25rem',
-                background:
+                    const result = await response.json();
+                    if (result.success) {
+                      setNotification({ message: '🏆 Certificate generated and sent to your email!', type: 'success' });
+                    } else {
+                      setNotification({ message: result.message || 'Failed to generate certificate', type: 'error' });
+                    }
+                  } catch (error) {
+                    console.error('Error generating certificate:', error);
+                    setNotification({ message: 'Failed to generate certificate. Please try again.', type: 'error' });
+                  } finally {
+                    setGeneratingCertificate(false);
+                  }
+                }}
+                disabled={
                   (() => {
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
                     const submittedCount = submittedAssignmentsInCourseCount;
@@ -2259,77 +2273,168 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                     const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
 
-                    return (overallProgress >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
-                  })(),
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                cursor:
-                  (() => {
-                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = submittedAssignmentsInCourseCount;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                    return (overallProgress >= 100 && isMarkedCompleted) ? 'pointer' : 'not-allowed';
-                  })(),
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow:
-                  (() => {
-                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                    const submittedCount = submittedAssignmentsInCourseCount;
-                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                    return (overallProgress >= 100 && isMarkedCompleted) ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
+                    return overallProgress < 100 || !isMarkedCompleted || generatingCertificate;
                   })()
-              }}
-              onMouseEnter={(e) => {
-                const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                const submittedCount = submittedAssignmentsInCourseCount;
-                const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
-
-                if (overallProgress >= 100 && isMarkedCompleted) {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
                 }
-              }}
-              onMouseLeave={(e) => {
-                const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
-                const submittedCount = submittedAssignmentsInCourseCount;
-                const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
-                const overallProgress = (videoCompletion + assignmentCompletion) / 2;
-                const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  background:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
 
-                if (overallProgress >= 100 && isMarkedCompleted) {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = '0 4px 15px rgba(139, 92, 246, 0.4)';
+                      return (overallProgress >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)' : '#cbd5e1';
+                    })(),
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                      return (overallProgress >= 100 && isMarkedCompleted) ? 'pointer' : 'not-allowed';
+                    })(),
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                      return (overallProgress >= 100 && isMarkedCompleted) ? '0 4px 15px rgba(20, 184, 166, 0.4)' : 'none';
+                    })()
+                }}
+                onMouseEnter={(e) => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+                  if (videoCompletion >= 100 && isMarkedCompleted) {
+                    e.target.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+                  if (videoCompletion >= 100 && isMarkedCompleted) {
+                    e.target.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <span>{generatingCertificate ? '⌛' : '🎓'}</span>
+                {generatingCertificate ? 'Generating...' : 'Generate Certificate'}
+              </button>
+
+              <button
+                onClick={() => handleQuizStart(1)}
+                disabled={
+                  (() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = submittedAssignmentsInCourseCount;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+
+                    // Final Quiz Unlock Condition: 100% Progress AND Course Marked as "Completed" by Lecturer
+                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                    return overallProgress < 100 || !isMarkedCompleted;
+                  })()
                 }
-              }}
-            >
-              <span>
-                {(() => {
+                style={{
+                  padding: '0.6rem 1.25rem',
+                  background:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                      return (overallProgress >= 100 && isMarkedCompleted) ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : '#cbd5e1';
+                    })(),
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                      return (overallProgress >= 100 && isMarkedCompleted) ? 'pointer' : 'not-allowed';
+                    })(),
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow:
+                    (() => {
+                      const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                      const submittedCount = submittedAssignmentsInCourseCount;
+                      const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                      const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                      const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                      return (overallProgress >= 100 && isMarkedCompleted) ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none';
+                    })()
+                }}
+                onMouseEnter={(e) => {
                   const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
                   const submittedCount = submittedAssignmentsInCourseCount;
                   const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
                   const overallProgress = (videoCompletion + assignmentCompletion) / 2;
                   const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
 
-                  return (overallProgress >= 100 && isMarkedCompleted) ? '📝' : '🔒';
-                })()}
-              </span>
-              Attempt Quiz
-            </button>
+                  if (overallProgress >= 100 && isMarkedCompleted) {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.5)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                  const submittedCount = submittedAssignmentsInCourseCount;
+                  const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                  const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                  const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                  if (overallProgress >= 100 && isMarkedCompleted) {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 15px rgba(139, 92, 246, 0.4)';
+                  }
+                }}
+              >
+                <span>
+                  {(() => {
+                    const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
+                    const submittedCount = submittedAssignmentsInCourseCount;
+                    const assignmentCompletion = assignments.length > 0 ? (submittedCount / assignments.length) * 100 : 100;
+                    const overallProgress = (videoCompletion + assignmentCompletion) / 2;
+                    const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
+
+                    return (overallProgress >= 100 && isMarkedCompleted) ? '📝' : '🔒';
+                  })()}
+                </span>
+                Attempt Quiz
+              </button>
+            </div>
           </div>
           <div className="progress-stats-grid">
             <div

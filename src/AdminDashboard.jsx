@@ -1454,7 +1454,7 @@ const AdminDashboard = ({ onLogout }) => {
       const result = await response.json();
       if (result.success) {
         setFeedback(feedback.filter(fb => fb.Feedback_Id !== confirmData));
-        showNotification('Feedback deleted successfully!', 'success');
+        showNotification('delete properly', 'success');
         fetchFeedback(); // Refresh data
       } else {
         showNotification('Failed to delete feedback', 'error');
@@ -3754,23 +3754,26 @@ const AdminDashboard = ({ onLogout }) => {
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
       {/* Notification Modal */}
-      {notification && (
-        <div className="notification-modal-overlay">
-          <div className={`notification-modal ${notification.type} animate-slide-in`}>
-            <div className="notification-content">
-              <div className="notification-icon">
-                {notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : 'ℹ️'}
+      {
+        notification && (
+          <div className="notification-modal-overlay">
+            <div className={`notification-modal ${notification.type} animate-slide-in`}>
+              <div className="notification-content">
+                <div className="notification-icon">
+                  {notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : 'ℹ️'}
+                </div>
+                <p>{notification.message}</p>
+                <button className="notification-close" onClick={closeNotification}>✕</button>
               </div>
-              <p>{notification.message}</p>
-              <button className="notification-close" onClick={closeNotification}>✕</button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 

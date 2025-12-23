@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './Auth.css';
+import './LoginPremium.css';
 
 const ForgotPassword = ({ onBack }) => {
   const [step, setStep] = useState(1); // 1: Email, 2: OTP, 3: New Password
@@ -103,9 +103,9 @@ const ForgotPassword = ({ onBack }) => {
       const response = await fetch(`${API_BASE_URL}/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: email.trim(), 
-          newPassword: newPassword 
+        body: JSON.stringify({
+          email: email.trim(),
+          newPassword: newPassword
         })
       });
 
@@ -128,85 +128,129 @@ const ForgotPassword = ({ onBack }) => {
   };
 
   return (
-    <div className="auth-wrap">
-      <div className="auth-card">
-        <div className="auth-illustration" aria-hidden>
-          <div className="orb orb-1" />
-          <div className="orb orb-2" />
-          <div className="orb orb-3" />
-          <div className="brand">StudentHub</div>
-          <div className="tag">Reset Your Password</div>
-        </div>
-        <div className="auth-form-area">
-          <h2>
-            {step === 1 && 'Forgot Password'}
-            {step === 2 && 'Verify OTP'}
-            {step === 3 && 'Set New Password'}
-          </h2>
-          <p className="subtitle">
-            {step === 1 && 'Enter your email to receive an OTP'}
-            {step === 2 && 'Enter the 6-digit code sent to your email'}
-            {step === 3 && 'Create a new secure password'}
-          </p>
+    <div className="premium-auth-container">
+      {/* Animated Background Waves */}
+      <div className="wave-background">
+        <svg className="wave wave-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path fill="rgba(0, 184, 148, 0.3)" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,144C960,149,1056,139,1152,122.7C1248,107,1344,85,1392,74.7L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+        <svg className="wave wave-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path fill="rgba(0, 230, 170, 0.2)" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,208C672,213,768,203,864,186.7C960,171,1056,149,1152,149.3C1248,149,1344,171,1392,181.3L1440,192L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+        <svg className="wave wave-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none">
+          <path fill="rgba(160, 230, 175, 0.15)" d="M0,160L48,149.3C96,139,192,117,288,128C384,139,480,181,576,186.7C672,192,768,160,864,133.3C960,107,1056,85,1152,90.7C1248,96,1344,128,1392,144L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+      </div>
 
+      {/* Floating Decorative Elements */}
+      <div className="floating-shapes">
+        <div className="shape shape-1"></div>
+        <div className="shape shape-2"></div>
+        <div className="shape shape-3"></div>
+        <div className="shape shape-4"></div>
+      </div>
+
+      {/* Forgot Password Card */}
+      <div className="premium-login-card">
+        {/* Top Section - Welcome Banner */}
+        <div className="card-banner">
+          <div className="banner-content">
+            <h1 className="welcome-title">
+              {step === 1 && 'Reset Your Password'}
+              {step === 2 && 'Verify OTP'}
+              {step === 3 && 'Create New Password'}
+            </h1>
+            <p className="welcome-subtitle">
+              {step === 1 && 'Enter your email address and we\'ll send you a verification code to reset your password.'}
+              {step === 2 && 'Enter the 6-digit code we sent to your email address.'}
+              {step === 3 && 'Create a strong password to secure your account.'}
+            </p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="card-divider">
+          <span className="divider-text">
+            {step === 1 && 'STEP 1 OF 3'}
+            {step === 2 && 'STEP 2 OF 3'}
+            {step === 3 && 'STEP 3 OF 3'}
+          </span>
+        </div>
+
+        {/* Form Section */}
+        <div className="card-form-section">
           {/* Step 1: Email Input */}
           {step === 1 && (
-            <form onSubmit={handleSendOTP} className="auth-form">
-              <label className="field">
-                <span>Email Address</span>
+            <form onSubmit={handleSendOTP} className="premium-form">
+              <div className="input-group">
+                <div className="input-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                </div>
                 <input
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="Email Address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="premium-input"
                   disabled={loading}
                   required
                 />
-              </label>
+              </div>
 
-              {error && <div className="msg error" role="alert">{error}</div>}
-              {success && <div className="msg success">{success}</div>}
+              {error && <div className="message-alert error-alert">{error}</div>}
+              {success && <div className="message-alert success-alert">{success}</div>}
 
-              <button className="auth-submit" type="submit" disabled={loading}>
+              <button type="submit" className="premium-login-btn" disabled={loading}>
                 {loading ? 'Sending...' : 'Send OTP'}
               </button>
 
-              <button 
-                type="button" 
-                className="auth-link" 
-                onClick={onBack}
-                style={{ marginTop: '12px', background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Back to Login
-              </button>
+              <div className="signup-prompt">
+                <span>Remember your password? </span>
+                <button type="button" onClick={onBack} className="signup-link">Back to Login</button>
+              </div>
             </form>
           )}
 
           {/* Step 2: OTP Verification */}
           {step === 2 && (
-            <form onSubmit={handleVerifyOTP} className="auth-form">
-              <label className="field">
-                <span>Enter OTP</span>
+            <form onSubmit={handleVerifyOTP} className="premium-form">
+              <div className="input-group">
+                <div className="input-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
                 <input
                   type="text"
-                  placeholder="123456"
+                  placeholder="Enter 6-digit OTP"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="premium-input"
                   disabled={loading}
                   maxLength={6}
-                  style={{ fontSize: '24px', letterSpacing: '8px', textAlign: 'center' }}
+                  style={{ fontSize: '20px', letterSpacing: '6px', textAlign: 'center' }}
                   required
                 />
-              </label>
+              </div>
 
-              <p style={{ fontSize: '13px', color: '#666', marginTop: '-8px' }}>
-                Didn't receive the code? <button type="button" onClick={() => setStep(1)} style={{ background: 'none', border: 'none', color: '#667eea', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>Resend OTP</button>
-              </p>
+              <div className="form-options" style={{ justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="forgot-link"
+                >
+                  Didn't receive code? Resend OTP
+                </button>
+              </div>
 
-              {error && <div className="msg error" role="alert">{error}</div>}
-              {success && <div className="msg success">{success}</div>}
+              {error && <div className="message-alert error-alert">{error}</div>}
+              {success && <div className="message-alert success-alert">{success}</div>}
 
-              <button className="auth-submit" type="submit" disabled={loading}>
+              <button type="submit" className="premium-login-btn" disabled={loading}>
                 {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
             </form>
@@ -214,40 +258,58 @@ const ForgotPassword = ({ onBack }) => {
 
           {/* Step 3: New Password */}
           {step === 3 && (
-            <form onSubmit={handleResetPassword} className="auth-form">
-              <label className="field">
-                <span>New Password</span>
+            <form onSubmit={handleResetPassword} className="premium-form">
+              <div className="input-group">
+                <div className="input-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="New Password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  className="premium-input"
                   disabled={loading}
                   required
                 />
-              </label>
+              </div>
 
-              <label className="field">
-                <span>Confirm New Password</span>
+              <div className="input-group">
+                <div className="input-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
                 <input
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="Confirm New Password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="premium-input"
                   disabled={loading}
                   required
                 />
-              </label>
+              </div>
 
-              {error && <div className="msg error" role="alert">{error}</div>}
-              {success && <div className="msg success">{success}</div>}
+              {error && <div className="message-alert error-alert">{error}</div>}
+              {success && <div className="message-alert success-alert">{success}</div>}
 
-              <button className="auth-submit" type="submit" disabled={loading}>
+              <button type="submit" className="premium-login-btn" disabled={loading}>
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
             </form>
           )}
         </div>
+      </div>
+
+      {/* Footer Credit */}
+      <div className="page-footer">
+        <span>designed by </span>
+        <span className="brand-name">iVidhyarthi</span>
       </div>
     </div>
   );

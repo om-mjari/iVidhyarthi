@@ -209,6 +209,25 @@ app.get("/api/health", (req, res) => {
     message: "iVidhyarthi Backend is running",
     timestamp: new Date().toISOString(),
     db: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+    dbConnected: isConnected,
+  });
+});
+
+app.get("/api/db-status", (req, res) => {
+  res.json({
+    success: true,
+    mongodb: {
+      status: mongoose.connection.readyState === 1 ? "Connected" : "Disconnected",
+      readyState: mongoose.connection.readyState,
+      name: mongoose.connection.name || null,
+      host: mongoose.connection.host || null,
+      port: mongoose.connection.port || null,
+      isConnected: isConnected,
+    },
+    server: {
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+    }
   });
 });
 
@@ -219,6 +238,14 @@ app.get("/api/health", (req, res) => {
 /** Upload file */
 app.post("/api/upload", upload.single("file"), async (req, res, next) => {
   try {
+    if (!isConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database not available. File upload requires MongoDB connection.",
+        suggestion: "Try using a mobile hotspot or check network/firewall settings."
+      });
+    }
+    
     if (!req.file)
       return res
         .status(400)
@@ -259,6 +286,14 @@ app.post("/api/upload", upload.single("file"), async (req, res, next) => {
 /** Get file metadata list */
 app.get("/api/files", async (req, res, next) => {
   try {
+    if (!isConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database not available. File listing requires MongoDB connection.",
+        suggestion: "Try using a mobile hotspot or check network/firewall settings."
+      });
+    }
+    
     if (!gridfsBucket)
       return res
         .status(500)
@@ -273,6 +308,14 @@ app.get("/api/files", async (req, res, next) => {
 /** Download file by ID */
 app.get("/api/files/:id", async (req, res, next) => {
   try {
+    if (!isConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database not available. File download requires MongoDB connection.",
+        suggestion: "Try using a mobile hotspot or check network/firewall settings."
+      });
+    }
+    
     if (!gridfsBucket)
       return res
         .status(500)
@@ -302,6 +345,14 @@ app.get("/api/files/:id", async (req, res, next) => {
 /** Delete file by ID */
 app.delete("/api/files/:id", async (req, res, next) => {
   try {
+    if (!isConnected) {
+      return res.status(503).json({ 
+        success: false, 
+        message: "Database not available. File deletion requires MongoDB connection.",
+        suggestion: "Try using a mobile hotspot or check network/firewall settings."
+      });
+    }
+    
     if (!gridfsBucket)
       return res
         .status(500)

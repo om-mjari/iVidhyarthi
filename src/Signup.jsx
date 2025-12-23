@@ -340,15 +340,23 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
   };
 
   const validateAge = (dob) => {
-    const today = new Date();
+    if (!dob) return false;
+    
     const birthDate = new Date(dob);
-    const age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      return age - 1 >= 16;
+    const birthYear = birthDate.getFullYear();
+    
+    // Only allow users born in 2011 or earlier (at least 14 years old in 2025)
+    if (birthYear > 2011) {
+      return false;
     }
-    return age >= 16;
+    
+    // Additional check: ensure date is not in the future
+    const today = new Date();
+    if (birthDate > today) {
+      return false;
+    }
+    
+    return true;
   };
 
   // Reset dependent fields when parent changes
@@ -405,6 +413,11 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
           setIsSubmitting(false);
           return;
         }
+        if (!validateAge(formData.dob)) {
+          setError('You must be born in 2011 or earlier to register (minimum 14 years old).');
+          setIsSubmitting(false);
+          return;
+        }
         if (!formData.gender) {
           setError('Please select your gender.');
           setIsSubmitting(false);
@@ -438,58 +451,76 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
       } else if (activeTab === 'Lecturer') {
         if (!validateContact(formData.mobileNo)) {
           setError('Mobile number should be 10 digits starting with 6, 7, 8, or 9.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.dob) {
           setError('Please enter your date of birth.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!validateAge(formData.dob)) {
+          setError('You must be born in 2011 or earlier to register (minimum 14 years old).');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.gender) {
           setError('Please select your gender.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.university) {
           setError('Please select your university.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.institute) {
           setError('Please select your institute.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.highestQualification) {
           setError('Please select your highest qualification.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.specialization) {
           setError('Please select your specialization.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.designation) {
           setError('Please select your designation.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.experienceYears || formData.experienceYears < 0) {
           setError('Please enter valid years of experience.');
+          setIsSubmitting(false);
           return;
         }
       } else if (activeTab === 'Registrar') {
         if (!validateContact(formData.contactNo)) {
           setError('Contact number should be 10 digits starting with 6, 7, 8, or 9.');
+          setIsSubmitting(false);
           return;
         }
         if (!formData.university) {
           setError('Please select your university.');
+          setIsSubmitting(false);
           return;
         }
       }
 
       if (!validatePassword(formData.password)) {
         setError('Password must be at least 8 characters with uppercase, lowercase, number, and special character.');
+        setIsSubmitting(false);
         return;
       }
 
       if (formData.password !== formData.confirmPassword) {
         setError('Passwords do not match.');
+        setIsSubmitting(false);
         return;
       }
 
@@ -804,6 +835,7 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
                         className="premium-input"
                         value={formData.dob}
                         onChange={(e) => handleInputChange('dob', e.target.value)}
+                        max="2011-12-31"
                         required
                       />
                     </div>
@@ -991,6 +1023,7 @@ const Signup = ({ onAuthenticated, onSwitchToLogin }) => {
                         className="premium-input"
                         value={formData.dob}
                         onChange={(e) => handleInputChange('dob', e.target.value)}
+                        max="2011-12-31"
                         required
                       />
                     </div>

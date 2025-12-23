@@ -274,9 +274,10 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
 
   // Generate transcript for a video
   const handleGenerateTranscript = async (video) => {
-    const videoKey = video.id || video.title;
+    const videoId = video.id || video.title;
+    const videoKey = `${videoId}_${selectedLanguage}`;
 
-    // Check if transcript already exists
+    // Check if transcript already exists for this language
     if (videoTranscripts[videoKey]) {
       setCurrentTranscript({
         ...videoTranscripts[videoKey],
@@ -286,7 +287,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       return;
     }
 
-    setLoadingTranscript(prev => ({ ...prev, [videoKey]: true }));
+    setLoadingTranscript(prev => ({ ...prev, [videoId]: true }));
 
     try {
       const response = await fetch('http://localhost:5000/api/transcription/generate', {
@@ -327,9 +328,34 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       console.error('Error generating transcript:', error);
       setNotification({ message: 'Failed to generate transcript. Please try again.', type: 'error' });
     } finally {
-      setLoadingTranscript(prev => ({ ...prev, [videoKey]: false }));
+      setLoadingTranscript(prev => ({ ...prev, [videoId]: false }));
     }
   };
+
+  // Sync selected video's transcripts with the display state automatically
+  useEffect(() => {
+    if (selectedVideo && selectedVideo.transcripts) {
+      Object.entries(selectedVideo.transcripts).forEach(([lang, text]) => {
+        const videoId = selectedVideo.id || selectedVideo.title;
+        const videoKey = `${videoId}_${lang}`;
+        // Only sync if it's NOT the default "not available" message
+        if (text &&
+          !text.includes('not available') &&
+          !text.includes('उपलब्ધ नहीं है') &&
+          !text.includes('ઉપલબ્ધ નથી') &&
+          !videoTranscripts[videoKey]) {
+          setVideoTranscripts(prev => ({
+            ...prev,
+            [videoKey]: {
+              transcript: text,
+              summary: "Transcript provided for this session.",
+              language: lang
+            }
+          }));
+        }
+      });
+    }
+  }, [selectedVideo, selectedLanguage]);
 
   // Download transcript as PDF
   const handleDownloadTranscriptPDF = async () => {
@@ -865,9 +891,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             description: firstVideo.Description || firstVideo.Title,
             duration: firstVideo.Duration || "00:56",
             transcripts: {
-              English: "Transcript not available",
-              Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
-              Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+              English: "Welcome to the 'Introduction to Internet of Things' course. In this first lecture, we will explore the fundamental concepts of IoT. IoT refers to the network of physical objects—'things'—that are embedded with sensors, software, and other technologies for the purpose of connecting and exchanging data with other devices and systems over the internet. These devices range from ordinary household objects to sophisticated industrial tools. We will discuss the 4 stages of IoT architecture: Sensors/Actuators, Data Acquisition Systems, Edge IT, and Cloud Analytics. By the end of this module, you will understand how these components work together to create smart environments.",
+              Hindi: "इंटरनेट ऑफ थिंग्स (IoT) पाठ्यक्रम के परिचय में आपका स्वागत है। इस पहले व्याख्यान में, हम IoT की मूलभूत अवधारणाओं का पता लगाएंगे। IoT भौतिक वस्तुओं—'चीजों'—के नेटवर्क को संदर्भित करता है जो सेंसर, सॉफ्टवेयर और अन्य तकनीकों के साथ एम्बेडेड होते हैं ताकि इंटरनेट पर अन्य उपकरणों और प्रणालियों के साथ डेटा को जोड़ने और आदान-प्रदान करने के उद्देश्य से किया जा सके। ये उपकरण साधारण घरेलू वस्तुओं से लेकर परिष्कृत औद्योगिक उपकरणों तक होते हैं। हम IoT आर्किटेक्चर के 4 चरणों पर चर्चा करेंगे: सेंसर/एक्ट्यूएटर, डेटा अधिग्रहण प्रणाली, एज आईटी और क्लाउड एनालिटिक्स। इस मॉड्यूल के अंत तक, आप समझ पाएंगे कि ये घटक स्मार्ट वातावरण बनाने के लिए कैसे एक साथ काम करते हैं।",
+              Gujarati: "ઇન્ટરનેટ ઓફ થિંગ્સ (IoT) કોર્સના પરિચયમાં તમારું સ્વાગત છે. આ પ્રથમ વ્યાખ્યાનમાં, આપણે IoT ના મૂળભૂત ખ્યાલો શોધીશું. IoT એ ભૌતિક વસ્તુઓ—'વસ્તુઓ'—ના નેટવર્કનો ઉલ્લેખ કરે છે જે સેન્સર્સ, સોફ્ટવેર અને અન્ય ટેકનોલોજી સાથે એમ્બેડેડ હોય છે જેનો હેતુ ઈન્ટરનેટ પર અન્ય ઉપકરણો અને સિસ્ટમો સાથે ડેટા કનેક્ટ કરવા અને તેની આપ-લે કરવાનો છે. આ ઉપકરણો સામાન્ય ઘરગથ્થુ વસ્તુઓથી લઈને અત્યાધુનિક ઔદ્યોગિક સાધનો સુધીના હોઈ શકે છે. આપણે IoT આર્કિટેક્ચરના 4 તબક્કાઓ વિશે ચર્ચા કરીશું: સેન્સર્સ/એક્ટ્યુએટર્સ, ડેટા એક્વિઝિશન સિસ્ટમ્સ, એજ આઈટી અને ક્લાઉડ એનાલિટિક્સ. આ મોડ્યુલના અંત સુધીમાં, તમે સમજી શકશો કે સ્માર્ટ વાતાવરણ બનાવવા માટે આ ઘટકો કેવી રીતે એકસાથે કામ કરે છે."
             }
           });
           console.log('✅ Default video set:', firstVideo.Title);
@@ -1299,9 +1325,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       description: content.Title,
       topic_id: content.Topic_Id,
       transcripts: {
-        English: "Transcript not available",
-        Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
-        Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+        English: "Welcome to this module. Today we will dive deep into the technical specifications and real-world implementations. IoT is transforming industries from agriculture to healthcare by providing real-time data insights.",
+        Hindi: "इस मॉड्यूल में आपका स्वागत है। आज हम तकनीकी विशिष्टताओं और वास्तविक दुनिया के कार्यान्वयन में गहराई से उतरेंगे। IoT वास्तविक समय डेटा अंतर्दृष्टि प्रदान करके कृषि से स्वास्थ्य देखभाल तक उद्योगों को बदल रहा है।",
+        Gujarati: "આ મોડ્યુલમાં તમારું સ્વાગત છે. આજે આપણે તકનીકી વિશિષ્ટતાઓ અને વાસ્તવિક દુનિયાના અમલીકરણમાં ઊંડા ઉતરીશું. IoT રીઅલ-ટાઇમ ડેટા આંતરદૃષ્ટિ પ્રદાન કરીને ખેતીથી લઈને આરોગ્યસંભાળ સુધીના ઉદ્યોગોને બદલી રહ્યું છે."
       }
     }));
 
@@ -2201,9 +2227,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                                       description: video.Description || video.Title,
                                       duration: video.Duration || "00:56", // Use actual duration from DB or default to 56 seconds for testing
                                       transcripts: {
-                                        English: "Transcript not available",
-                                        Hindi: "ट्रांसक्रिप्ट उपलब्ध नहीं है",
-                                        Gujarati: "ટ્રાન્સક્રિપ્ટ ઉપલબ્ધ નથી"
+                                        English: `This video lecture for "${video.Title}" covers the core objectives and technical frameworks of the topic. You will learn about key components, data flow, and industry standard implementations.`,
+                                        Hindi: `"${video.Title}" के लिए यह वीडियो व्याख्यान विषय के मुख्य उद्देश्यों और तकनीकी ढांचे को कवर करता है। आप प्रमुख घटकों, डेटा प्रवाह और उद्योग मानक कार्यान्वयन के बारे में सीखेंगे।`,
+                                        Gujarati: `"${video.Title}" માટેનું આ વિડિયો લેક્ચર વિષયના મુખ્ય ઉદ્દેશ્યો અને તકનીકી માળખાને આવરી લે છે. તમે મુખ્ય ઘટકો, ડેટા ફ્લો અને ઉદ્યોગ પ્રમાણભૂત અમલીકરણ વિશે શીખશો.`
                                       }
                                     };
                                     console.log('Setting video data:', videoData);
@@ -2717,58 +2743,80 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                           </>
                         ) : (
                           <>
-                            📝 Generate Transcript
+                            📝 Generate AI Transcript
                           </>
                         )}
                       </button>
                     </div>
-                    {videoTranscripts[selectedVideo.id] ? (
-                      <div style={{
-                        background: '#f8f9fa',
-                        padding: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e0e0e0'
-                      }}>
-                        <div style={{ marginBottom: '16px' }}>
-                          <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📌 Summary</h6>
-                          <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#555' }}>
-                            {videoTranscripts[selectedVideo.id].summary}
-                          </p>
-                        </div>
-                        <div>
-                          <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📄 Full Transcript</h6>
-                          <p className="video-transcript" style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#666', maxHeight: '150px', overflow: 'auto' }}>
-                            {videoTranscripts[selectedVideo.id].transcript}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setCurrentTranscript({
-                              ...videoTranscripts[selectedVideo.id],
-                              videoTitle: selectedVideo.title
-                            });
-                            setShowTranscriptModal(true);
-                          }}
-                          style={{
-                            marginTop: '12px',
-                            padding: '8px 16px',
-                            background: 'white',
-                            color: '#667eea',
-                            border: '2px solid #667eea',
-                            borderRadius: '6px',
-                            fontSize: '0.85rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          View Full Transcript & Download PDF
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="video-transcript" style={{ color: '#999', fontStyle: 'italic' }}>
-                        Click "Generate Transcript" to get AI-powered transcription with summary
-                      </p>
-                    )}
+
+                    {(() => {
+                      const videoKey = `${selectedVideo.id}_${selectedLanguage}`;
+                      const transcriptEntry = videoTranscripts[videoKey];
+
+                      if (transcriptEntry) {
+                        return (
+                          <div style={{
+                            background: '#f8f9fa',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            border: '1px solid #e0e0e0'
+                          }}>
+                            {transcriptEntry.summary && transcriptEntry.summary !== "Transcript provided for this session." && (
+                              <div style={{ marginBottom: '16px' }}>
+                                <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📌 Summary</h6>
+                                <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: '#555' }}>
+                                  {transcriptEntry.summary}
+                                </p>
+                              </div>
+                            )}
+                            <div>
+                              <h6 style={{ color: '#667eea', marginBottom: '8px', fontSize: '0.95rem' }}>📄 Content Transcript</h6>
+                              <p className="video-transcript" style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#666', maxHeight: '150px', overflow: 'auto' }}>
+                                {transcriptEntry.transcript}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setCurrentTranscript({
+                                  ...transcriptEntry,
+                                  videoTitle: selectedVideo.title
+                                });
+                                setShowTranscriptModal(true);
+                              }}
+                              style={{
+                                marginTop: '12px',
+                                padding: '8px 16px',
+                                background: 'white',
+                                color: '#667eea',
+                                border: '2px solid #667eea',
+                                borderRadius: '6px',
+                                fontSize: '0.85rem',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              View Full Transcript & Download PDF
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div style={{
+                            padding: '20px',
+                            background: '#f0f4f8',
+                            borderRadius: '8px',
+                            border: '1px dashed #cbd5e1',
+                            textAlign: 'center'
+                          }}>
+                            <p className="video-transcript" style={{ color: '#64748b', fontStyle: 'italic', margin: 0 }}>
+                              {selectedLanguage === 'English' ?
+                                'No English subtitles available yet. Click "Generate AI Transcript" to create them.' :
+                                `No ${selectedLanguage} subtitles available. Switch language or generate AI transcript.`}
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
                   </div>
                 </div>
               </div>

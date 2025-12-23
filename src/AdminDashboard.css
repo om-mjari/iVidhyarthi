@@ -214,6 +214,22 @@
   position: relative;
   z-index: 10;
   box-shadow: 4px 0 30px rgba(217, 70, 239, 0.08);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-sidebar.hidden {
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  border: none !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+.admin-dashboard.sidebar-hidden .admin-content {
+  width: 100vw !important;
+  flex: 1 !important;
 }
 
 .admin-header {
@@ -2991,7 +3007,8 @@
 
 /* Respond Modal */
 .respond-modal {
-  max-width: 550px;
+  max-width: 600px !important;
+  width: 90%;
   border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);

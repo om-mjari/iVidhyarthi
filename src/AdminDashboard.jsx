@@ -3454,8 +3454,8 @@ const AdminDashboard = ({ onLogout }) => {
   };
 
   return (
-    <div className="admin-dashboard">
-      <aside className="admin-sidebar">
+    <div className={`admin-dashboard ${showRespondModal ? 'sidebar-hidden' : ''}`}>
+      <aside className={`admin-sidebar ${showRespondModal ? 'hidden' : ''}`}>
         <div className="admin-header">
           <Logo size="medium" showText={true} style={{ color: 'white', marginBottom: '1rem' }} />
           <h2>iVidhyarthi Control Center</h2>

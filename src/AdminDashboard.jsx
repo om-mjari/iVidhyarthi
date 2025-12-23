@@ -1676,7 +1676,7 @@ const AdminDashboard = ({ onLogout }) => {
     <div className="overview-panel">
       <h2>📊 Dashboard Overview</h2>
       <div className="stats-grid">
-        <div className="stat-card users">
+        <div className="stat-card users" onClick={() => setActivePanel('users')}>
           <div className="stat-icon">👥</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>
@@ -1692,7 +1692,7 @@ const AdminDashboard = ({ onLogout }) => {
             </span>
           </div>
         </div>
-        <div className="stat-card revenue">
+        <div className="stat-card revenue" onClick={() => setActivePanel('payments')}>
           <div className="stat-icon">💰</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>
@@ -1708,7 +1708,7 @@ const AdminDashboard = ({ onLogout }) => {
             </span>
           </div>
         </div>
-        <div className="stat-card revenue" style={{ borderLeft: '4px solid #8b5cf6' }}>
+        <div className="stat-card commission" onClick={() => setActivePanel('payments')}>
           <div className="stat-icon">🏦</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>
@@ -1718,7 +1718,7 @@ const AdminDashboard = ({ onLogout }) => {
             <span className="stat-trend">Net platform profit</span>
           </div>
         </div>
-        <div className="stat-card revenue" style={{ borderLeft: '4px solid #10b981' }}>
+        <div className="stat-card lecturer-rev" onClick={() => setActivePanel('payments')}>
           <div className="stat-icon">👨‍🏫</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>
@@ -1728,7 +1728,7 @@ const AdminDashboard = ({ onLogout }) => {
             <span className="stat-trend">Distributed to instructors</span>
           </div>
         </div>
-        <div className="stat-card courses">
+        <div className="stat-card courses" onClick={() => setActivePanel('courses')}>
           <div className="stat-icon">📚</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>
@@ -1744,7 +1744,7 @@ const AdminDashboard = ({ onLogout }) => {
             </span>
           </div>
         </div>
-        <div className="stat-card pending">
+        <div className="stat-card pending" onClick={() => setActivePanel('approvals')}>
           <div className="stat-icon">⏳</div>
           <div className="stat-content">
             <h3 className={statsLoading ? 'loading' : ''}>

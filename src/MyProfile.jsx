@@ -90,9 +90,9 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
       setLoading(true);
       const userId = user.id || user._id;
       const response = await axios.put(`http://localhost:5000/api/auth/update-student-profile/${userId}`, editableData);
-      
       if (response.data.success) {
-        alert('Profile updated successfully!');
+        setNotification({ show: true, message: 'Profile updated successfully!', type: 'success' });
+        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
         setIsEditing(false);
         // Refresh profile data
         const updatedResponse = await axios.get(`http://localhost:5000/api/auth/student-profile/${userId}`);
@@ -109,7 +109,8 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile');
+      setNotification({ show: true, message: 'Failed to update profile', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } finally {
       setLoading(false);
     }
@@ -117,11 +118,13 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match!');
+      setNotification({ show: true, message: 'New passwords do not match!', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
       return;
     }
     if (passwordData.newPassword.length < 6) {
-      alert('Password must be at least 6 characters long!');
+      setNotification({ show: true, message: 'Password must be at least 6 characters long!', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
       return;
     }
 
@@ -135,13 +138,15 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
       });
 
       if (response.data.success) {
-        alert('Password changed successfully!');
+        setNotification({ show: true, message: 'Password changed successfully!', type: 'success' });
+        setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
         setShowPasswordModal(false);
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert(error.response?.data?.message || 'Failed to change password');
+      setNotification({ show: true, message: error.response?.data?.message || 'Failed to change password', type: 'error' });
+      setTimeout(() => setNotification({ show: false, message: '', type: '' }), 3000);
     } finally {
       setLoading(false);
     }

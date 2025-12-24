@@ -60,6 +60,7 @@ const generatePDFBuffer = async (studentName, courseName, certId) => {
       autoFirstPage: false
     });
 
+    // Add only one page to ensure single-page PDF
     doc.addPage();
     const buffers = [];
     doc.on("data", (chunk) => buffers.push(chunk));
@@ -186,7 +187,8 @@ router.get("/check/:courseId/:studentId", async (req, res) => {
       return res.json({
         success: true,
         alreadyExists: true,
-        pdfBase64: pdfBuffer.toString("base64")
+        pdfBase64: pdfBuffer.toString("base64"),
+        certificateId: existingCert.Certificate_Id
       });
     }
 
@@ -226,12 +228,18 @@ router.post("/generate", async (req, res) => {
     });
 
     if (existingCert) {
-      console.log(`♻️ Certificate already exists for ${studentId}, resending...`);
+      console.log(`♻️ Certificate already exists for ${studentId}, checking if should send email...`);
       const pdfBuffer = await generatePDFBuffer(studentName, courseName, existingCert.Certificate_Id);
 
-      // ONLY resend email if it's NOT a background check
+      // ONLY send email if it's NOT a checkOnly request AND it's a new generation request (not just showing existing)
+      // The checkOnly parameter indicates this is a background check, not a new generation
       if (!checkOnly) {
-        try { await sendCertificateEmail(studentEmail, studentName, courseName, pdfBuffer); } catch (e) { }
+        try { 
+          // Only send email if this is an actual generation request, not just a 'show' request
+          await sendCertificateEmail(studentEmail, studentName, courseName, pdfBuffer); 
+        } catch (e) { 
+          console.error('Failed to send certificate email:', e.message);
+        }
       }
 
       return res.json({
@@ -260,7 +268,8 @@ router.post("/generate", async (req, res) => {
     return res.json({
       success: true,
       alreadyExists: false,
-      pdfBase64: pdfBuffer.toString("base64")
+      pdfBase64: pdfBuffer.toString("base64"),
+      certificateId: newCert.Certificate_Id
     });
   } catch (error) {
     console.error("❌ Certificate Error:", error);

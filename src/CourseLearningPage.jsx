@@ -582,6 +582,17 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
     try {
       const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
       console.log('🔍 Background check for certificate:', { courseId, studentId });
+      
+      // First check local storage for immediate UI update
+      const localCert = localStorage.getItem(`cert_${courseId}_${studentId}`);
+      if (localCert) {
+        setHasCertificate(true);
+        setCertificateBase64(localCert);
+        console.log('✅ Certificate state restored from localStorage');
+        return;
+      }
+      
+      // Then check backend for any missing local state
       const response = await fetch(`http://localhost:5000/api/certifications/check/${courseId}/${studentId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -593,7 +604,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       if (result.success && result.alreadyExists) {
         setHasCertificate(true);
         setCertificateBase64(result.pdfBase64);
-        console.log('✅ Certificate state restored');
+        // Persist to localStorage for future reference
+        localStorage.setItem(`cert_${courseId}_${studentId}`, result.pdfBase64);
+        console.log('✅ Certificate state restored from backend and persisted');
       } else {
         setHasCertificate(false);
         setCertificateBase64(null);
@@ -2304,32 +2317,30 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
             <div style={{ display: 'flex', gap: '12px', marginLeft: 'auto' }}>
               <button
                 onClick={async () => {
-                  setGeneratingCertificate(true);
-                  try {
-                    const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
-                    const response = await fetch('http://localhost:5000/api/certifications/generate', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                      },
-                      body: JSON.stringify({
-                        courseId: courseId,
-                        studentId: studentId
-                      })
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                      setNotification({ message: result.alreadyExists ? '🏆 Certificate sent to your email!' : '🏆 Certificate generated and sent to your email!', type: 'success' });
-                      setHasCertificate(true);
-                      setCertificateBase64(result.pdfBase64);
-
-                      // PERSIST STATE IN LOCALSTORAGE FOR REFRESH RESILIENCE
-                      localStorage.setItem(`cert_${courseId}_${studentId}`, result.pdfBase64);
-
-                      // Open the certificate PDF immediately
-                      if (result.pdfBase64) {
+                  const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                  
+                  // Check if certificate already exists
+                  if (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) {
+                    // Show existing certificate
+                    setGeneratingCertificate(true);
+                    try {
+                      // Fetch the existing certificate without triggering email
+                      const response = await fetch(`http://localhost:5000/api/certifications/generate?checkOnly=true`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                        },
+                        body: JSON.stringify({
+                          courseId: courseId,
+                          studentId: studentId,
+                          checkOnly: true
+                        })
+                      });
+                      
+                      const result = await response.json();
+                      if (result.success && result.alreadyExists && result.pdfBase64) {
+                        // Display the existing certificate
                         const byteCharacters = atob(result.pdfBase64);
                         const byteNumbers = new Array(byteCharacters.length);
                         for (let i = 0; i < byteCharacters.length; i++) {
@@ -2339,15 +2350,63 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                         const blob = new Blob([byteArray], { type: 'application/pdf' });
                         const url = URL.createObjectURL(blob);
                         window.open(url, '_blank');
+                        
+                        setNotification({ message: 'Certificate opened successfully!', type: 'success' });
+                      } else {
+                        setNotification({ message: 'Certificate not found. Please try again.', type: 'error' });
                       }
-                    } else {
-                      setNotification({ message: result.message || 'Failed to generate certificate', type: 'error' });
+                    } catch (error) {
+                      console.error('Error showing certificate:', error);
+                      setNotification({ message: 'Error showing certificate. Please try again.', type: 'error' });
+                    } finally {
+                      setGeneratingCertificate(false);
                     }
-                  } catch (error) {
-                    console.error('Error in certification process:', error);
-                    setNotification({ message: 'Error processing certificate. Please try again.', type: 'error' });
-                  } finally {
-                    setGeneratingCertificate(false);
+                  } else {
+                    // Generate new certificate
+                    setGeneratingCertificate(true);
+                    try {
+                      const response = await fetch('http://localhost:5000/api/certifications/generate', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                        },
+                        body: JSON.stringify({
+                          courseId: courseId,
+                          studentId: studentId
+                        })
+                      });
+
+                      const result = await response.json();
+                      if (result.success) {
+                        setNotification({ message: result.alreadyExists ? '🏆 Certificate sent to your email!' : '🏆 Certificate generated and sent to your email!', type: 'success' });
+                        setHasCertificate(true);
+                        setCertificateBase64(result.pdfBase64);
+
+                        // PERSIST STATE IN LOCALSTORAGE FOR REFRESH RESILIENCE
+                        localStorage.setItem(`cert_${courseId}_${studentId}`, result.pdfBase64);
+
+                        // Open the certificate PDF immediately
+                        if (result.pdfBase64) {
+                          const byteCharacters = atob(result.pdfBase64);
+                          const byteNumbers = new Array(byteCharacters.length);
+                          for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                          }
+                          const byteArray = new Uint8Array(byteNumbers);
+                          const blob = new Blob([byteArray], { type: 'application/pdf' });
+                          const url = URL.createObjectURL(blob);
+                          window.open(url, '_blank');
+                        }
+                      } else {
+                        setNotification({ message: result.message || 'Failed to generate certificate', type: 'error' });
+                      }
+                    } catch (error) {
+                      console.error('Error in certification process:', error);
+                      setNotification({ message: 'Error processing certificate. Please try again.', type: 'error' });
+                    } finally {
+                      setGeneratingCertificate(false);
+                    }
                   }
                 }}
                 disabled={
@@ -2402,7 +2461,13 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 <span>{generatingCertificate ? '⌛' : '🎓'}</span>
                 {(() => {
                   const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
-                  return generatingCertificate ? 'Generating...' : (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) ? 'Show Certificate' : 'Generate Certificate';
+                  if (generatingCertificate) {
+                    return 'Processing...';
+                  } else if (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) {
+                    return 'Show Certificate';
+                  } else {
+                    return 'Generate Certificate';
+                  }
                 })()}
               </button>
 

@@ -6,7 +6,7 @@ import './MyProfile.css';
 const MyProfile = ({ user, onNavigate, onLogout }) => {
   const [profileData, setProfileData] = useState(user || {});
   const [studentData, setStudentData] = useState({});
-  const [enrollmentStats, setEnrollmentStats] = useState({ totalCourses: 0, completedCourses: 0, inProgressCourses: 0 });
+  const [enrollmentStats, setEnrollmentStats] = useState({ totalCourses: 0, completedCourses: 0, inProgressCourses: 0, certificatesCount: 0 });
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState({});
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -59,10 +59,16 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
           const enrollmentResponse = await axios.get(`http://localhost:5000/api/enrollments/student/${userId}`);
           if (enrollmentResponse.data.success) {
             const enrollments = enrollmentResponse.data.data;
+            
+            // Fetch certificates count
+            const certificatesResponse = await axios.get(`http://localhost:5000/api/certifications/${userId}`);
+            const certificatesCount = certificatesResponse.data.success ? certificatesResponse.data.data.length : 0;
+            
             setEnrollmentStats({
               totalCourses: enrollments.length,
               completedCourses: enrollments.filter(e => e.Progress === 100).length,
-              inProgressCourses: enrollments.filter(e => e.Progress > 0 && e.Progress < 100).length
+              inProgressCourses: enrollments.filter(e => e.Progress > 0 && e.Progress < 100).length,
+              certificatesCount: certificatesCount
             });
           }
         } catch (error) {
@@ -285,6 +291,13 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
               <p>In Progress</p>
             </div>
           </div>
+          <div className="stat-card stat-info">
+            <div className="stat-icon">📜</div>
+            <div className="stat-content">
+              <h3>{enrollmentStats.certificatesCount}</h3>
+              <p>Certificates</p>
+            </div>
+          </div>
         </div>
 
         <div className="profile-content-grid">
@@ -399,6 +412,16 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Certifications Section */}
+        <div className="profile-section certifications-section">
+          <div className="section-header">
+            <h3>📜 My Certifications</h3>
+          </div>
+          <div className="section-content">
+            <CertificateList userId={user.id || user._id} />
           </div>
         </div>
       </div>
@@ -576,6 +599,145 @@ const MyProfile = ({ user, onNavigate, onLogout }) => {
           <span>{notification.message}</span>
         </div>
       )}
+    </div>
+  );
+};
+
+const CertificateList = ({ userId }) => {
+  const [certificates, setCertificates] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`http://localhost:5000/api/certifications/${userId}`);
+        if (response.data.success) {
+          setCertificates(response.data.data);
+        } else {
+          setError(response.data.message || 'Failed to fetch certificates');
+        }
+      } catch (err) {
+        setError('Error fetching certificates');
+        console.error('Error fetching certificates:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchCertificates();
+    }
+  }, [userId]);
+
+  const handleViewCertificate = async (certificate) => {
+    try {
+      // Fetch the certificate PDF
+      const response = await axios.post(`http://localhost:5000/api/certifications/generate`, {
+        courseId: certificate.Course_Id,
+        studentId: certificate.Student_Id,
+        checkOnly: true
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      
+      if (response.data.success && response.data.pdfBase64) {
+        const byteCharacters = atob(response.data.pdfBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error viewing certificate:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="certificates-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading certificates...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="certificates-error">
+        <p>Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (certificates.length === 0) {
+    return (
+      <div className="no-certificates">
+        <p>🎓 No certificates earned yet.</p>
+        <p>Complete courses to earn your first certificate!</p>
+      </div>
+    );
+  }
+
+  const [courseNames, setCourseNames] = React.useState({});
+
+  React.useEffect(() => {
+    const fetchCourseNames = async () => {
+      const names = {};
+      for (const cert of certificates) {
+        if (cert.Course_Id && !courseNames[cert.Course_Id]) {
+          try {
+            const response = await axios.get(`http://localhost:5000/api/courses/${cert.Course_Id}`);
+            if (response.data.success && response.data.course) {
+              names[cert.Course_Id] = response.data.course.Title || response.data.course.Course_Name || cert.Course_Id;
+            } else {
+              names[cert.Course_Id] = cert.Course_Id;
+            }
+          } catch (error) {
+            console.error('Error fetching course name:', error);
+            names[cert.Course_Id] = cert.Course_Id;
+          }
+        }
+      }
+      if (Object.keys(names).length > 0) {
+        setCourseNames(prev => ({...prev, ...names}));
+      }
+    };
+
+    if (certificates.length > 0) {
+      fetchCourseNames();
+    }
+  }, [certificates]);
+
+  return (
+    <div className="certificates-grid">
+      {certificates.map((certificate) => (
+        <div key={certificate._id} className="certificate-card">
+          <div className="certificate-info">
+            <h4>{courseNames[certificate.Course_Id] || certificate.Course_Id}</h4>
+            <p className="certificate-date">
+              Issued: {new Date(certificate.createdAt || certificate.Issue_Date).toLocaleDateString()}
+            </p>
+            <p className="certificate-status">Status: {certificate.Status}</p>
+          </div>
+          <div className="certificate-actions">
+            <button 
+              className="btn-view-certificate"
+              onClick={() => handleViewCertificate(certificate)}
+            >
+              View Certificate
+            </button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

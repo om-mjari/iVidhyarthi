@@ -583,16 +583,7 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
       console.log('🔍 Background check for certificate:', { courseId, studentId });
       
-      // First check local storage for immediate UI update
-      const localCert = localStorage.getItem(`cert_${courseId}_${studentId}`);
-      if (localCert) {
-        setHasCertificate(true);
-        setCertificateBase64(localCert);
-        console.log('✅ Certificate state restored from localStorage');
-        return;
-      }
-      
-      // Then check backend for any missing local state
+      // Check backend for certificate existence
       const response = await fetch(`http://localhost:5000/api/certifications/check/${courseId}/${studentId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -610,9 +601,21 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
       } else {
         setHasCertificate(false);
         setCertificateBase64(null);
+        // Remove from localStorage if no certificate exists
+        localStorage.removeItem(`cert_${courseId}_${studentId}`);
       }
     } catch (error) {
       console.error('Error checking certificate:', error);
+      // If there's an error, still check localStorage as fallback
+      const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+      const localCert = localStorage.getItem(`cert_${courseId}_${studentId}`);
+      if (localCert) {
+        setHasCertificate(true);
+        setCertificateBase64(localCert);
+      } else {
+        setHasCertificate(false);
+        setCertificateBase64(null);
+      }
     }
   };
 
@@ -2412,7 +2415,9 @@ const CourseLearningPage = ({ onBackToDashboard, onNavigate }) => {
                 disabled={
                   (() => {
                     const courseId = selectedCourse.Course_Id || selectedCourse.id || selectedCourse.courseId;
+                    // If certificate exists, the button should NOT be disabled (to allow viewing)
                     if (hasCertificate || localStorage.getItem(`cert_${courseId}_${studentId}`)) return false;
+                    // Otherwise, check if conditions are met for generating
                     const videoCompletion = videoProgress.completionPercentage !== undefined ? videoProgress.completionPercentage : (completionPercentage || 0);
                     const isMarkedCompleted = (courseInfo?.status === 'Completed' || courseInfo?.data?.status === 'Completed' || selectedCourse?.status === 'Completed');
                     return videoCompletion < 100 || !isMarkedCompleted || generatingCertificate;
